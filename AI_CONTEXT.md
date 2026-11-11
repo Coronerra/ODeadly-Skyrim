@@ -21,6 +21,7 @@ It is inspired by ODangerousNights. No ODN files are used; this is not an ODN pa
 - Scripts are prefixed `ODS_`: `ODS_Main`, `ODS_MCM`, `ODS_PlayerAlias`, `ODS_FollowerAlias`, `ODS_AttackerAlias`, `ODS_VictimAlias`.
 - SkyrimNet pack: `SKSE/Plugins/SkyrimNet/external/coronerra.odeadly/` (`manifest.json` and `prompts/decisions/odeadly/would_act.prompt`). Used to ask whether a character would act, given their bio. Ignored without SkyrimNet. Needs SkyrimNet beta 28+ and a decisions provider; otherwise a built-in character filter (Morality, relationship) is used.
 - Papyrus log lines start with `[ODeadlySkyrim]`. Done event: `ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`.
+- **Game versions:** not locked to SE 1.5.97. ESL, `Skyrim.esm` only, no SKSE DLL. Should run on SE and AE 1.6.x (including GOG) with matching SKSE64, SkyUI, Papyrus Extender and OStim Standalone. Built against 1.5.97; untested on AE. Will not work on Oldrim or Skyrim VR.
 
 ## 4. Engine
 

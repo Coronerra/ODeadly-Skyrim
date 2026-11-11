@@ -47,10 +47,16 @@ This is not a prison-only pack and not a nights-only pack. Night attacks, jails,
 
 These are the only hard requirements. The scenarios themselves use vanilla Skyrim locations and events. You do not need ODangerous Nights or a stack of other danger / environment mods.
 
-- Skyrim SE 1.5.97 (or compatible) + SKSE64
+### Game versions
+
+This mod is **not locked to Skyrim SE 1.5.97**. The plugin is a normal ESL with only `Skyrim.esm` as a master, the scripts are standard Skyrim Papyrus, and there is no SKSE .dll of ours, so nothing in this download is tied to one game executable.
+
+It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, including GOG builds, as long as that setup has matching versions of the requirements below. Use the SKSE64 and Papyrus Extender builds that match your game executable. It was built against SE 1.5.97 and has **not been tested on Anniversary Edition**. It will not work on Skyrim Legendary Edition (Oldrim) or Skyrim VR.
+
+- Skyrim SE or AE + SKSE64
 - OStim Standalone (7.5.x, API 7.1+)
 - SkyUI (MCM)
-- powerofthree's Papyrus Extender
+- powerofthree's Papyrus Extender (the build that matches your game version)
 
 ## Optional (auto-detected, never required, never masters)
 
