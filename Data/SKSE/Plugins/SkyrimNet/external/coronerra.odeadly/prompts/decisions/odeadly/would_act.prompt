@@ -1,0 +1,28 @@
+{# O'Deadly Skyrim decision template. Context from Papyrus: actor_name, target_name, situation.
+   Answer key read by the script: question "would" (noul) -> "true" / "false". #}
+[ state actor ]
+{% for n in get_nearby_npc_list(player.UUID) %}{% if decnpc(n.UUID).name == actor_name %}{{ render_character_profile("short_inline", n.UUID) }}
+{% endif %}{% endfor %}
+Name: {{ actor_name }}
+[ end state ]
+
+[ state target ]
+{% if target_name == decnpc(player.UUID).name %}{{ render_character_profile("short_inline", player.UUID) }}
+{% else %}{% for n in get_nearby_npc_list(player.UUID) %}{% if decnpc(n.UUID).name == target_name %}{{ render_character_profile("short_inline", n.UUID) }}
+{% endif %}{% endfor %}{% endif %}
+Name: {{ target_name }}
+[ end state ]
+
+[ state situation ]
+{{ situation }}
+[ end state ]
+
+[ question would noul ]
+In a harsh, lawless corner of Skyrim, would {{ actor_name }} force themselves on {{ target_name }} in this `situation`?
+Judge only from who {{ actor_name }} is in `actor`: their temperament, morals, appetites, loyalties and how they regard {{ target_name }} (`target`).
+Decent, loyal, timid or principled characters would not. Cruel, predatory, lustful, desperate or contemptuous characters might.
+[ criteria ]
+true: yes, this is something {{ actor_name }} would do here
+false: no, {{ actor_name }} would not do this
+[ end criteria ]
+[ end question ]
