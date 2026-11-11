@@ -34,6 +34,13 @@ pools = [
     ('ODS_PoolSpriggan', 0x815, (0x23AB9,)),
     ('ODS_PoolGiant',    0x816, (0x23AAE,)),
     ('ODS_PoolHagraven', 0x817, (0x23AB0,)),
+    # 0.2 (all vanilla Skyrim.esm forms)
+    ('ODS_PoolVampire',  0x818, (0x107A9B, 0x107A9C, 0x107A9D, 0x107A9E, 0x107A9F, 0x3387E, 0x3387F, 0x33880, 0x33881, 0x33882)),
+    ('ODS_PoolWatcher',  0x819, (0x73FBE,)),   # hunter
+    ('ODS_AlcoholVanilla', 0x81A, (0x34C5E, 0x3133B, 0x2C35A, 0xF693F, 0x508CA, 0x34C5D, 0x555E8, 0x85368, 0xC5349,
+                                   0x3133C, 0xC5348, 0x9380D, 0xDC172, 0x65C39, 0xB91D7, 0xD055E, 0x65C37, 0x65C38, 0x36D53)),
+    ('ODS_PoolFauna',    0x81B, (0x6DC9D,)),   # hare
+    ('ODS_PoolButterfly', 0x81C, (0x22219, 0x2221E, 0xB97AF)),   # blue butterfly, luna moth, monarch
 ]
 fl = [rec('FLST', OWN | lid, [sub('EDID', z(ed))] + [sub('LNAM', struct.pack('<I', x)) for x in ids]) for ed, lid, ids in pools]
 
@@ -74,8 +81,8 @@ qmcm = rec('QUST', MCMQ, [sub('EDID', z('ODS_MCMQuest')), sub('VMAD', v_mcm), su
     sub('DNAM', bytes.fromhex('110132ff0000000000000000')), sub('FLTR', z('ODeadlySkyrim\\')), sub('NEXT', b''),
     sub('ANAM', struct.pack('<I', 1))] + alias(0, 'PlayerAlias', 0, 0x14))
 nrec = 2 + len(fl)
-hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x818)), sub('CNAM', z('That Guy (Coronerra)')),
-    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v0.1 UNTESTED. By That Guy (Coronerra).")),
+hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x81D)), sub('CNAM', z('That Guy (Coronerra)')),
+    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v0.2. By That Guy (Coronerra).")),
     sub('MAST', z('Skyrim.esm')), sub('DATA', struct.pack('<Q', 0))], flags=0x200)
 out = sys.argv[1] if len(sys.argv) > 1 else 'ODeadlySkyrim.esp'
 open(out, 'wb').write(hdr + grup('QUST', [qmain, qmcm]) + grup('FLST', fl))

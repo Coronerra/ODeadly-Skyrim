@@ -1,10 +1,12 @@
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.1 — UNTESTED IN GAME**
+**v0.2**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-Download the installable zip from the **[v0.1 release](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)**. This repo holds the source: Papyrus scripts, the SkyrimNet decision pack, the plugin builder and the docs. AI assistants: start with **[AI_CONTEXT.md](AI_CONTEXT.md)**. License: [MIT for coronerra's work](LICENSE).
+**[Download v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2)** · [Changelog](CHANGELOG.md) · [Earlier v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+
+This repository is the full public source and notes: Papyrus scripts, the plugin, the SkyrimNet decision pack, the compile and plugin-builder tools, the [changelog](CHANGELOG.md), and hook-level details in **[AI_CONTEXT.md](AI_CONTEXT.md)** (start there if you are an AI assistant or a modder extending this). License: [MIT for coronerra's work](LICENSE).
 
 ---
 
@@ -12,7 +14,7 @@ I really don't care for most of the features of this mod, but I realized I have 
 
 The original idea came when I saw the description of ODangerous Nights. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
 
-Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game.
+Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, but none of them is required.
 
 If there are any other scenarios you want added that can work without additional mod requirements, I can.
 
@@ -20,15 +22,38 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 
 ---
 
+## Contents
+
+- [What it does](#what-it-does)
+- [Family-safe master switch](#family-safe-master-switch-read-this-first)
+- [Requirements](#requirements)
+- [Optional auto-detected mods](#optional-auto-detected-never-required-never-masters)
+- [Install](#install-mo2)
+- [How the engine works](#how-the-engine-works)
+- [Modules and defaults](#modules-and-defaults)
+- [New in 0.2](#new-in-02-mcm-page-more-encounters-inn-rooms-on-jail--inns)
+- [MCM pages](#mcm-pages)
+- [Test checklist](#test-checklist)
+- [Known limits](#known-limits)
+- [Repository contents](#repository-contents)
+- [Credits](#credits)
+
+## Design goals
+
+- As few hard dependencies as possible, so it stays compatible with a wide range of lists.
+- Events can involve the whole world, not only the player: followers and the people already around you.
+- Every chance is toggleable and adjustable, from light to very dark.
+- You can install it and leave it alone until something actually happens.
+
 ## What it does
 
 One engine, one download, every feature on its own toggle, all of it behind one master switch. When the moment is right (you sleep, wait, linger in a cell, travel, or get beaten), a roll can start an OStim scene with the people who are actually around you. If SkyrimNet is installed, it can check a character's bio before they act, narrate what happened, and leave memories and rumours behind.
 
-This is not a prison-only pack and not a nights-only pack. Night attacks, jails, inns, defeat, trespass, roads, relationships and optional creatures are all modules of the same engine.
+This is not a prison-only pack and not a nights-only pack. Night attacks, jails, inns, defeat, trespass, roads, relationships, optional creatures and the 0.2 modules (morning after, bathing, shared inn rooms, watched from a distance, Dark Gift and a silly climax easter egg) are all modules of the same engine.
 
 **Adults only.** Children are refused for every role, always. This is not a setting.
 
-**UNTESTED IN GAME.** Scripts were compiled with Caprica and the plugin was built by script and parse-verified only. Expect bugs. Please report them with your Papyrus log (lines start with `[ODeadlySkyrim]`).
+Found a problem? Please report it with your Papyrus log (lines start with `[ODeadlySkyrim]`) and which modules you had on.
 
 ## Family-safe master switch (read this first)
 
@@ -40,6 +65,7 @@ This is not a prison-only pack and not a nights-only pack. Night attacks, jails,
   - stops SkyrimNet's NPCs from talking about it right now,
   - turns the whole mod OFF until you switch it on again.
 - Turning the master switch OFF in the MCM does exactly the same.
+- This covers every module, including all 0.2 modules and the climax fauna easter egg: pending morning-after / bathing rolls are cancelled, a distant watcher and any rabbits or butterflies are removed.
 - After a panic you get either nothing or a plain "O'Deadly Skyrim is off." (your choice).
 - The default message style is a small corner notification, not a pop-up box.
 
@@ -51,7 +77,7 @@ These are the only hard requirements. The scenarios themselves use vanilla Skyri
 
 This mod is **not locked to Skyrim SE 1.5.97**. The plugin is a normal ESL with only `Skyrim.esm` as a master, the scripts are standard Skyrim Papyrus, and there is no SKSE .dll of ours, so nothing in this download is tied to one game executable.
 
-It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, including GOG builds, as long as that setup has matching versions of the requirements below. Use the SKSE64 and Papyrus Extender builds that match your game executable. It was built against SE 1.5.97 and has **not been tested on Anniversary Edition**. It will not work on Skyrim Legendary Edition (Oldrim) or Skyrim VR.
+It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, including GOG builds, as long as that setup has matching versions of the requirements below. Use the SKSE64 and Papyrus Extender builds that match your game executable. It was built against SE 1.5.97; AE reports are welcome. It will not work on Skyrim Legendary Edition (Oldrim) or Skyrim VR.
 
 - Skyrim SE or AE + SKSE64
 - OStim Standalone (7.5.x, API 7.1+)
@@ -66,6 +92,13 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **ZaZ Animation Pack**: jail scenes prefer restraint scenes; made-to-watch narration.
 - **OStimNet / OStim Navigator**: better scene tags.
 - **ODangerousNights**: soft-compatible; this mod stays out of the way if ODN just ran an attack.
+- **iActions** (0.2): its alcohol list (including its `extra_alcohol.json`) is used to count your drinks, and NPCs it marks as drunk, plastered or blacked out are preferred for the morning after. Without it, vanilla and DLC drinks are recognised.
+- **Dirt and Blood** or **Bathing in Skyrim** (0.2): needed for the Bathing module. Only a real wash counts, never swimming or rain. With both installed, one wash still gives one roll.
+- **Blood and OStim** (0.2): the Dark Gift becomes a feeding scene.
+- **Sacrosanct** (0.2): the Dark Gift turns you through Sacrosanct's own vampirism.
+- **JContainers**: only used to read iActions' `extra_alcohol.json` directly.
+
+None of these mods' files are included, and none of them is a master of this plugin.
 
 ## Install (MO2)
 
@@ -74,6 +107,8 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 3. No Pandora / FNIS run needed. A new game is not required.
 4. Load order: it is an ESL with no real conflicts. Place it by hand near the end of your plugins; no LOOT needed. **Nolvus users: do not place this plugin below Paper Maps.**
 5. Open the MCM, bind the panic key, then turn the master switch on.
+
+Updating from 0.1: overwrite the old files. Settings carry over; the new modules start OFF. The MCM gains a "More encounters" page (it may take a moment to appear on an existing save).
 
 Files: `ODeadlySkyrim.esp`, `Scripts/*.pex`, `Scripts/Source/*.psc`, `SKSE/Plugins/SkyrimNet/external/coronerra.odeadly/` (SkyrimNet decision template, ignored without SkyrimNet).
 
@@ -90,7 +125,7 @@ Every module goes through the same steps, one event at a time:
 7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not.
 8. Afterwards: spawned actors leave and are cleaned up, a mod event fires (`ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`), SkyrimNet stores a memory. There are no forgive / confront menus: SkyrimNet and you decide what happens next.
 
-No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, the panic key) plus one-shot timers.
+No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers. The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most a minute).
 
 If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use SkyrimNet named places. A tagged place wins over vanilla keywords, so you can mark a rented inn room as a player home, or tag a custom cell as a jail or barracks. Untagged spots fall back to normal Skyrim location keywords and cell names.
 
@@ -117,6 +152,12 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Group scenes | OFF | 1-3 extra participants (2 by default), so 2-4 attackers. |
 | Drunk / skooma modifier | ON | Multiplies chances (x2) only for modules that are already on. |
 | Named / essential NPCs | OFF | |
+| Morning after (0.2) | OFF | Drink 4+ in 2 game hours, then sleep: 50%. |
+| Bathing (0.2) | OFF, locked without Dirt and Blood or Bathing in Skyrim | 15% per wash. Player and followers ON. |
+| Inns full: shared room (0.2) | OFF | 4% per hour slept in an inn with your party. |
+| Watched from a distance (0.2) | OFF | 25% per outdoor scene, 2 game hour cooldown. |
+| Dark Gift (0.2) | OFF | 1% per hour slept. Vampirism ON (unless immune). |
+| Climax fauna easter egg (0.2) | OFF | 5% per climax, 20 rabbits. Last option in the MCM. |
 
 ### Night attacks
 
@@ -146,7 +187,7 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 - Jails in every hold (`LocTypeJail`, or "Jail" / "Prison" in the location or cell name) and guard barracks (`LocTypeBarracks`, or "Barracks" / "Guard House" / "Guardhouse" / "Garrison" in the name). Tag any custom cell on the MCM "This location" page.
 - Rolls when you sleep or wait there (10% per hour) or after you have lingered a while (15% per check, every 0.5 game hours). Never the moment you walk through the door.
 - Uses the guards who are already there. Optional: copy a guard who is present to fill a group scene.
-- "Pay your bounty with your body" (OFF): in 0.1 this works inside jail only. After a jail scene with you, your bounty in that hold is cleared. Vanilla arrest dialogue is not touched.
+- "Pay your bounty with your body" (OFF): this works inside jail only. After a jail scene with you, your bounty in that hold is cleared. Vanilla arrest dialogue is not touched.
 
 ### Inns
 
@@ -177,11 +218,47 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 ### Relationships, vampires, aftermath
 
 - Caught in the act, follower betrayal, vampire seduction (uses a vampire already in the lair, no spawns), blackmail later (one time, via SkyrimNet), public rumours after jail / defeat, OCum memories.
-- Failed pickpocket and tavern brawl escalation are **not in 0.1** (no clean hook); the MCM shows them as locked.
+- Failed pickpocket and tavern brawl escalation are **not included** (no clean hook); the MCM shows them as locked.
+
+## New in 0.2 (MCM page "More encounters", inn rooms on "Jail & inns")
+
+Every one of these is **OFF by default**, needs the master switch, is stopped by the panic key, and never involves children. Plugin names, form IDs and mod events for the optional integrations are in [AI_CONTEXT.md](AI_CONTEXT.md).
+
+### Morning after
+
+- The mod counts your own drinks. With **iActions** it uses iActions' alcohol list (plus its `extra_alcohol.json`); without it, vanilla, Hearthfire and Dragonborn drinks are recognised.
+- More than 3 drinks (4 by default) within 2 game hours, then a sleep later on (within 12 hours): 50% chance you wake up in a random bed nearby with someone, mid-encounter.
+- Who: people iActions marks as plastered or blacked out first, then anyone drunk, then any suitable adult nearby. If nobody fits, a stranger (optional).
+
+### Bathing
+
+- Needs **Dirt and Blood** or **Bathing in Skyrim** (either or both). Rolls once when a real wash starts, for you or a follower. Swimming and rain never count.
+- The scene starts after the wash is done, so the bath mod can finish its own animation first.
+- Who: someone already bathing with you, then your companions, then strangers who would (bio / character check), then an optional stranger.
+
+### Inns full: shared room
+
+- Sleeping in an inn with at least one follower: the party shares one room. 4% per hour slept for an encounter between you and a follower, or between two followers (both on by default). Uses a bed in the room when one is free.
+- Separate from the 0.1 drunk patron and spiked drink options, which work as before.
+
+### Watched from a distance
+
+- During any outdoor OStim scene with you or a follower: 25% that a hunter or traveller sees it from a distance (a real person nearby first; optionally a passing hunter).
+- SkyrimNet is told where they are (direction and distance), who they saw and what was going on. The watcher then leaves, calls out, or comes closer.
+
+### Dark Gift
+
+- While you sleep (1% per hour), a vampire wakes you with a love scene. A vampire already nearby is used first.
+- With **Blood and OStim** it is a feeding scene.
+- Afterwards: if you are immune to disease (or already a vampire), nothing infectious happens. Otherwise you contract vampirism, through **Sacrosanct** when it is installed, or the vanilla Sanguinare Vampiris disease when it is not. The vampirism part has its own toggle.
+
+### Climax fauna (easter egg)
+
+- The very last option in the MCM. 5% after your climax: twenty rabbits appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 
 ## MCM pages
 
-General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns — Danger — Creatures — This location — Protected followers — Debug.
+General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns (now with the shared room option) — Danger — Creatures — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
 
 ## Test checklist
 
@@ -190,21 +267,38 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 3. Stand near an adult follower, press "Night attack", sleep 2 hours. A scene should start.
 4. Press the panic key during the scene: it must stop at once, spawns vanish, the mod switches off (MCM shows the master OFF).
 5. Turn the master back on and try other force buttons (jail needs a jail and a guard; cheating needs your spouse nearby; road robbery: wait 1h outdoors).
-6. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+6. 0.2 force buttons (turn the module on first): morning after (next sleep), bathing (next real wash), shared room (sleep in an inn with a follower), Dark Gift (next sleep), watched (next outdoor scene), climax fauna (next climax).
+7. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
-## Known limits (0.1)
+## Known limits
 
-- Untested in game.
 - Barracks / jails that share a location with the rest of the town are only caught by sleeping or waiting there, not by lingering (lingering needs a location change).
 - Guard detection is `Actor.IsGuard()` plus "Guard" in the name.
 - The SkyrimNet bio check needs a decisions provider; otherwise the character filter is used.
+- Morning after counts drinks from the moment the module is on; it cannot see drinks from before.
+- Bathing in Skyrim's wash-start event only exists for the player; followers are caught through its bathing effect instead.
+- The watcher "comes closer" by walking toward the scene; what they say is up to SkyrimNet.
+- With Sacrosanct installed, the Dark Gift turns you right away through Sacrosanct instead of the multi-day disease.
+- The fauna butterflies are vanilla critters; some may flutter off early.
 - Creature probe spawns a hidden actor for a moment when the Creatures module is enabled and on load; if a type shows "No scenes found" wrongly, stand next to a follower and press Re-check.
+
+## Repository contents
+
+- `README.md` — these notes (a copy also ships in the zip as `ODeadlySkyrim_README.md`)
+- `CHANGELOG.md` — what changed in each version
+- `AI_CONTEXT.md` — engine overview, module kinds, form IDs, events, and how to rebuild
+- `LICENSE` — MIT for work by That Guy (Coronerra)
+- `src/` — Papyrus source
+- `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
+- `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
+- The installable `ODeadly_Skyrim_0.2.zip` is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page
 
 ## Credits
 
 - That Guy (Coronerra).
 - Design inspired by ODangerousNights. No ODN files are used; this is not an ODN patch.
 - Built on OStim Standalone, SkyUI, powerofthree's Papyrus Extender and SkyrimNet APIs (none of their files are included).
+- Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
 
 ## Other work
 

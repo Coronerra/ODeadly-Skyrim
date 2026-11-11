@@ -1,5 +1,5 @@
 Scriptname ODS_Main extends Quest
-{O'Deadly Skyrim (A SkyrimNet environmental mod) v0.1 UNTESTED - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
+{O'Deadly Skyrim (A SkyrimNet environmental mod) v0.2 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
 
 ; ======================= properties (filled in ODeadlySkyrim.esp) =======================
 Actor Property PlayerRef Auto
@@ -27,6 +27,11 @@ FormList Property ODS_PoolSpriggan Auto
 FormList Property ODS_PoolGiant Auto
 FormList Property ODS_PoolHagraven Auto
 MiscObject Property Gold001 Auto
+FormList Property ODS_PoolVampire Auto      ; 0.2: Dark Gift spawns (vanilla vampires)
+FormList Property ODS_PoolWatcher Auto      ; 0.2: distant watcher spawn (vanilla hunter)
+FormList Property ODS_AlcoholVanilla Auto   ; 0.2: vanilla drinks, used when iActions is not installed
+FormList Property ODS_PoolFauna Auto        ; 0.2: easter egg rabbits (vanilla hare)
+FormList Property ODS_PoolButterfly Auto    ; 0.2: easter egg butterflies / moths (vanilla critters)
 
 ; ======================= event kinds =======================
 int Property K_ATTACK = 1 AutoReadOnly     ; night attack (Sleep Ambush port)
@@ -40,7 +45,11 @@ int Property K_ROAD = 8 AutoReadOnly       ; road robbery / toll
 int Property K_CREATURE = 9 AutoReadOnly   ; OCreatures encounter
 int Property K_BETRAYAL = 10 AutoReadOnly  ; follower takes advantage
 int Property K_VAMPIRE = 11 AutoReadOnly   ; vampire seduction
-int Property K_COUNT = 12 AutoReadOnly
+int Property K_MORNING = 12 AutoReadOnly  ; 0.2 morning after (drinking, then sleep)
+int Property K_BATH = 13 AutoReadOnly     ; 0.2 bathing (Dirt and Blood / Bathing in Skyrim)
+int Property K_INNSHARE = 14 AutoReadOnly ; 0.2 inns full: one rented room for the whole party
+int Property K_DARKGIFT = 15 AutoReadOnly ; 0.2 Dark Gift: a vampire wakes the player
+int Property K_COUNT = 16 AutoReadOnly
 int Property CR_COUNT = 7 AutoReadOnly     ; werewolf, draugr, troll, falmer, spriggan, giant, hagraven
 
 ; ======================= settings: general =======================
@@ -181,6 +190,38 @@ float Property fBlackmailChance = 25.0 Auto Hidden
 bool Property bLeftover = false Auto Hidden
 bool Property bOCumMemory = false Auto Hidden
 
+; ======================= settings: 0.2 modules (all OFF by default) =======================
+bool Property bMorningAfter = false Auto Hidden
+float Property fMorningChance = 50.0 Auto Hidden    ; % when you sleep after a binge
+int Property iMorningDrinks = 4 Auto Hidden         ; drinks within the window ("more than 3")
+float Property fMorningWindow = 2.0 Auto Hidden     ; game hours
+bool Property bMorningSpawn = true Auto Hidden      ; nobody suitable nearby: a stranger is found
+
+bool Property bBath = false Auto Hidden
+float Property fBathChance = 15.0 Auto Hidden       ; % per wash
+bool Property bBathPlayer = true Auto Hidden
+bool Property bBathFollowers = true Auto Hidden
+bool Property bBathSpawn = true Auto Hidden
+
+bool Property bInnShare = false Auto Hidden
+float Property fInnShareChance = 4.0 Auto Hidden    ; % per hour slept in an inn with your party
+bool Property bInnSharePlayer = true Auto Hidden
+bool Property bInnShareFollowers = true Auto Hidden
+
+bool Property bWatched = false Auto Hidden
+float Property fWatchChance = 25.0 Auto Hidden      ; % per outdoor scene
+bool Property bWatchSpawn = true Auto Hidden
+
+bool Property bDarkGift = false Auto Hidden
+float Property fDarkGiftChance = 1.0 Auto Hidden    ; % per hour slept
+bool Property bDarkInfect = true Auto Hidden        ; vampirism unless immune to disease
+
+bool Property bFauna = false Auto Hidden            ; easter egg: climax fauna
+float Property fFaunaChance = 5.0 Auto Hidden       ; % per climax
+int Property iFaunaRabbits = 20 Auto Hidden
+bool Property bForceFauna = false Auto Hidden       ; debug: next climax
+bool Property bForceWatch = false Auto Hidden       ; debug: next outdoor scene
+
 ; ======================= runtime =======================
 bool Property bBusy = false Auto Hidden
 int iEpoch = 0
@@ -226,6 +267,32 @@ float fTravelDue = -1.0
 int iBioAnswer = -1
 int iBioAsked = 0
 bool bPaired = false
+; 0.2 runtime
+ObjectReference kFurn       ; bed for this encounter (None = no furniture)
+string sPreScene = ""       ; scene chosen by a module (furniture / feeding), used by StartEncounter
+bool[] bCalmed              ; per kAtt slot: calmed for a non-forced scene
+float[] fDrinkTimes         ; [8] game time of the player's recent drinks
+int iDrinkIdx = 0
+bool bMorningArmed = false
+float fMorningArmedAt = 0.0
+bool bMorningPending = false
+FormList kIActAlc           ; iActions_AlcoholList (soft)
+Faction kIActDrunk          ; iActions_DrunkFaction (soft)
+Form[] kExtraAlc            ; iActions extra_alcohol.json + DLC drinks
+FormList kDnBList           ; Dirty_BathingActors (soft)
+MagicEffect[] kBathFx       ; wash-start effects from Dirt and Blood / Bathing in Skyrim
+MagicEffect kBisFx1
+MagicEffect kBisFx2
+bool bBathPending = false
+bool bBathDone = false
+Actor kBathSubject
+Actor kBathCo
+float fLastBathRoll = -10.0
+float fLastWatched = -10.0
+Actor kWatchSpawn
+float fLastFauna = -10.0
+bool bFaunaRunning = false
+ObjectReference[] kFauna    ; [48]
 
 string Property MODNAME = "O'Deadly Skyrim" AutoReadOnly
 
@@ -277,6 +344,18 @@ Function InitArrays()
 		kPacified = new Actor[8]
 		fPacAgg = new float[8]
 	EndIf
+	If bCalmed == None
+		bCalmed = new bool[4]
+	EndIf
+	If fDrinkTimes == None
+		fDrinkTimes = new float[8]
+	EndIf
+	If kFauna == None
+		kFauna = new ObjectReference[48]
+	EndIf
+	If kBathFx == None
+		kBathFx = new MagicEffect[8]
+	EndIf
 EndFunction
 
 ; registrations are cheap and event-only: no polling anywhere
@@ -287,6 +366,9 @@ Function Register()
 	RegisterForModEvent("ostim_thread_start", "OnOStimThreadStart")
 	RegisterForModEvent("ostim_thread_scenechanged", "OnOStimSceneChanged")
 	RegisterForModEvent("ODN_NightAttack", "OnODNNightAttack")
+	RegisterForModEvent("ostim_actor_orgasm", "OnOStimOrgasm")
+	RegisterForModEvent("BiS_WashActorFinish", "OnBiSWashFinish")
+	RegisterForModEvent("BiS_BatheEvent_" + PlayerRef.GetFormID(), "OnBiSBathePlayer")
 	RegisterPanicKey()
 EndFunction
 
@@ -317,6 +399,7 @@ Function OnGameLoaded()
 		EndWhile
 	EndIf
 	UpdateEssential()
+	ResolveSoft()
 	If bMaster
 		FillFollowerAliases()
 		RefreshTimers(PlayerRef.GetCurrentLocation())
@@ -343,7 +426,10 @@ EndFunction
 
 ; ======================= soft detection (no masters) =======================
 bool Function ModLoaded(string n)
-	return Game.GetModByName(n) != 255
+	If Game.GetModByName(n) != 255
+		return true
+	EndIf
+	return Game.GetLightModByName(n) != 65535     ; ESL-flagged plugins (e.g. Bathing in Skyrim)
 EndFunction
 
 bool Function OStimOK()
@@ -374,6 +460,35 @@ bool Function PO3OK()
 	return SKSE.GetPluginVersion("powerofthree's Papyrus Extender") > 0
 EndFunction
 
+; ---- 0.2 soft detection (never masters) ----
+bool Function IActionsOK()
+	return ModLoaded("iActions.esp")
+EndFunction
+
+bool Function DnBOK()
+	return ModLoaded("Dirt and Blood - Dynamic Visuals.esp")
+EndFunction
+
+bool Function BiSOK()
+	return ModLoaded("Bathing in Skyrim.esp")
+EndFunction
+
+bool Function BathModOK()
+	return DnBOK() || BiSOK()
+EndFunction
+
+bool Function BaOOK()
+	return ModLoaded("Blood and OStim.esp")
+EndFunction
+
+bool Function SacrosanctOK()
+	return ModLoaded("Sacrosanct - Vampires of Skyrim.esp")
+EndFunction
+
+bool Function JCOK()
+	return SKSE.GetPluginVersion("JContainers64") > 0
+EndFunction
+
 ; mod is on and able to run
 bool Function Ready()
 	return bMaster && OStimOK()
@@ -402,6 +517,7 @@ Function EnableMaster()
 	If bOCreatures && bCrEnabled
 		DetectCreatures()
 	EndIf
+	ResolveSoft()
 	RefreshTimers(PlayerRef.GetCurrentLocation())
 	Log("master ON")
 EndFunction
@@ -453,6 +569,23 @@ Function AbortAll()
 	iForceMode = 0
 	kPendingSpouse = None
 	kDefeatVictim = None
+	; 0.2 modules: nothing pending survives a panic
+	bMorningArmed = false
+	bMorningPending = false
+	ClearDrinks()
+	bBathPending = false
+	bBathDone = true
+	kBathSubject = None
+	kBathCo = None
+	bForceFauna = false
+	bForceWatch = false
+	If kWatchSpawn
+		kWatchSpawn.Disable(false)
+		kWatchSpawn.Delete()
+		kWatchSpawn = None
+	EndIf
+	DeleteFauna()
+	UpdateWatchers()
 	ClearStage()
 	bBusy = false
 EndFunction
@@ -482,6 +615,14 @@ Function ClearStage()
 	sScene2 = ""
 	bPaired = false
 	iKind = 0
+	kFurn = None
+	sPreScene = ""
+	If bCalmed
+		bCalmed[0] = false
+		bCalmed[1] = false
+		bCalmed[2] = false
+		bCalmed[3] = false
+	EndIf
 EndFunction
 
 Function ClearFade()
@@ -1689,6 +1830,9 @@ Event OnSleepStart(float afSleepStartTime, float afDesiredSleepEndTime)
 	If !Ready()
 		return
 	EndIf
+	If MorningCheck()
+		return      ; the morning after takes this sleep; it stages when you wake
+	EndIf
 	float hours = (afDesiredSleepEndTime - afSleepStartTime) * 24.0
 	If hours < 1.0
 		return
@@ -1727,7 +1871,7 @@ EndFunction
 ; per-hour rolls over every module that fits this place; returns the kind (0 none), sets iHitHour
 int Function RollKinds(int hours, bool isSleep)
 	InitArrays()
-	float[] ch = new float[12]
+	float[] ch = new float[16]
 	int cat = GetLocCategory()
 	bool drunk = IsDrunk(PlayerRef)
 	bool jail = InJailOrBarracks()
@@ -1759,6 +1903,12 @@ int Function RollKinds(int hours, bool isSleep)
 	If bVampire && sleepish && (cat == 7 || HasKW(PlayerRef.GetCurrentLocation(), "LocTypeVampireLair"))
 		ch[K_VAMPIRE] = fVampireChance
 	EndIf
+	If bInnShare && isSleep && cat == 2 && PartyFollowers(1500.0) >= 1
+		ch[K_INNSHARE] = Mod(fInnShareChance, drunk)
+	EndIf
+	If bDarkGift && isSleep
+		ch[K_DARKGIFT] = fDarkGiftChance
+	EndIf
 	If isSleep && AnyCreatureOK() && (cat == 5 || cat == 6 || cat == 7)
 		ch[K_CREATURE] = fCrCampChance
 	EndIf
@@ -1773,22 +1923,24 @@ int Function RollKinds(int hours, bool isSleep)
 		ch[K_ROAD] = fRoadWaitChance
 	EndIf
 	; priority order
-	int[] order = new int[11]
+	int[] order = new int[13]
 	order[0] = K_JAIL
 	order[1] = K_TRESPASS
 	order[2] = K_CHEAT
 	order[3] = K_BETRAYAL
 	order[4] = K_SPIKED
 	order[5] = K_INN
-	order[6] = K_VAMPIRE
-	order[7] = K_CREATURE
-	order[8] = K_ATTACK
-	order[9] = K_ROAD
-	order[10] = 0
+	order[6] = K_INNSHARE
+	order[7] = K_DARKGIFT
+	order[8] = K_VAMPIRE
+	order[9] = K_CREATURE
+	order[10] = K_ATTACK
+	order[11] = K_ROAD
+	order[12] = 0
 	int h = 1
 	While h <= hours
 		int k = 0
-		While k < 10
+		While k < 12
 			int kind = order[k]
 			If ch[kind] > 0.0 && Utility.RandomFloat(0.0, 100.0) < ch[kind]
 				iHitHour = h
@@ -1811,7 +1963,7 @@ Function HandleRest(float hours, bool isSleep)
 	int ep = iEpoch
 	int kind = 0
 	iHitHour = 1
-	If iForceMode > 0 && iForceMode != K_DEFEAT
+	If iForceMode > 0 && iForceMode != K_DEFEAT && iForceMode != K_BATH
 		kind = iForceMode
 		iForceMode = 0
 		If kind == K_CHEAT
@@ -1898,6 +2050,14 @@ bool Function Dispatch(int kind, int ep)
 		return StageBetrayal(ep)
 	ElseIf kind == K_VAMPIRE
 		return StageVampire(ep)
+	ElseIf kind == K_MORNING
+		return StageMorning(ep)
+	ElseIf kind == K_BATH
+		return StageBath(ep)
+	ElseIf kind == K_INNSHARE
+		return StageInnShare(ep)
+	ElseIf kind == K_DARKGIFT
+		return StageDarkGift(ep)
 	EndIf
 	return false
 EndFunction
@@ -2726,6 +2886,7 @@ Function Calm(int idx)
 		bAddedFac[idx] = false
 	EndIf
 	att.SetActorValue("Aggression", 0.0)
+	bCalmed[idx] = true
 EndFunction
 
 Function CalmFollowers()
@@ -2761,7 +2922,11 @@ int Function StartThread(Actor[] acts, Actor[] dom, string scene, string meta, i
 	OThreadBuilder.SetDuration(b, Utility.RandomFloat(mn, mx))
 	OThreadBuilder.UndressActors(b)
 	OThreadBuilder.NoPostDialogue(b)
-	OThreadBuilder.NoFurniture(b)
+	If kFurn
+		OThreadBuilder.SetFurniture(b, kFurn)
+	Else
+		OThreadBuilder.NoFurniture(b)
+	EndIf
 	If acts.Find(PlayerRef) < 0
 		OThreadBuilder.NoPlayerControl(b)
 	EndIf
@@ -2796,7 +2961,12 @@ bool Function StartEncounter(bool forced, string meta, int ep)
 	bForcedScene = forced
 	string scene = sScene1
 	If !bPaired
-		scene = BuildScene(forced)
+		If sPreScene != "" && kSceneActs
+			scene = sPreScene
+		Else
+			kFurn = None
+			scene = BuildScene(forced)
+		EndIf
 		If scene == ""
 			Log("no suitable scene - aborting cleanly")
 			return false
@@ -2819,7 +2989,7 @@ bool Function StartEncounter(bool forced, string meta, int ep)
 		If IsSpawned(kAtt[i])
 			kAtt[i].Enable()
 		EndIf
-		If forced
+		If forced || IsSpawned(kAtt[i]) || (kAtt[i] != PlayerRef && kAtt[i].IsHostileToActor(PlayerRef))
 			Calm(i)
 		Else
 			kAtt[i].StopCombat()
@@ -2919,6 +3089,20 @@ string Function StartText()
 		return pn + "'s own companion " + kAttacker.GetDisplayName() + " takes advantage of " + pn + " while they are helpless at " + where + "."
 	ElseIf iKind == K_VAMPIRE
 		return "In the dark of " + where + ", the vampire " + kAttacker.GetDisplayName() + " entrances " + vn + " and draws them into an embrace."
+	ElseIf iKind == K_MORNING
+		return "After a night of heavy drinking, " + pn + " wakes up in a strange bed at " + where + ", tangled up with " + kAttacker.GetDisplayName() + ", with no memory of how they got there - and things pick up right where they left off."
+	ElseIf iKind == K_BATH
+		If bForcedScene
+			return "While " + vn + " is bathing, naked, near " + where + ", " + an + " comes upon them and forces themselves on " + vn + "."
+		EndIf
+		return "Bathing together near " + where + ", " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " let the wash turn into something more."
+	ElseIf iKind == K_INNSHARE
+		return "The inn at " + where + " was full, so the party shares a single room. In the dark, " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " end up in the same bed and do not go to sleep."
+	ElseIf iKind == K_DARKGIFT
+		If bForcedScene
+			return "At " + where + ", " + pn + " wakes to the vampire " + kAttacker.GetDisplayName() + " pinning them down, fangs at their throat, taking them."
+		EndIf
+		return "At " + where + ", " + pn + " wakes to the vampire " + kAttacker.GetDisplayName() + " making love to them, cold lips at their throat."
 	EndIf
 	If kVictim == PlayerRef
 		return an + " has fallen upon " + pn + " in their sleep and is forcing themselves on " + pn + "."
@@ -2976,6 +3160,16 @@ Function Wake()
 	ElseIf iKind == K_VAMPIRE
 		ShowMsg(kAttacker.GetDisplayName() + " entrances " + vn + "...")
 		shake = false
+	ElseIf iKind == K_MORNING
+		ShowMsg("Your head is pounding... whose bed is this? " + kAttacker.GetDisplayName() + " is already awake.")
+		shake = false
+	ElseIf iKind == K_BATH
+		ShowMsg(an + " joins " + vn + " in the water...")
+	ElseIf iKind == K_INNSHARE
+		ShowMsg("One room, one party... " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " aren't sleeping.")
+		shake = false
+	ElseIf iKind == K_DARKGIFT
+		ShowMsg("Cold lips at your throat... " + kAttacker.GetDisplayName() + " has come for you.")
 	ElseIf kVictim == PlayerRef
 		ShowMsg("You wake to rough hands on you... " + an + "!")
 	Else
@@ -3049,6 +3243,11 @@ EndEvent
 ; another mod's OStim scene with the player: the spouse or a follower may walk in on it
 Event OnOStimThreadStart(string eventName, string strArgs, float numArg, Form sender)
 	int id = numArg as int
+	CaughtCheck(id)
+	WatchCheck(id)
+EndEvent
+
+Function CaughtCheck(int id)
 	If !Ready() || !bCaught || id < 0 || id == iThread || id == iThread2
 		return
 	EndIf
@@ -3106,7 +3305,7 @@ Event OnOStimThreadStart(string eventName, string strArgs, float numArg, Form se
 		SkyrimNetApi.RegisterPersistentEvent(catcher.GetDisplayName() + " caught " + pn + " having sex with " + partner.GetDisplayName() + " at " + WhereName() + ".", catcher, PlayerRef)
 	EndIf
 	ShowMsg(catcher.GetDisplayName() + " has seen you...")
-EndEvent
+EndFunction
 
 ; ======================= aftermath =======================
 Function RestoreAttackers(bool afterScene)
@@ -3141,7 +3340,10 @@ Function RestoreAttackers(bool afterScene)
 				Else
 					a.SetActorValue("Aggression", fOldAgg[i])
 				EndIf
+			ElseIf bCalmed[i] && !IsSpawned(a)
+				a.SetActorValue("Aggression", fOldAgg[i])
 			EndIf
+			bCalmed[i] = false
 		EndIf
 		i += 1
 	EndWhile
@@ -3160,6 +3362,7 @@ Function Aftermath()
 	RestoreAttackers(true)
 	SendDoneEvent()
 	LogSkyrimNet()
+	DarkGiftAftermath()
 	ArrestAlternative()
 	Leftover()
 	RememberBlackmail()
@@ -3455,7 +3658,7 @@ Function FillFollowerAliases()
 	al[2] = Follower3Alias
 	al[3] = Follower4Alias
 	int c = 0
-	If bMaster && bDefeatEnabled && bDefeatFollowers
+	If bMaster && ((bDefeatEnabled && bDefeatFollowers) || (bBath && bBathFollowers && BathModOK()))
 		Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 4000.0, false, false, false)
 		int i = 0
 		While i < near.Length && c < 4
@@ -3470,6 +3673,1120 @@ Function FillFollowerAliases()
 		al[c].Clear()
 		c += 1
 	EndWhile
+EndFunction
+
+; =====================================================================================
+; ======================= 0.2 modules =======================
+; Every module below is OFF by default, needs the master switch, and is stopped by the
+; panic key. Children are refused for every role (IsMinor checks + SceneForSet).
+; =====================================================================================
+
+; ---------- soft-dependency forms (resolved on load / master on; no masters) ----------
+Function ResolveSoft()
+	InitArrays()
+	kIActAlc = None
+	kIActDrunk = None
+	kExtraAlc = None
+	If IActionsOK()
+		kIActAlc = Game.GetFormFromFile(0x00000006, "iActions.esp") as FormList
+		kIActDrunk = Game.GetFormFromFile(0x00000002, "iActions.esp") as Faction
+		If JCOK()
+			kExtraAlc = ODS_IActions.ExtraAlcohol()
+		EndIf
+	EndIf
+	If kExtraAlc == None
+		kExtraAlc = new Form[64]
+	EndIf
+	AddDlcDrink(0x000207E5, "Dragonborn.esm")
+	AddDlcDrink(0x000207E6, "Dragonborn.esm")
+	AddDlcDrink(0x000248CC, "Dragonborn.esm")
+	AddDlcDrink(0x000248CE, "Dragonborn.esm")
+	AddDlcDrink(0x0003572F, "Dragonborn.esm")
+	AddDlcDrink(0x00003535, "HearthFires.esm")
+	AddDlcDrink(0x00003536, "HearthFires.esm")
+	kDnBList = None
+	kBisFx1 = None
+	kBisFx2 = None
+	int i = 0
+	While i < 8
+		kBathFx[i] = None
+		i += 1
+	EndWhile
+	If DnBOK()
+		kDnBList = ODS_DnB.BathingActors()
+		MagicEffect[] d = ODS_DnB.WashEffects()
+		int j = 0
+		While d && j < d.Length
+			AddBathFx(d[j])
+			j += 1
+		EndWhile
+	EndIf
+	If BiSOK()
+		kBisFx1 = Game.GetFormFromFile(0x0000002C, "Bathing in Skyrim.esp") as MagicEffect   ; mzinPlayBathingAnimationEffect
+		kBisFx2 = Game.GetFormFromFile(0x0000002F, "Bathing in Skyrim.esp") as MagicEffect   ; mzinPlayBathingAnimationFollowerEffect
+		AddBathFx(kBisFx1)
+		AddBathFx(kBisFx2)
+	EndIf
+	UpdateWatchers()
+	Log("soft: iActions " + IActionsOK() + ", Dirt and Blood " + DnBOK() + " (list " + kDnBList + "), Bathing in Skyrim " + BiSOK() + ", Blood and OStim " + BaOOK() + ", Sacrosanct " + SacrosanctOK())
+EndFunction
+
+Function AddDlcDrink(int id, string plugin)
+	If !ModLoaded(plugin)
+		return
+	EndIf
+	Form f = Game.GetFormFromFile(id, plugin)
+	If f && (f as Potion) && kExtraAlc.Find(f) < 0
+		int i = kExtraAlc.Find(None)
+		If i >= 0
+			kExtraAlc[i] = f
+		EndIf
+	EndIf
+EndFunction
+
+Function AddBathFx(MagicEffect fx)
+	If fx && kBathFx.Find(fx) < 0
+		int i = kBathFx.Find(None)
+		If i >= 0
+			kBathFx[i] = fx
+		EndIf
+	EndIf
+EndFunction
+
+; alias event states: the player / follower aliases only listen while a module needs it
+Function UpdateWatchers()
+	bool bathOn = bMaster && bBath && BathModOK()
+	bool playerOn = (bathOn && bBathPlayer) || (bathOn && bBathFollowers) || (bMaster && bMorningAfter)
+	ODS_PlayerAlias pa = GetAlias(0) as ODS_PlayerAlias
+	If pa
+		pa.SetWatch(playerOn, bathOn, bMaster && bMorningAfter, kBathFx)
+	EndIf
+	bool folOn = bathOn && bBathFollowers
+	(Follower1Alias as ODS_FollowerAlias).SetWatch(folOn, kBathFx)
+	(Follower2Alias as ODS_FollowerAlias).SetWatch(folOn, kBathFx)
+	(Follower3Alias as ODS_FollowerAlias).SetWatch(folOn, kBathFx)
+	(Follower4Alias as ODS_FollowerAlias).SetWatch(folOn, kBathFx)
+EndFunction
+
+; ---------- shared helpers ----------
+; adult followers near the player (party size minus the player)
+int Function PartyFollowers(float range)
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, range, false, false, false)
+	int c = 0
+	int i = 0
+	While i < near.Length
+		Actor a = near[i]
+		If a && IsFollowerActor(a) && !a.IsDead() && !a.IsDisabled() && !IsMinor(a)
+			c += 1
+		EndIf
+		i += 1
+	EndWhile
+	return c
+EndFunction
+
+; a free bed near center; random among the closest few when pickRandom
+ObjectReference Function FindBed(ObjectReference center, float radius, bool pickRandom)
+	If center == None
+		return None
+	EndIf
+	ObjectReference[] fs = OFurniture.FindFurniture(2, center, radius, 0.0)
+	ObjectReference[] beds = new ObjectReference[8]
+	int c = 0
+	int i = 0
+	While fs && i < fs.Length && c < 8
+		If fs[i] && StringUtil.Find(OFurniture.GetFurnitureType(fs[i]), "bed") >= 0
+			beds[c] = fs[i]
+			c += 1
+		EndIf
+		i += 1
+	EndWhile
+	If c == 0
+		return None
+	EndIf
+	If pickRandom
+		return beds[Utility.RandomInt(0, c - 1)]
+	EndIf
+	return beds[0]
+EndFunction
+
+; consensual scene on a bed for exactly two adults; sets kFurn / sPreScene / kSceneActs
+bool Function PrepBedScene(Actor a, Actor b, ObjectReference bed)
+	If bed == None || a == None || b == None || IsMinor(a) || IsMinor(b)
+		return false
+	EndIf
+	string ft = OFurniture.GetFurnitureType(bed)
+	If ft == "" || ft == "none"
+		return false
+	EndIf
+	Actor[] acts = new Actor[2]
+	acts[0] = a
+	acts[1] = b
+	int t = 0
+	While t < 2
+		int k = 0
+		While k < 6
+			string s
+			If k < 3
+				s = OLibrary.GetRandomFurnitureSceneWithAnySceneTagCSV(acts, ft, "romantic,loving,sensual,lustful,passionate")
+			Else
+				s = OLibrary.GetRandomFurnitureScene(acts, ft)
+			EndIf
+			If s != "" && !IsKissScene(s) && !IsAggroScene(s)
+				kFurn = bed
+				sPreScene = s
+				kSceneActs = acts
+				return true
+			EndIf
+			k += 1
+		EndWhile
+		Actor tmp = acts[0]
+		acts[0] = acts[1]
+		acts[1] = tmp
+		t += 1
+	EndWhile
+	return false
+EndFunction
+
+; ======================= 0.2: MORNING AFTER =======================
+; O'Deadly counts the player's own drinks (iActions does not track the player and sends no event).
+; Called by ODS_PlayerAlias.OnObjectEquipped for potions while the module is on.
+Function ClearDrinks()
+	If fDrinkTimes
+		int i = 0
+		While i < 8
+			fDrinkTimes[i] = 0.0
+			i += 1
+		EndWhile
+	EndIf
+	iDrinkIdx = 0
+EndFunction
+
+bool Function AlcoholName(string n)
+	If n == ""
+		return false
+	EndIf
+	If n == "Ale" || StringUtil.Find(n, " Ale") >= 0 || StringUtil.Find(n, "Ale ") == 0
+		return true
+	EndIf
+	return StringUtil.Find(n, "Mead") >= 0 || StringUtil.Find(n, "Wine") >= 0 || StringUtil.Find(n, "Beer") >= 0 || StringUtil.Find(n, "Sujamma") >= 0 || StringUtil.Find(n, "Shein") >= 0 || StringUtil.Find(n, "Flin") >= 0 || StringUtil.Find(n, "Brandy") >= 0 || StringUtil.Find(n, "Rum") == 0 || StringUtil.Find(n, " Rum") >= 0 || StringUtil.Find(n, "Cider") >= 0 || StringUtil.Find(n, "Grog") >= 0 || StringUtil.Find(n, "Whiskey") >= 0 || StringUtil.Find(n, "Whisky") >= 0 || StringUtil.Find(n, "Vodka") >= 0 || StringUtil.Find(n, "Liquor") >= 0
+EndFunction
+
+bool Function IsAlcohol(Form f)
+	If f == None || !(f as Potion)
+		return false
+	EndIf
+	If kIActAlc && kIActAlc.HasForm(f)          ; iActions list (it also injects extra_alcohol.json into this list)
+		return true
+	EndIf
+	If kExtraAlc && kExtraAlc.Find(f) >= 0      ; extra_alcohol.json read by us + DLC drinks
+		return true
+	EndIf
+	If ODS_AlcoholVanilla && ODS_AlcoholVanilla.HasForm(f)
+		return true
+	EndIf
+	return AlcoholName(f.GetName())
+EndFunction
+
+Function OnPlayerConsumed(Form f)
+	If !bMaster || !bMorningAfter || !IsAlcohol(f)
+		return
+	EndIf
+	InitArrays()
+	float now = Utility.GetCurrentGameTime()
+	fDrinkTimes[iDrinkIdx] = now
+	iDrinkIdx = (iDrinkIdx + 1) % 8
+	int c = 0
+	int i = 0
+	While i < 8
+		If fDrinkTimes[i] > 0.0 && (now - fDrinkTimes[i]) * 24.0 <= fMorningWindow
+			c += 1
+		EndIf
+		i += 1
+	EndWhile
+	If c >= iMorningDrinks && !bMorningArmed
+		bMorningArmed = true
+		fMorningArmedAt = now
+		Log("morning after: " + c + " drinks in " + fMorningWindow + "h - armed for the next sleep")
+	EndIf
+EndFunction
+
+Function ForceMorning()
+	iForceMode = K_MORNING
+	bMorningArmed = true
+	fMorningArmedAt = Utility.GetCurrentGameTime()
+EndFunction
+
+; on sleep start: binge within the last 12 game hours, then a roll
+bool Function MorningCheck()
+	If !bMorningAfter || !bMorningArmed || bBusy
+		return false
+	EndIf
+	If (Utility.GetCurrentGameTime() - fMorningArmedAt) * 24.0 > 12.0
+		bMorningArmed = false
+		return false
+	EndIf
+	bool forced = iForceMode == K_MORNING
+	If OtherBusy(false) || (!forced && CooldownActive())
+		return false
+	EndIf
+	bMorningArmed = false
+	ClearDrinks()
+	If forced
+		iForceMode = 0
+	ElseIf Utility.RandomFloat(0.0, 100.0) >= fMorningChance
+		Log("morning after: no roll hit")
+		return false
+	EndIf
+	bMorningPending = true
+	bBusy = true
+	return true
+EndFunction
+
+Event OnSleepStop(bool abInterrupted)
+	If !bMorningPending
+		return
+	EndIf
+	bMorningPending = false
+	If !Ready()
+		bBusy = false
+		return
+	EndIf
+	StageWithFade(K_MORNING, iEpoch, true)
+EndEvent
+
+; 3 = plastered / blackout (iActions), 2 = drunk, 1 = sober
+int Function DrunkTier(Actor a)
+	If kIActDrunk && a.IsInFaction(kIActDrunk)
+		int r = a.GetFactionRank(kIActDrunk)
+		If r >= 0
+			int cat = 0
+			If r > 0
+				cat = ((r - 1) / 2) + 1    ; iActions GetCategoryFromRank, default 2 points per level
+			EndIf
+			If cat >= 3
+				return 3
+			EndIf
+			return 2
+		EndIf
+	EndIf
+	If IsDrunk(a)
+		return 2
+	EndIf
+	return 1
+EndFunction
+
+bool Function MorningOK(Actor a)
+	return a && BaseEligible(a) && IsHumanoid(a) && !IsProtected(a) && !a.IsHostileToActor(PlayerRef) && (bGuardAttackers || !IsGuardActor(a))
+EndFunction
+
+Actor Function FindMorningPartner(int ep)
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 8000.0, false, false, true)
+	Actor[] pool = new Actor[32]
+	int[] tier = new int[32]
+	int c = 0
+	int best = 0
+	int i = 0
+	While i < near.Length && c < 32
+		Actor a = near[i]
+		If MorningOK(a)
+			int t = DrunkTier(a)
+			pool[c] = a
+			tier[c] = t
+			If t > best
+				best = t
+			EndIf
+			c += 1
+		EndIf
+		i += 1
+	EndWhile
+	If c == 0
+		return None
+	EndIf
+	int want = best
+	While want >= 1 && Alive(ep)
+		int tries = 0
+		While tries < 6 && Alive(ep)
+			int k = Utility.RandomInt(0, c - 1)
+			If tier[k] == want && pool[k] && PairScene(pool[k], PlayerRef, false) != ""
+				return pool[k]
+			EndIf
+			tries += 1
+		EndWhile
+		; sweep this tier in order before dropping a tier
+		int j = 0
+		While j < c
+			If tier[j] == want && pool[j] && PairScene(pool[j], PlayerRef, false) != ""
+				return pool[j]
+			EndIf
+			j += 1
+		EndWhile
+		want -= 1
+	EndWhile
+	return None
+EndFunction
+
+; nobody suitable: a stranger copied from someone local, else a traveller
+Actor Function SpawnStranger(Actor vic, int ep)
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 4000.0, false, false, true)
+	int i = 0
+	While i < near.Length && Alive(ep)
+		Actor a = near[i]
+		If a && IsHumanoid(a) && !IsFollowerActor(a) && !IsMinor(a) && !IsGuardActor(a) && a.GetActorBase() && !a.GetActorBase().IsUnique()
+			Actor s = SpawnNear(a.GetActorBase(), vic)
+			If s && PairScene(s, vic, false) != ""
+				return s
+			EndIf
+			If s
+				DeleteSpawn(s)
+			EndIf
+			i = near.Length
+		EndIf
+		i += 1
+	EndWhile
+	return TrySpawn(ODS_PoolWatcher, vic, false, ep)
+EndFunction
+
+bool Function StageMorning(int ep)
+	If !IsValidVictim(PlayerRef, true, false, false)
+		Log("morning after: player not a valid participant")
+		return false
+	EndIf
+	Actor partner = FindMorningPartner(ep)
+	If partner == None && bMorningSpawn
+		partner = SpawnStranger(PlayerRef, ep)
+	EndIf
+	If partner == None || !Alive(ep)
+		Log("morning after: nobody with a suitable scene")
+		return false
+	EndIf
+	; somewhere random, in bed with them
+	ObjectReference bed = FindBed(partner, 6000.0, true)
+	If bed == None
+		bed = FindBed(PlayerRef, 8000.0, true)
+	EndIf
+	If bed
+		PlayerRef.MoveTo(bed)
+		partner.MoveTo(bed)
+		Utility.Wait(0.5)
+	Else
+		PlayerRef.MoveTo(partner)
+	EndIf
+	If !Alive(ep)
+		return false
+	EndIf
+	AddAttacker(partner)
+	AddVictim(PlayerRef)
+	If bed && !PrepBedScene(partner, PlayerRef, bed)
+		Log("morning after: no bed scene for this pair, using a normal scene")
+	EndIf
+	return StartEncounter(false, "odangerous,morningafter", ep)
+EndFunction
+
+; ======================= 0.2: BATHING =======================
+; Dirt and Blood: every real wash runs Dirty_BathingQuest.PlayBatheAnimation, which keeps the actor
+; in Dirty_BathingActors for the whole bath and applies Dirty_SoapEffectSpell (lather). We listen for
+; that effect on the player / follower aliases and confirm via the formlist. Swimming and rain never
+; call PlayBatheAnimation and are not hooked.
+; Bathing in Skyrim: BiS_BatheEvent_<player FormID> and the PlayBathingAnimation effects mark a wash
+; START; BiS_WashActorFinish (actor, wash prop, soap) marks the end. Both mods: one roll per wash.
+bool Function StillBathing(Actor a)
+	If a == None
+		return false
+	EndIf
+	If kDnBList && kDnBList.HasForm(a)
+		return true
+	EndIf
+	If kBisFx1 && a.HasMagicEffect(kBisFx1)
+		return true
+	EndIf
+	return kBisFx2 && a.HasMagicEffect(kBisFx2)
+EndFunction
+
+; alias event: an effect in kBathFx was applied to the player or a follower
+Function OnFxApplied(Actor a, MagicEffect fx)
+	If !bMaster || !bBath || a == None || fx == None
+		return
+	EndIf
+	If kBisFx1 && (fx == kBisFx1 || fx == kBisFx2)
+		OnBathStart(a, 2)
+	ElseIf kDnBList == None || kDnBList.HasForm(a)
+		OnBathStart(a, 1)
+	EndIf
+EndFunction
+
+Event OnBiSBathePlayer(bool abDoPlayerTeammates)
+	OnBathStart(PlayerRef, 2)
+EndEvent
+
+Event OnBiSWashFinish(Form akActor, Form akWashProp, bool abUsedSoap)
+	If bBathPending && akActor == kBathSubject
+		bBathDone = true
+	EndIf
+EndEvent
+
+Actor Function FindCoBather(Actor a)
+	Actor[] near = OActorUtil.GetActorsInRangeV2(a, 1500.0, false, true, false)
+	int i = 0
+	While i < near.Length
+		Actor b = near[i]
+		If b && b != a && !b.IsDead() && IsHumanoid(b) && !IsMinor(b) && StillBathing(b)
+			return b
+		EndIf
+		i += 1
+	EndWhile
+	return None
+EndFunction
+
+Function OnBathStart(Actor a, int src)
+	If !Ready() || !bBath || a == None || IsMinor(a)
+		return
+	EndIf
+	float now = Utility.GetCurrentGameTime()
+	If bBathPending || (now - fLastBathRoll) < 0.03
+		return      ; one roll per wash, even with both bath mods installed
+	EndIf
+	If a == PlayerRef
+		If !bBathPlayer
+			return
+		EndIf
+	ElseIf !bBathFollowers || !IsFollowerActor(a) || IsProtected(a) || a.GetDistance(PlayerRef) > 4000.0
+		return
+	EndIf
+	fLastBathRoll = now
+	If iForceMode == K_BATH
+		iForceMode = 0
+		Log("bath: debug force")
+	ElseIf bBusy || OtherBusy(false) || CooldownActive()
+		return
+	ElseIf Utility.RandomFloat(0.0, 100.0) >= fBathChance
+		Log("bath: " + a.GetDisplayName() + " washes, no roll hit")
+		return
+	EndIf
+	If bBusy || OtherBusy(false)
+		return
+	EndIf
+	int ep = iEpoch
+	bBusy = true
+	bBathPending = true
+	bBathDone = false
+	kBathSubject = a
+	kBathCo = FindCoBather(a)
+	Log("bath: roll hit for " + a.GetDisplayName() + " (source " + src + "), waiting for the wash to finish")
+	; let the bath mod finish its own animation / redress before the scene
+	Utility.Wait(2.0)
+	float waited = 0.0
+	While Alive(ep) && !bBathDone && waited < 60.0 && StillBathing(a)
+		Utility.Wait(1.5)
+		waited += 1.5
+	EndWhile
+	bBathPending = false
+	If !Alive(ep)
+		return
+	EndIf
+	If kBathCo == None
+		kBathCo = FindCoBather(a)
+	EndIf
+	Utility.Wait(1.0)
+	StageWithFade(K_BATH, ep, false)
+EndFunction
+
+bool Function BathPartnerOK(Actor p, Actor vic)
+	If p == None || p == vic || p.IsDead() || p.IsDisabled() || IsMinor(p) || OActor.IsInOStim(p) || IsStaged(p)
+		return false
+	EndIf
+	If p == PlayerRef
+		return bBathPlayer
+	EndIf
+	return IsHumanoid(p) && NamedOK(p) && !IsProtected(p) && !p.IsInCombat()
+EndFunction
+
+bool Function StageBath(int ep)
+	Actor vic = kBathSubject
+	kBathSubject = None
+	If vic == None || !IsValidVictim(vic, bBathPlayer, bBathFollowers, false)
+		Log("bath: subject not valid")
+		return false
+	EndIf
+	Actor partner = None
+	bool forced = false
+	; 1. someone already in the wash (a follower bathing with you, or you with them)
+	If BathPartnerOK(kBathCo, vic) && PairScene(kBathCo, vic, false) != ""
+		partner = kBathCo
+	EndIf
+	; 2. real people nearby: companions first, then strangers who would
+	Actor[] near = OActorUtil.GetActorsInRangeV2(vic, 3000.0, false, true, true)
+	int i = 0
+	While partner == None && i < near.Length && Alive(ep)
+		Actor a = near[i]
+		If (a == PlayerRef || IsFollowerActor(a)) && BathPartnerOK(a, vic) && PairScene(a, vic, false) != ""
+			partner = a
+		EndIf
+		i += 1
+	EndWhile
+	string sit = vic.GetDisplayName() + " is bathing, naked, in the water near " + WhereName()
+	i = 0
+	While partner == None && i < near.Length && Alive(ep)
+		Actor b = near[i]
+		If b && b != PlayerRef && !IsFollowerActor(b) && BathPartnerOK(b, vic) && BaseEligible(b) && (bGuardAttackers || !IsGuardActor(b))
+			If PairScene(b, vic, true) != "" && WouldAct(b, vic, K_BATH, sit, ep)
+				partner = b
+				forced = true
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	; 3. only now spawn
+	If partner == None && bBathSpawn
+		partner = TrySpawn(ODS_PoolBandit, vic, true, ep)
+		forced = partner != None
+	EndIf
+	If partner == None
+		Log("bath: nobody nearby with a scene")
+		return false
+	EndIf
+	kBathCo = partner
+	AddAttacker(partner)
+	AddVictim(vic)
+	If forced
+		return StartEncounter(true, "odangerous,aggressive,bath", ep)
+	EndIf
+	return StartEncounter(false, "odangerous,bath", ep)
+EndFunction
+
+; ======================= 0.2: INNS FULL (shared room) =======================
+; The game rents one room. When the player sleeps in an inn with their party, sharing that room can
+; lead somewhere. Sits beside the 0.1 inn modules (drunk patrons, spiked drinks), which are unchanged.
+bool Function InnMateOK(Actor a)
+	return a && IsFollowerActor(a) && !a.IsDead() && !a.IsDisabled() && !IsMinor(a) && !IsProtected(a) && !OActor.IsInOStim(a) && !IsStaged(a) && !a.IsInCombat() && NamedOK(a)
+EndFunction
+
+bool Function StageInnShare(int ep)
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 1500.0, false, false, true)
+	Actor[] mates = new Actor[8]
+	int c = 0
+	int i = 0
+	While i < near.Length && c < 8
+		If InnMateOK(near[i])
+			mates[c] = near[i]
+			c += 1
+		EndIf
+		i += 1
+	EndWhile
+	If c == 0
+		Log("inn share: no party in the room")
+		return false
+	EndIf
+	bool withPlayer = bInnSharePlayer && IsValidVictim(PlayerRef, true, false)
+	bool together = bInnShareFollowers && c >= 2
+	If withPlayer && together
+		withPlayer = Utility.RandomInt(0, 1) == 0
+	EndIf
+	Actor a = None
+	Actor b = None
+	If withPlayer
+		int tries = 0
+		While tries < c && a == None && Alive(ep)
+			Actor f = mates[Utility.RandomInt(0, c - 1)]
+			If PairScene(f, PlayerRef, false) != ""
+				a = f
+				b = PlayerRef
+			EndIf
+			tries += 1
+		EndWhile
+	EndIf
+	If a == None && bInnShareFollowers && c >= 2
+		int x = 0
+		While x < c && a == None && Alive(ep)
+			int y = x + 1
+			While y < c && a == None
+				If PairScene(mates[x], mates[y], false) != ""
+					a = mates[x]
+					b = mates[y]
+				EndIf
+				y += 1
+			EndWhile
+			x += 1
+		EndWhile
+	EndIf
+	If a == None
+		Log("inn share: no pair with a scene")
+		return false
+	EndIf
+	AddAttacker(a)
+	AddVictim(b)
+	ObjectReference bed = FindBed(PlayerRef, 1500.0, false)
+	If bed
+		PrepBedScene(a, b, bed)
+	EndIf
+	return StartEncounter(false, "odangerous,innshare", ep)
+EndFunction
+
+; ======================= 0.2: WATCHED FROM A DISTANCE =======================
+; Outdoors, during any OStim scene with the player or a follower, a hunter or traveller sees it from a
+; distance. SkyrimNet gets what they saw (where, who, what) so they react: leave, call out or come closer.
+string Function Compass(float dx, float dy)
+	float ax = Math.abs(dx)
+	float ay = Math.abs(dy)
+	string ns = "north"
+	If dy < 0.0
+		ns = "south"
+	EndIf
+	string ew = "east"
+	If dx < 0.0
+		ew = "west"
+	EndIf
+	If ay > ax * 2.0
+		return ns
+	ElseIf ax > ay * 2.0
+		return ew
+	EndIf
+	return ns + "-" + ew
+EndFunction
+
+string Function NamesOf(Actor[] acts)
+	string s = ""
+	int i = 0
+	While i < acts.Length
+		If acts[i]
+			If s != ""
+				If i == acts.Length - 1
+					s += " and "
+				Else
+					s += ", "
+				EndIf
+			EndIf
+			s += acts[i].GetDisplayName()
+		EndIf
+		i += 1
+	EndWhile
+	return s
+EndFunction
+
+Actor Function FindWatcher(Actor[] acts)
+	Actor center = acts[0]
+	Actor[] near = OActorUtil.GetActorsInRangeV2(center, 6000.0, false, false, false)
+	bool playerIn = acts.Find(PlayerRef) >= 0
+	Actor fallback = None
+	int i = 0
+	While i < near.Length
+		Actor a = near[i]
+		If a && acts.Find(a) < 0 && !a.IsDead() && !a.IsDisabled() && IsHumanoid(a) && !IsMinor(a) && !IsFollowerActor(a) && !OActor.IsInOStim(a) && !a.IsInCombat() && !a.IsHostileToActor(PlayerRef) && a.GetSleepState() != 3 && a.GetDistance(center) >= 1000.0
+			If playerIn && a.HasLOS(PlayerRef)
+				return a
+			EndIf
+			If fallback == None
+				fallback = a
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	return fallback
+EndFunction
+
+Actor Function SpawnWatcher(Actor center)
+	If ODS_PoolWatcher == None || ODS_PoolWatcher.GetSize() == 0
+		return None
+	EndIf
+	Form base = ODS_PoolWatcher.GetAt(Utility.RandomInt(0, ODS_PoolWatcher.GetSize() - 1))
+	If base == None
+		return None
+	EndIf
+	Actor w = center.PlaceAtMe(base, 1, false, true) as Actor
+	If w == None
+		return None
+	EndIf
+	float ang = Utility.RandomFloat(0.0, 360.0)
+	float dist = Utility.RandomFloat(2200.0, 3200.0)
+	w.SetPosition(center.GetPositionX() + Math.cos(ang) * dist, center.GetPositionY() + Math.sin(ang) * dist, center.GetPositionZ())
+	PO3_SKSEFunctions.MoveToNearestNavmeshLocation(w)
+	If IsMinor(w)
+		w.Delete()
+		return None
+	EndIf
+	w.SetActorValue("Aggression", 0.0)
+	w.Enable()
+	kWatchSpawn = w
+	return w
+EndFunction
+
+Function WatchCheck(int id)
+	If !Ready() || !bWatched || id < 0
+		return
+	EndIf
+	float now = Utility.GetCurrentGameTime()
+	If !bForceWatch && (now - fLastWatched) * 24.0 < 2.0
+		return
+	EndIf
+	Actor[] acts = OThread.GetActors(id)
+	If acts.Length < 1
+		return
+	EndIf
+	bool ours = false
+	int q = 0
+	While q < acts.Length
+		If IsMinor(acts[q])
+			return
+		EndIf
+		If acts[q] == PlayerRef || IsFollowerActor(acts[q])
+			ours = true
+		EndIf
+		q += 1
+	EndWhile
+	Cell cl = acts[0].GetParentCell()
+	If !ours || cl == None || cl.IsInterior()
+		return
+	EndIf
+	If !bForceWatch && Utility.RandomFloat(0.0, 100.0) >= fWatchChance
+		return
+	EndIf
+	bForceWatch = false
+	fLastWatched = now
+	int ep = iEpoch
+	Utility.Wait(Utility.RandomFloat(8.0, 20.0))
+	If !Alive(ep) || !OThread.IsRunning(id)
+		return
+	EndIf
+	Actor w = FindWatcher(acts)
+	If w == None && bWatchSpawn && kWatchSpawn == None
+		w = SpawnWatcher(acts[0])
+	EndIf
+	If w == None || !Alive(ep)
+		Log("watched: nobody around to see it")
+		return
+	EndIf
+	; what they saw: where, who, what
+	string who = NamesOf(acts)
+	string sc = OThread.GetScene(id)
+	string how = "together, clearly enjoying themselves"
+	If IsAggroScene(sc)
+		how = "and it looks rough, maybe not willing"
+	EndIf
+	string pose = OMetaData.GetName(sc)
+	If pose != "" && StringUtil.Find(pose, "$") != 0
+		how += " (" + pose + ")"
+	EndIf
+	float dx = acts[0].GetPositionX() - w.GetPositionX()
+	float dy = acts[0].GetPositionY() - w.GetPositionY()
+	int metres = (Math.sqrt(dx * dx + dy * dy) / 70.0) as int
+	string role = "a traveller"
+	If StringUtil.Find(w.GetDisplayName(), "Hunter") >= 0 || StringUtil.Find(w.GetDisplayName(), "hunter") >= 0
+		role = "a hunter"
+	EndIf
+	int r = Utility.RandomInt(0, 2)
+	string act = "decides to slip away quietly and keep it to themselves for now"
+	If r == 1
+		act = "calls out to them from where they stand"
+	ElseIf r == 2
+		act = "starts to come closer for a better look"
+	EndIf
+	string txt = w.GetDisplayName() + ", " + role + " out in the wilds near " + WhereName() + ", spots " + who + " having sex out in the open, about " + metres + " metres to the " + Compass(dx, dy) + ", " + how + ". " + w.GetDisplayName() + " " + act + "."
+	Actor tgt = acts[0]
+	If acts.Find(PlayerRef) >= 0
+		tgt = PlayerRef
+	EndIf
+	Log("watched: " + txt)
+	If SNetOK() && bSkyrimNetStart
+		SkyrimNetApi.DirectNarration(txt, w, tgt)
+	Else
+		ShowMsg("You feel eyes on you... someone is watching from a distance.")
+	EndIf
+	If SNetOK() && bSkyrimNetLog
+		SkyrimNetApi.RegisterPersistentEvent(w.GetDisplayName() + " saw " + who + " having sex out in the open near " + WhereName() + ".", w, tgt)
+	EndIf
+	If r == 2 && Alive(ep)
+		w.PathToReference(acts[0], 0.4)
+	EndIf
+	; a spawned watcher goes back to the road after a while
+	If w == kWatchSpawn
+		Utility.Wait(120.0)
+		If kWatchSpawn == w && !w.IsInCombat()
+			kWatchSpawn = None
+			w.Disable(true)
+			w.Delete()
+		EndIf
+	EndIf
+EndFunction
+
+; ======================= 0.2: DARK GIFT =======================
+; A vampire wakes the player, making love to them. With Blood and OStim installed the wake-up is a
+; feeding scene. Afterwards: immune to disease (or already a vampire) = nothing infectious; otherwise
+; vampirism. With Sacrosanct it goes through PlayerVampireQuest (Sacrosanct's own turning), else the
+; vanilla Sanguinare Vampiris disease is contracted.
+bool Function PrepFeedScene(Actor vamp, Actor vic)
+	If !BaOOK() || IsMinor(vamp) || IsMinor(vic)
+		return false
+	EndIf
+	Actor[] acts = new Actor[2]
+	string[] ids = new string[3]
+	If IsFemale(vamp) && !IsFemale(vic)
+		acts[0] = vic
+		acts[1] = vamp
+		ids[0] = "Anub2PVampireFemaleCowgirlFeed"
+		ids[1] = "Gunslicer2PVampire"
+		ids[2] = "Anub2PVampireFemaleStandingFeed"
+	ElseIf !IsFemale(vamp) && IsFemale(vic)
+		acts[0] = vamp
+		acts[1] = vic
+		ids[0] = "Anub2PVampireMalePenetrationFeed"
+		ids[1] = "Anub2PVampireMaleThighfuckFeed"
+		ids[2] = "Anub2PVampireMalePenetrationFeed"
+	Else
+		return false
+	EndIf
+	int i = 0
+	While i < 3
+		If OMetaData.GetActorCount(ids[i]) == 2 && !IsKissScene(ids[i])
+			sPreScene = ids[i]
+			kSceneActs = acts
+			kFurn = None
+			return true
+		EndIf
+		i += 1
+	EndWhile
+	return false
+EndFunction
+
+bool Function StageDarkGift(int ep)
+	If !IsValidVictim(PlayerRef, true, false, false)
+		return false
+	EndIf
+	Actor vamp = None
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 3500.0, false, false, true)
+	int i = 0
+	While i < near.Length && vamp == None && Alive(ep)
+		Actor a = near[i]
+		If a && IsHumanoid(a) && IsVampire(a) && BaseEligible(a, true) && !IsFollowerActor(a)
+			If PairScene(a, PlayerRef, false) != "" || PairScene(a, PlayerRef, true) != ""
+				vamp = a
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	If vamp == None
+		vamp = TrySpawn(ODS_PoolVampire, PlayerRef, false, ep)
+	EndIf
+	If vamp == None
+		vamp = TrySpawn(ODS_PoolVampire, PlayerRef, true, ep)
+	EndIf
+	If vamp == None || !Alive(ep)
+		Log("dark gift: no vampire with a scene")
+		return false
+	EndIf
+	vamp.MoveTo(PlayerRef)
+	AddAttacker(vamp)
+	AddVictim(PlayerRef)
+	If PrepFeedScene(vamp, PlayerRef)
+		Log("dark gift: Blood and OStim feeding scene " + sPreScene)
+		If StartEncounter(false, "odangerous,vampire,darkgift,feeding", ep)
+			return true
+		EndIf
+		sPreScene = ""
+		If nAtt == 0
+			AddAttacker(vamp)
+			AddVictim(PlayerRef)
+		EndIf
+	EndIf
+	If StartEncounter(false, "odangerous,vampire,darkgift", ep)
+		return true
+	EndIf
+	If nAtt == 0
+		AddAttacker(vamp)
+		AddVictim(PlayerRef)
+	EndIf
+	return StartEncounter(true, "odangerous,aggressive,vampire,darkgift", ep)
+EndFunction
+
+Function DarkGiftAftermath()
+	If iKind != K_DARKGIFT || kVictim != PlayerRef || !bDarkInfect || !bMaster
+		return
+	EndIf
+	string pn = PlayerRef.GetDisplayName()
+	If PlayerRef.GetActorValue("DiseaseResist") >= 100.0 || IsVampire(PlayerRef)
+		Log("dark gift: player is immune to disease - nothing infectious")
+		return
+	EndIf
+	If SacrosanctOK()
+		Log("dark gift: turning through Sacrosanct (PlayerVampireQuest)")
+		Utility.Wait(2.0)
+		If bMaster
+			ODS_Vamp.TurnPlayer(PlayerRef)
+		EndIf
+	Else
+		Spell d = Game.GetFormFromFile(0x000B8780, "Skyrim.esm") as Spell    ; Sanguinare Vampiris
+		If d && !PlayerRef.HasSpell(d)
+			PlayerRef.AddSpell(d, false)
+		EndIf
+		ShowMsg("The bite at your throat burns... you feel feverish.")
+	EndIf
+	If SNetOK() && bSkyrimNetLog && kAttacker
+		SkyrimNetApi.RegisterPersistentEvent("The vampire " + kAttacker.GetDisplayName() + " fed on " + pn + " and left them with the Dark Gift in their blood.", kAttacker, PlayerRef)
+	EndIf
+EndFunction
+
+; ======================= 0.2: CLIMAX FAUNA (easter egg) =======================
+; A magical orgasm: rabbits surround the player and charge, butterflies swirl. Rabbits wait until
+; the scene is over before they "attack" (vanilla hares have no real attack), so no scene is cut short.
+Event OnOStimOrgasm(string eventName, string sceneId, float threadId, Form sender)
+	If !Ready() || !bFauna || bFaunaRunning
+		return
+	EndIf
+	int id = threadId as int
+	If id < 0
+		return
+	EndIf
+	Actor[] acts = OThread.GetActors(id)
+	If acts.Find(PlayerRef) < 0
+		return
+	EndIf
+	int q = 0
+	While q < acts.Length
+		If IsMinor(acts[q])
+			return
+		EndIf
+		q += 1
+	EndWhile
+	float now = Utility.GetCurrentGameTime()
+	If !bForceFauna && ((now - fLastFauna) * 24.0 < 1.0 || Utility.RandomFloat(0.0, 100.0) >= fFaunaChance)
+		return
+	EndIf
+	bForceFauna = false
+	fLastFauna = now
+	FaunaBurst(id)
+EndEvent
+
+Function AddFauna(ObjectReference r)
+	int i = kFauna.Find(None)
+	If i >= 0
+		kFauna[i] = r
+	ElseIf r
+		r.Delete()
+	EndIf
+EndFunction
+
+Function DeleteFauna()
+	If kFauna == None
+		return
+	EndIf
+	int i = 0
+	While i < kFauna.Length
+		ObjectReference r = kFauna[i]
+		If r
+			kFauna[i] = None
+			r.Disable(false)
+			r.Delete()
+		EndIf
+		i += 1
+	EndWhile
+	bFaunaRunning = false
+EndFunction
+
+Function FaunaBurst(int id)
+	InitArrays()
+	int ep = iEpoch
+	bFaunaRunning = true
+	ActorBase hare = None
+	If ODS_PoolFauna && ODS_PoolFauna.GetSize() > 0
+		hare = ODS_PoolFauna.GetAt(0) as ActorBase
+	EndIf
+	int n = iFaunaRabbits
+	If n > 30
+		n = 30
+	EndIf
+	float px = PlayerRef.GetPositionX()
+	float py = PlayerRef.GetPositionY()
+	float pz = PlayerRef.GetPositionZ()
+	Actor[] rabbits = new Actor[30]
+	int i = 0
+	While hare && i < n && Alive(ep)
+		Actor r = PlayerRef.PlaceAtMe(hare, 1, false, true) as Actor
+		If r
+			float ang = (360.0 / n) * i + Utility.RandomFloat(-8.0, 8.0)
+			float dist = Utility.RandomFloat(260.0, 460.0)
+			r.SetPosition(px + Math.cos(ang) * dist, py + Math.sin(ang) * dist, pz)
+			PO3_SKSEFunctions.MoveToNearestNavmeshLocation(r)
+			r.SetActorValue("Aggression", 0.0)
+			r.Enable()
+			rabbits[i] = r
+			AddFauna(r)
+		EndIf
+		i += 1
+	EndWhile
+	; butterflies of every kind we can find
+	ObjectReference[] flies = new ObjectReference[18]
+	int nb = 0
+	If ODS_PoolButterfly && ODS_PoolButterfly.GetSize() > 0
+		int k = 0
+		While k < 18 && Alive(ep)
+			Activator base = ODS_PoolButterfly.GetAt(k % ODS_PoolButterfly.GetSize()) as Activator
+			If base
+				ObjectReference b = PlayerRef.PlaceAtMe(base, 1, false, false)
+				If b
+					b.SetPosition(px + Utility.RandomFloat(-250.0, 250.0), py + Utility.RandomFloat(-250.0, 250.0), pz + Utility.RandomFloat(80.0, 220.0))
+					flies[nb] = b
+					nb += 1
+					AddFauna(b)
+				EndIf
+			EndIf
+			k += 1
+		EndWhile
+	EndIf
+	Log("fauna: " + n + " rabbits, " + nb + " butterflies")
+	ShowMsg("Wild magic answers the moment... the meadow comes alive.")
+	If SNetOK() && bSkyrimNetStart
+		SkyrimNetApi.DirectNarration("At the peak of the moment a burst of wild, giddy magic ripples out from " + PlayerRef.GetDisplayName() + ": a swarm of butterflies of every colour whirls around them, and a ring of rabbits appears out of nowhere, glaring.", None, None)
+	EndIf
+	; flutter around the player for a while
+	int t = 0
+	While t < 16 && Alive(ep)
+		float cx = PlayerRef.GetPositionX()
+		float cy = PlayerRef.GetPositionY()
+		float cz = PlayerRef.GetPositionZ()
+		int j = 0
+		While j < nb
+			If flies[j]
+				flies[j].TranslateTo(cx + Utility.RandomFloat(-300.0, 300.0), cy + Utility.RandomFloat(-300.0, 300.0), cz + Utility.RandomFloat(60.0, 240.0), 0.0, 0.0, Utility.RandomFloat(0.0, 360.0), 140.0, 120.0)
+			EndIf
+			j += 1
+		EndWhile
+		Utility.Wait(1.25)
+		t += 1
+	EndWhile
+	int j2 = 0
+	While j2 < nb
+		If flies[j2]
+			int fi = kFauna.Find(flies[j2])
+			If fi >= 0
+				kFauna[fi] = None
+			EndIf
+			flies[j2].Disable(true)
+			flies[j2].Delete()
+		EndIf
+		j2 += 1
+	EndWhile
+	; the rabbits charge once the scene is over
+	float w = 0.0
+	While Alive(ep) && OThread.IsRunning(id) && w < 180.0
+		Utility.Wait(2.0)
+		w += 2.0
+	EndWhile
+	If !Alive(ep)
+		return
+	EndIf
+	i = 0
+	While i < n
+		Actor r2 = rabbits[i]
+		If r2 && !r2.IsDead() && kFauna.Find(r2) >= 0
+			r2.SetActorValue("Aggression", 2.0)
+			r2.SetActorValue("Confidence", 4.0)
+			r2.StartCombat(PlayerRef)
+		EndIf
+		i += 1
+	EndWhile
+	Utility.Wait(60.0)
+	If Alive(ep)
+		DeleteFauna()
+	EndIf
+	bFaunaRunning = false
 EndFunction
 
 ; ======================= protect list helper (MCM) =======================

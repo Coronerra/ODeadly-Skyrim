@@ -1,5 +1,5 @@
 Scriptname ODS_MCM extends SKI_ConfigBase
-{O'Deadly Skyrim v0.1 MCM (SkyUI). By That Guy (Coronerra).}
+{O'Deadly Skyrim v0.2 MCM (SkyUI). By That Guy (Coronerra).}
 
 ODS_Main Property Main Auto
 
@@ -27,6 +27,12 @@ int oForceRoad
 int oForceBetrayal
 int oForceVampire
 int oForceDefeat
+int oForceMorning
+int oForceBath
+int oForceInnShare
+int oForceDarkGift
+int oForceWatch
+int oForceFauna
 int oForceClear
 int oOvrClear
 int oJailHere
@@ -47,8 +53,14 @@ string[] catOpts
 string[] jailOpts
 
 int Function GetVersion()
-	return 1
+	return 2
 EndFunction
+
+Event OnVersionUpdate(int a_version)
+	If a_version >= 2
+		SetupPages()    ; 0.2 adds the "More encounters" page
+	EndIf
+EndEvent
 
 Event OnConfigInit()
 	SetupPages()
@@ -56,16 +68,17 @@ EndEvent
 
 Function SetupPages()
 	ModName = "O'Deadly Skyrim"
-	Pages = new string[9]
+	Pages = new string[10]
 	Pages[0] = "General"
 	Pages[1] = "Night attacks"
 	Pages[2] = "Relationships"
 	Pages[3] = "Jail & inns"
 	Pages[4] = "Danger"
 	Pages[5] = "Creatures"
-	Pages[6] = "This location"
-	Pages[7] = "Protected followers"
-	Pages[8] = "Debug"
+	Pages[6] = "More encounters"
+	Pages[7] = "This location"
+	Pages[8] = "Protected followers"
+	Pages[9] = "Debug"
 	genderOpts = new string[3]
 	genderOpts[0] = "Any"
 	genderOpts[1] = "Female only"
@@ -223,6 +236,34 @@ bool Function GetB(string k)
 		return Main.bDebug
 	ElseIf k == "debugtools"
 		return Main.bDebugTools
+	ElseIf k == "morning"
+		return Main.bMorningAfter
+	ElseIf k == "morningspawn"
+		return Main.bMorningSpawn
+	ElseIf k == "bath"
+		return Main.bBath
+	ElseIf k == "bathplayer"
+		return Main.bBathPlayer
+	ElseIf k == "bathfol"
+		return Main.bBathFollowers
+	ElseIf k == "bathspawn"
+		return Main.bBathSpawn
+	ElseIf k == "innshare"
+		return Main.bInnShare
+	ElseIf k == "innshareplayer"
+		return Main.bInnSharePlayer
+	ElseIf k == "innsharefol"
+		return Main.bInnShareFollowers
+	ElseIf k == "watched"
+		return Main.bWatched
+	ElseIf k == "watchspawn"
+		return Main.bWatchSpawn
+	ElseIf k == "darkgift"
+		return Main.bDarkGift
+	ElseIf k == "darkinfect"
+		return Main.bDarkInfect
+	ElseIf k == "fauna"
+		return Main.bFauna
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -346,6 +387,34 @@ Function SetB(string k, bool v)
 		Main.bDebug = v
 	ElseIf k == "debugtools"
 		Main.bDebugTools = v
+	ElseIf k == "morning"
+		Main.bMorningAfter = v
+	ElseIf k == "morningspawn"
+		Main.bMorningSpawn = v
+	ElseIf k == "bath"
+		Main.bBath = v
+	ElseIf k == "bathplayer"
+		Main.bBathPlayer = v
+	ElseIf k == "bathfol"
+		Main.bBathFollowers = v
+	ElseIf k == "bathspawn"
+		Main.bBathSpawn = v
+	ElseIf k == "innshare"
+		Main.bInnShare = v
+	ElseIf k == "innshareplayer"
+		Main.bInnSharePlayer = v
+	ElseIf k == "innsharefol"
+		Main.bInnShareFollowers = v
+	ElseIf k == "watched"
+		Main.bWatched = v
+	ElseIf k == "watchspawn"
+		Main.bWatchSpawn = v
+	ElseIf k == "darkgift"
+		Main.bDarkGift = v
+	ElseIf k == "darkinfect"
+		Main.bDarkInfect = v
+	ElseIf k == "fauna"
+		Main.bFauna = v
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -409,6 +478,24 @@ float Function GetF(string k)
 		return Main.fCrCampChance
 	ElseIf k == "crroam"
 		return Main.fCrRoamChance
+	ElseIf k == "morningch"
+		return Main.fMorningChance
+	ElseIf k == "morningdrinks"
+		return Main.iMorningDrinks as float
+	ElseIf k == "morningwin"
+		return Main.fMorningWindow
+	ElseIf k == "bathch"
+		return Main.fBathChance
+	ElseIf k == "innsharech"
+		return Main.fInnShareChance
+	ElseIf k == "watchch"
+		return Main.fWatchChance
+	ElseIf k == "darkgiftch"
+		return Main.fDarkGiftChance
+	ElseIf k == "faunach"
+		return Main.fFaunaChance
+	ElseIf k == "faunarabbits"
+		return Main.iFaunaRabbits as float
 	ElseIf k == "ovratk"
 		return Main.GetOverride(false)
 	ElseIf k == "ovrcht"
@@ -476,6 +563,24 @@ Function SetF(string k, float v)
 		Main.fCrCampChance = v
 	ElseIf k == "crroam"
 		Main.fCrRoamChance = v
+	ElseIf k == "morningch"
+		Main.fMorningChance = v
+	ElseIf k == "morningdrinks"
+		Main.iMorningDrinks = v as int
+	ElseIf k == "morningwin"
+		Main.fMorningWindow = v
+	ElseIf k == "bathch"
+		Main.fBathChance = v
+	ElseIf k == "innsharech"
+		Main.fInnShareChance = v
+	ElseIf k == "watchch"
+		Main.fWatchChance = v
+	ElseIf k == "darkgiftch"
+		Main.fDarkGiftChance = v
+	ElseIf k == "faunach"
+		Main.fFaunaChance = v
+	ElseIf k == "faunarabbits"
+		Main.iFaunaRabbits = v as int
 	ElseIf k == "ovratk"
 		Main.SetOverride(false, v)
 	ElseIf k == "ovrcht"
@@ -551,19 +656,19 @@ float Function CatDefault(bool cheat, int c)
 EndFunction
 
 string Function FmtOf(string k)
-	If k == "cooldown" || k == "lingerh"
+	If k == "cooldown" || k == "lingerh" || k == "morningwin"
 		return "{1} h"
 	ElseIf k == "mindur" || k == "maxdur" || k == "biotimeout"
 		return "{0} s"
 	ElseIf k == "range" || k == "guardrange" || k == "radius"
 		return "{0} units"
-	ElseIf k == "groupmax"
+	ElseIf k == "groupmax" || k == "morningdrinks" || k == "faunarabbits"
 		return "{0}"
 	ElseIf k == "drunkmult"
 		return "x{1}"
 	ElseIf k == "ovratk" || k == "ovrcht"
 		return "{1}"
-	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "robscene" || k == "blackmailch"
+	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach"
 		return "{0}%"
 	EndIf
 	return "{1}%"
@@ -654,6 +759,42 @@ Function SliderSpec(string k)
 		df = 1.0
 	ElseIf k == "betrayalch"
 		df = 2.0
+	ElseIf k == "morningch"
+		mx = 100.0
+		st = 5.0
+		df = 50.0
+	ElseIf k == "morningdrinks"
+		mn = 2.0
+		mx = 12.0
+		st = 1.0
+		df = 4.0
+	ElseIf k == "morningwin"
+		mn = 0.5
+		mx = 8.0
+		st = 0.5
+		df = 2.0
+	ElseIf k == "bathch"
+		mx = 100.0
+		st = 1.0
+		df = 15.0
+	ElseIf k == "innsharech"
+		df = 4.0
+	ElseIf k == "watchch"
+		mx = 100.0
+		st = 1.0
+		df = 25.0
+	ElseIf k == "darkgiftch"
+		mx = 25.0
+		df = 1.0
+	ElseIf k == "faunach"
+		mx = 100.0
+		st = 1.0
+		df = 5.0
+	ElseIf k == "faunarabbits"
+		mn = 5.0
+		mx = 30.0
+		st = 1.0
+		df = 20.0
 	EndIf
 	SetSliderDialogStartValue(v)
 	SetSliderDialogRange(mn, mx)
@@ -727,6 +868,12 @@ Function ResetIds()
 	oForceBetrayal = -100
 	oForceVampire = -100
 	oForceDefeat = -100
+	oForceMorning = -100
+	oForceBath = -100
+	oForceInnShare = -100
+	oForceDarkGift = -100
+	oForceWatch = -100
+	oForceFauna = -100
 	oForceClear = -100
 	oOvrClear = -100
 	oJailHere = -100
@@ -761,6 +908,8 @@ Event OnPageReset(string page)
 		PageDanger()
 	ElseIf page == "Creatures"
 		PageCreatures()
+	ElseIf page == "More encounters"
+		PageMore()
 	ElseIf page == "This location"
 		PageLocation()
 	ElseIf page == "Protected followers"
@@ -899,6 +1048,12 @@ Function PageJail()
 	AddS("Spiked drink chance per hour", "spikedch", g)
 	AddT("Spiked: player", "spikedplayer", g)
 	AddT("Spiked: followers", "spikedfol", g)
+	AddHeaderOption("Inns full: one room for the party")
+	AddT("Shared room encounters", "innshare")
+	int h = Flag(Main.bInnShare)
+	AddS("Chance per hour slept in an inn", "innsharech", h)
+	AddT("Shared room: player and a follower", "innshareplayer", h)
+	AddT("Shared room: two followers", "innsharefol", h)
 EndFunction
 
 Function PageDanger()
@@ -936,7 +1091,7 @@ Function PageDanger()
 	If !Main.OCumOK()
 		AddTextOption("  OCum not installed", "", OPTION_FLAG_DISABLED)
 	EndIf
-	AddHeaderOption("Not available in 0.1")
+	AddHeaderOption("Not included yet")
 	AddTextOption("Failed pickpocket / brawl escalation", "Locked", OPTION_FLAG_DISABLED)
 EndFunction
 
@@ -965,6 +1120,49 @@ Function PageCreatures()
 		AddTextOption("  " + StatusText(st), "", OPTION_FLAG_DISABLED)
 		t += 1
 	EndWhile
+EndFunction
+
+; 0.2 modules, one column, top to bottom. The climax fauna easter egg is deliberately the last module.
+Function PageMore()
+	AddHeaderOption("All OFF by default. Master switch and panic key apply.")
+	AddHeaderOption("Morning after")
+	AddT("Wake up somewhere else after a binge", "morning")
+	int m = Flag(Main.bMorningAfter)
+	AddS("Drinks that count as a binge", "morningdrinks", m)
+	AddS("Within", "morningwin", m)
+	AddS("Chance when you then sleep", "morningch", m)
+	AddT("Nobody suitable: a stranger", "morningspawn", m)
+	AddTextOption("  iActions (drunk NPCs preferred)", YesNo(Main.IActionsOK()), OPTION_FLAG_DISABLED)
+	AddHeaderOption("Bathing")
+	bool bm = Main.BathModOK()
+	If !bm
+		AddTextOption("Needs Dirt and Blood or Bathing in Skyrim", "", OPTION_FLAG_DISABLED)
+	EndIf
+	AddT("Encounters while bathing", "bath", Flag(bm))
+	int b = Flag(bm && Main.bBath)
+	AddS("Chance per wash", "bathch", b)
+	AddT("When the player bathes", "bathplayer", b)
+	AddT("When a follower bathes", "bathfol", b)
+	AddT("Nobody nearby: a stranger", "bathspawn", b)
+	AddTextOption("  Dirt and Blood", YesNo(Main.DnBOK()), OPTION_FLAG_DISABLED)
+	AddTextOption("  Bathing in Skyrim", YesNo(Main.BiSOK()), OPTION_FLAG_DISABLED)
+	AddHeaderOption("Watched from a distance")
+	AddT("Outdoor scenes can be seen", "watched")
+	int w = Flag(Main.bWatched)
+	AddS("Chance per outdoor scene", "watchch", w)
+	AddT("Nobody around: a passing hunter", "watchspawn", w)
+	AddHeaderOption("Dark Gift")
+	AddT("A vampire wakes you", "darkgift")
+	int d = Flag(Main.bDarkGift)
+	AddS("Chance per hour slept", "darkgiftch", d)
+	AddT("Vampirism afterwards (unless immune)", "darkinfect", d)
+	AddTextOption("  Blood and OStim (feeding)", YesNo(Main.BaOOK()), OPTION_FLAG_DISABLED)
+	AddTextOption("  Sacrosanct", YesNo(Main.SacrosanctOK()), OPTION_FLAG_DISABLED)
+	AddHeaderOption("Climax fauna (easter egg)")
+	AddT("Nature answers your climax", "fauna")
+	int f = Flag(Main.bFauna)
+	AddS("Chance per climax", "faunach", f)
+	AddS("Rabbits", "faunarabbits", f)
 EndFunction
 
 Function PageLocation()
@@ -1054,6 +1252,13 @@ Function PageDebug()
 	oForceBetrayal = AddTextOption("Follower betrayal", "", f)
 	oForceVampire = AddTextOption("Vampire", "", f)
 	oForceDefeat = AddTextOption("Defeat (next bleedout)", "", f)
+	AddHeaderOption("0.2 modules")
+	oForceMorning = AddTextOption("Morning after (next sleep)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bMorningAfter))
+	oForceBath = AddTextOption("Bathing (next wash)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bBath && Main.BathModOK()))
+	oForceInnShare = AddTextOption("Inns full: shared room", "", Flag(Main.bDebugTools && Main.bMaster && Main.bInnShare))
+	oForceDarkGift = AddTextOption("Dark Gift", "", Flag(Main.bDebugTools && Main.bMaster && Main.bDarkGift))
+	oForceWatch = AddTextOption("Watched (next outdoor scene)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bWatched))
+	oForceFauna = AddTextOption("Climax fauna (next climax)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bFauna))
 	If !Main.bMaster
 		AddTextOption("  Turn the master switch on first", "", OPTION_FLAG_DISABLED)
 	EndIf
@@ -1083,6 +1288,14 @@ string Function ForceName()
 		return "Creature"
 	ElseIf m == Main.K_BETRAYAL
 		return "Betrayal"
+	ElseIf m == Main.K_MORNING
+		return "Morning after"
+	ElseIf m == Main.K_BATH
+		return "Bathing"
+	ElseIf m == Main.K_INNSHARE
+		return "Shared room"
+	ElseIf m == Main.K_DARKGIFT
+		return "Dark Gift"
 	EndIf
 	return "Vampire"
 EndFunction
@@ -1114,6 +1327,10 @@ Event OnOptionSelect(int o)
 		SetToggleOptionValue(o, GetB(k))
 		If k == "defeat" || k == "defeatplayer" || k == "essential" || k == "defeatfol"
 			Main.UpdateEssential()
+			Main.FillFollowerAliases()
+		EndIf
+		If k == "morning" || k == "bath" || k == "bathplayer" || k == "bathfol"
+			Main.ResolveSoft()
 			Main.FillFollowerAliases()
 		EndIf
 		If k == "cr" && Main.bCrEnabled && Main.bMaster
@@ -1176,6 +1393,24 @@ Event OnOptionSelect(int o)
 		SetForce(Main.K_BETRAYAL, "follower betrayal")
 	ElseIf o == oForceVampire
 		SetForce(Main.K_VAMPIRE, "vampire")
+	ElseIf o == oForceMorning
+		Main.ForceMorning()
+		ShowMessage("The next sleep will force the morning after (it still needs a partner and an installed scene).", false)
+		ForcePageReset()
+	ElseIf o == oForceBath
+		Main.iForceMode = Main.K_BATH
+		ShowMessage("The next real wash (player or follower) will force a bathing encounter.", false)
+		ForcePageReset()
+	ElseIf o == oForceInnShare
+		SetForce(Main.K_INNSHARE, "inns full: shared room")
+	ElseIf o == oForceDarkGift
+		SetForce(Main.K_DARKGIFT, "Dark Gift")
+	ElseIf o == oForceWatch
+		Main.bForceWatch = true
+		ShowMessage("The next outdoor scene with you or a follower will be watched.", false)
+	ElseIf o == oForceFauna
+		Main.bForceFauna = true
+		ShowMessage("Your next climax will be... memorable.", false)
 	ElseIf o == oForceDefeat
 		Main.iForceMode = Main.K_DEFEAT
 		ShowMessage("The next bleedout of the player or a follower will force a defeat scene (if Defeat and that victim type are enabled).", false)
@@ -1387,6 +1622,26 @@ string Function Hint(string k)
 		return "Locked off unless OCreatures is installed. Only creature types with installed scenes are used. No creature files are included."
 	ElseIf k == "crplayer"
 		return "OFF by default, even when creatures are available."
+	ElseIf k == "morning"
+		return "OFF by default. Drink too much in a short time, then sleep: you may wake up in a random bed with someone. Drinks are counted by this mod; with iActions installed its alcohol list is used and visibly drunk NPCs are preferred. Never children."
+	ElseIf k == "morningspawn"
+		return "If nobody nearby has a fitting scene, a stranger is brought in instead."
+	ElseIf k == "bath"
+		return "OFF by default. Needs Dirt and Blood or Bathing in Skyrim. Rolls once when a real wash starts (not swimming or rain); the scene begins after the wash. Someone bathing with you is preferred, then companions, then strangers who would. Never children."
+	ElseIf k == "bathspawn"
+		return "If nobody nearby fits, a stranger may appear (forced scene)."
+	ElseIf k == "innshare"
+		return "OFF by default. Sleeping in an inn with your party sharing one room can lead to an encounter between you and a follower, or between two followers. Separate from the drunk patron and spiked drink options."
+	ElseIf k == "watched"
+		return "OFF by default. During an outdoor scene with you or a follower, a hunter or traveller may see it from a distance. SkyrimNet is told where, who and what they saw; they may leave, call out or come closer."
+	ElseIf k == "watchspawn"
+		return "If nobody is around, a hunter passes by at a distance and leaves again later."
+	ElseIf k == "darkgift"
+		return "OFF by default. While you sleep a vampire may wake you with a love scene. With Blood and OStim it is a feeding scene. Never children."
+	ElseIf k == "darkinfect"
+		return "Afterwards you contract vampirism (through Sacrosanct when installed). Immune to disease, or already a vampire: nothing infectious happens."
+	ElseIf k == "fauna"
+		return "Easter egg, OFF by default. After your climax, a ring of rabbits may appear and come for you, with a cloud of butterflies. Pure silliness. The master switch and panic key stop it too."
 	EndIf
 	return ""
 EndFunction

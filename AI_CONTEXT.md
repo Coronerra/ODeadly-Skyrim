@@ -12,41 +12,58 @@ It is inspired by ODangerousNights. No ODN files are used; this is not an ODN pa
 
 - Adults only. Children are refused for every role. There is no toggle.
 - The master switch defaults to OFF. With it off, nothing in the mod can fire.
-- The panic key (unbound by default) or turning the master off aborts scenes, deletes spawns, returns stolen gold, clears calming / essential flags, purges pending SkyrimNet dialogue, cancels timers, and leaves the switch OFF.
-- Scenarios are based on the standard Skyrim environment. Optional mods (SkyrimNet, OCreatures, OCum, ZaZ, OStimNet, ODN) are soft-detected at runtime and are never plugin masters.
+- The panic key (unbound by default) or turning the master off aborts scenes, deletes spawns, returns stolen gold, clears calming / essential flags, purges pending SkyrimNet dialogue, cancels timers, and leaves the switch OFF. In 0.2 it also cancels pending morning-after and bathing rolls, removes a spawned watcher and the easter-egg rabbits / butterflies, and switches the drink / wash listeners off.
+- Every module is its own MCM toggle. Every 0.2 module defaults to OFF.
+- Scenarios are based on the standard Skyrim environment. Optional mods (SkyrimNet, OCreatures, OCum, ZaZ, OStimNet, ODN, and in 0.2 iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct, JContainers) are soft-detected at runtime and are never plugin masters. Code that needs another mod's script types sits in small interface scripts (`ODS_DnB`, `ODS_IActions`, `ODS_Vamp`) whose global functions are only called after the plugin / SKSE plugin is confirmed loaded. Compile-only stubs for those types live in `tools/stubs/` and are never shipped.
 
 ## 3. Plugin and files
 
-- `ODeadlySkyrim.esp`: ESL-flagged, master `Skyrim.esm` only. Holds the main quest (`ODS_MainQuest` / `ODS_Main` plus 12 aliases), the MCM quest (`ODS_MCMQuest` / `ODS_MCM`) and 8 spawn form lists.
-- Scripts are prefixed `ODS_`: `ODS_Main`, `ODS_MCM`, `ODS_PlayerAlias`, `ODS_FollowerAlias`, `ODS_AttackerAlias`, `ODS_VictimAlias`.
+- `ODeadlySkyrim.esp`: ESL-flagged, master `Skyrim.esm` only. Holds the main quest (`ODS_MainQuest` / `ODS_Main` plus 12 aliases), the MCM quest (`ODS_MCMQuest` / `ODS_MCM`) and 13 form lists of vanilla forms: 8 spawn pools from 0.1, plus `ODS_PoolVampire`, `ODS_PoolWatcher` (hunter), `ODS_AlcoholVanilla`, `ODS_PoolFauna` (hare) and `ODS_PoolButterfly` in 0.2.
+- Scripts are prefixed `ODS_`: `ODS_Main`, `ODS_MCM`, `ODS_PlayerAlias`, `ODS_FollowerAlias`, `ODS_AttackerAlias`, `ODS_VictimAlias`, and the 0.2 interface scripts `ODS_DnB`, `ODS_IActions`, `ODS_Vamp`.
 - SkyrimNet pack: `SKSE/Plugins/SkyrimNet/external/coronerra.odeadly/` (`manifest.json` and `prompts/decisions/odeadly/would_act.prompt`). Used to ask whether a character would act, given their bio. Ignored without SkyrimNet. Needs SkyrimNet beta 28+ and a decisions provider; otherwise a built-in character filter (Morality, relationship) is used.
 - Papyrus log lines start with `[ODeadlySkyrim]`. Done event: `ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`.
-- **Game versions:** not locked to SE 1.5.97. ESL, `Skyrim.esm` only, no SKSE DLL. Should run on SE and AE 1.6.x (including GOG) with matching SKSE64, SkyUI, Papyrus Extender and OStim Standalone. Built against 1.5.97; untested on AE. Will not work on Oldrim or Skyrim VR.
+- **Game versions:** not locked to SE 1.5.97. ESL, `Skyrim.esm` only, no SKSE DLL. Should run on SE and AE 1.6.x (including GOG) with matching SKSE64, SkyUI, Papyrus Extender and OStim Standalone. Built against 1.5.97; AE reports welcome. Will not work on Oldrim or Skyrim VR.
 
 ## 4. Engine
 
-Event-based, no polling. One event at a time, a 4-hour cooldown (default), and an abort check at every step. Triggers: sleep, the sleep/wait menu, location change, bleedout, OStim thread start/end/scene-changed, the panic key, and one-shot timers (jail linger, road travel).
+Event-based, no polling. One event at a time, a 4-hour cooldown (default), and an abort check at every step. Triggers: sleep (start and stop), the sleep/wait menu, location change, bleedout, OStim thread start/end/scene-changed and `ostim_actor_orgasm`, the panic key, and one-shot timers (jail linger, road travel). 0.2 adds, only while the related module is on: `OnObjectEquipped` (potions) on the player alias, `OnMagicEffectApply` on the player and follower aliases (held in a "Watching" alias state so the handlers do not exist otherwise), and the Bathing in Skyrim mod events.
 
 Location categories (walled-city player home, other player home, inn, city/town, settlement, wilderness, camp, dungeon, plus jail/barracks) are resolved from vanilla location keywords and cell/location names. If SkyrimNet beta 29+ is present and "Use SkyrimNet places" is on (default), a tagged named place wins over keywords. Untagged places fall back to keywords. The AI is not asked to classify untagged cells.
 
-## 5. Modules (0.1)
+## 5. Modules
 
 Night attacks (followers by default), cheating spouse, caught in the act, follower betrayal, imprisonment and barracks in every hold (sleep, wait or linger — never on door entry), inns (drunk patrons, spiked drinks), defeat (bleedout; optional "keep the player alive"), trespass, travel and roads (gold is moved to the thief, never deleted), optional OCreatures types probed against installed scenes, vampire seduction (present vampires only, no spawns), blackmail and public rumours (SkyrimNet), OCum / ZaZ options, group scenes with fallback to one-on-one, drunk/skooma chance multiplier, named/essential NPC toggle (default off).
 
 Defaults: everything off except the night-attack module inside the master switch, and the drunk/skooma modifier. Player-as-victim is off in most modules.
 
-## 6. Limits in 0.1
+### 0.2 modules (all OFF by default; kinds 12-15 in `ODS_Main`)
 
-- Untested in game.
+| Module | Kind | Trigger / hook |
+|---|---|---|
+| Morning after | `K_MORNING` 12 | Own drink counter: player alias `OnObjectEquipped` for potions. Alcohol = `iActions_AlcoholList` (iActions.esp 0x000006; iActions also adds its `extra_alcohol.json` entries to it), the JSON read directly via JContainers, DLC drinks, `ODS_AlcoholVanilla`, then a narrow name check. N drinks in the window arms it; `OnSleepStart` rolls (bypasses the hourly rolls for that sleep); `OnSleepStop` stages. Partner preference by `iActions_DrunkFaction` (0x000002) rank tier (plastered / blackout first), then `IsDrunk`, then any eligible adult; then an optional stranger. Player and partner are moved to a random nearby bed (`OFurniture.FindFurniture`) and a furniture scene is used when one exists. |
+| Bathing | `K_BATH` 13 | Dirt and Blood: `Dirty_BathingQuest` (0x000DC3) → `Dirty_BathingActors` form list and the effects of `Dirty_SoapEffectSpell`, which `PlayBatheAnimation`/`Lather` applies at the start of every real wash (not swimming, not rain). Bathing in Skyrim (ESL): mod event `BiS_BatheEvent_<player FormID>` and the effects `mzinPlayBathingAnimationEffect` (0x02C) / `mzinPlayBathingAnimationFollowerEffect` (0x02F) mark a start; `BiS_WashActorFinish(Form actor, Form washProp, Bool soap)` marks the end. One roll per wash even with both mods (short game-time dedupe). Stages after the wash ends (bounded wait). Partner order: co-bather, companions, strangers who would (`WouldAct`), optional spawned stranger. |
+| Inns full: shared room | `K_INNSHARE` 14 | Hourly sleep roll in an inn with at least one adult follower within 1500 units. Player + follower or follower + follower, consensual, on a bed when free. Separate from `K_INN` / `K_SPIKED`. |
+| Watched from a distance | — | `ostim_thread_start` (any thread) outdoors with the player or a follower in it. Real non-hostile adult 1000+ units away first (line of sight preferred), else an optional spawned hunter 2200-3200 units away (removed after 2 minutes). `SkyrimNetApi.DirectNarration` + a persistent memory with compass direction, distance, who, scene name and whether it looked willing; reaction is leave, call out, or come closer (`PathToReference`). |
+| Dark Gift | `K_DARKGIFT` 15 | Hourly sleep roll. Vampire nearby first, else `ODS_PoolVampire`. Blood and OStim: one of its 2-actor feeding scenes (ordered by sex). Aftermath: `DiseaseResist >= 100` or already a vampire = nothing; Sacrosanct loaded = `PlayerVampireQuestScript.VampireChange` on vanilla `PlayerVampireQuest` (0x0EAFD5), which Sacrosanct overrides; otherwise vanilla Sanguinare Vampiris (0x0B8780). Own toggle for the infection. |
+| Climax fauna (easter egg) | — | `ostim_actor_orgasm` with the player in the thread, 1 hour cooldown. Hares (`ODS_PoolFauna`) in a ring with Aggression 0; butterflies (`ODS_PoolButterfly`) moved with `TranslateTo` for ~20 s then deleted; after the thread ends the hares get Aggression 2 and `StartCombat`, all deleted 60 s later. Last option in the MCM. |
+
+Scene engine additions: a module can preselect a scene and furniture (`sPreScene`, `kFurn`); `StartThread` then uses `OThreadBuilder.SetFurniture` instead of `NoFurniture`. Spawned or hostile participants are calmed for non-forced scenes too and their aggression is restored afterwards.
+
+## 6. Known limits
+
 - No hook for vanilla arrest dialogue; the stand-in clears the bounty after a jail scene with the player.
 - Pickpocket and brawl escalation are shown as locked in the MCM, not built.
 - A jail or barracks that shares a location with its town is only caught by sleeping or waiting there.
 - ZaZ only changes preferred scenes plus narration. No ZaZ functions are called.
 - Defeat of the player needs the optional "keep the player alive" setting, or they die normally.
+- iActions drunk tiers assume its default 2 points per level.
+- Bathing in Skyrim's start event exists only for the player; followers are caught through its bathing effect.
+- With Sacrosanct the Dark Gift turns the player at once (via `VampireChange`) rather than through the disease stage.
+- Butterflies are vanilla critter activators driven by `TranslateTo`; the vanilla critter script may clean some up early.
 
 ## 7. Rebuild
 
-From this repo, with Caprica (`-g skyrim`) and import folders for vanilla/SKSE, SkyUI SDK (`SKI_ConfigBase` must include `SetInputOptionValue`), OStim Standalone, powerofthree's Papyrus Extender and the SkyrimNet API:
+From this repo, with Caprica (`-g skyrim`) and import folders for vanilla/SKSE, SkyUI SDK (`SKI_ConfigBase` must include `SetInputOptionValue`), OStim Standalone, powerofthree's Papyrus Extender and the SkyrimNet API. `compile.sh` adds `tools/stubs/` (compile-only stand-ins for `Dirty_BathingQuest`, `JValue`, `JArray`, `PlayerVampireQuestScript`; never ship them):
 
 ```
 CAPRICA=/path/to/caprica IMPORTS=/path/to/import1:/path/to/import2 ./tools/compile.sh
@@ -59,4 +76,4 @@ python3 tools/verify.py build/ODeadlySkyrim.esp
 
 ## 8. Credit and publishing
 
-Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source. Do not treat a Nexus listing as authorized unless the author says so.
+Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The current player build is [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2). Do not treat a Nexus listing as authorized unless the author says so.

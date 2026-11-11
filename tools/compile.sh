@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CAPRICA="${CAPRICA:-caprica}"
 OUT="$ROOT/build/Scripts"
 mkdir -p "$OUT"
-flags=(-i "$ROOT/src")
+flags=(-i "$ROOT/src" -i "$ROOT/tools/stubs")   # stubs: compile-only, never shipped
 IFS=':' read -ra dirs <<< "${IMPORTS:-}"
 for d in "${dirs[@]}"; do
   if [ -n "$d" ]; then
