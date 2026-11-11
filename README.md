@@ -2,13 +2,15 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.4**
+**v0.5**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4)** · [Changelog](CHANGELOG.md) · [Earlier v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5)** · [Changelog](CHANGELOG.md) · [Earlier v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
-Version 0.4 (`ODeadly_Skyrim_0.4.zip`) adds a third Climax fauna option that can spawn Mihail's Killer Rabbits of Caerbannog when his mod is installed. See [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option) and the [changelog](CHANGELOG.md).
+Version 0.5 (`ODeadly_Skyrim_0.5.zip`) adds support for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288): O'Deadly detects it, leaves a downed player to it, and tells SkyrimNet what happens. If both Baka Defeat and ODefeat Reforged are installed you get an on-screen warning: use only one, preferably Baka Defeat. See [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support) and the [changelog](CHANGELOG.md).
+
+Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues) with your Papyrus log.
 
 This repository is the full public source and notes: Papyrus scripts, the plugin, the SkyrimNet decision pack, the compile and plugin-builder tools, the [changelog](CHANGELOG.md), and hook-level details in **[AI_CONTEXT.md](AI_CONTEXT.md)** (start there if you are an AI assistant or a modder extending this). License: [MIT for coronerra's work](LICENSE).
 
@@ -18,7 +20,7 @@ I really don't care for most of the features of this mod, but I realized I have 
 
 This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). I never downloaded ODangerous Nights, so I have no idea if it is compatible. ODangerous Nights is not needed — this does the same thing, and so much more. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
 
-Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, and 0.4 can use Mihail's Killer Rabbit of Caerbannog for the climax fauna easter egg, but none of them is required.
+Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, 0.4 can use Mihail's Killer Rabbit of Caerbannog for the climax fauna easter egg, and 0.5 does the same for Baka Defeat – OStim Edition, but none of them is required.
 
 If there are any other scenarios you want added that can work without additional mod requirements, I can.
 
@@ -38,6 +40,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.2](#new-in-02-mcm-page-more-encounters-inn-rooms-on-jail--inns)
 - [New in 0.3](#new-in-03-follower-rescue-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged)
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
+- [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [MCM pages](#mcm-pages)
 - [Test checklist](#test-checklist)
 - [Known limits](#known-limits)
@@ -106,6 +109,8 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **[OStim Kidnapped Redux](https://www.patreon.com/posts/175042213)** (0.3, [Lirael's](https://www.patreon.com/LiraelAtelier) OStim conversion of vinfamy's SexLab Kidnapped Redux): SkyrimNet hears when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly holds its own encounters while you are held.
 - **[ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196)** (0.3, by [Lirael](https://www.patreon.com/LiraelAtelier)): SkyrimNet hears when you are defeated and what happens next. A downed player is left to ODefeat Reforged; O'Deadly's Defeat module keeps handling followers.
 - **[The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905)** (0.4, by Mihail): unlocks the third Climax fauna option, which can spawn his killer rabbits after a climax. The unique rabbit in the Cave of Caerbannog is left alone.
+- **[Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288)** (0.5, `SexLabDefeat.esp`; OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo, Baka Edition by BakaFactory): SkyrimNet hears when you are beaten and taken, what happens next, companions taken after a lost fight, and NPCs beaten by NPCs. A downed player is left to Baka Defeat; O'Deadly's Defeat module keeps handling followers.
+- **Use only one defeat mod.** Baka Defeat and ODefeat Reforged both take over a downed player, so running both can start two scenes at once or leave you stuck on the ground. Pick one, preferably **Baka Defeat**, since it does more (NPC vs NPC, you as the aggressor, robbery, the inn wake-up, followers, creatures). ODefeat Reforged is lighter if you only want player defeat. If O'Deadly finds both, it warns you on screen and on the MCM.
 
 None of these mods' files are included, and none of them is a master of this plugin.
 
@@ -209,7 +214,7 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 - Event-based: when you or a follower enter bleedout. 50% chance the winner takes them. Every hostile nearby calms down until you change location.
 - The player only bleeds out if essential. "Keep the player alive for defeat" (OFF) makes you essential while Defeat is on; if no defeat scene happens, you die the normal way.
 - Follower rescue (0.3, below) is a separate option: when it is on and starts, the fight goes on instead. When it is off, or does not start, this module works exactly as before.
-- With ODefeat Reforged installed (0.3), the player part of this module stands aside, so the two mods never both grab you. Your settings are kept; downed followers are still handled here.
+- With ODefeat Reforged (0.3) or Baka Defeat – OStim Edition (0.5) installed, the player part of this module stands aside, so the two mods never both grab you. Your settings are kept; downed followers are still handled here.
 
 ### Trespass
 
@@ -269,6 +274,20 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
 
+## New in 0.5 (Baka Defeat – OStim Edition support)
+
+A new SkyrimNet listener for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288) (plugin `SexLabDefeat.esp`; OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo, Baka Edition by BakaFactory). Like the 0.3 listeners, O'Deadly does not start, stop or change anything in Baka Defeat: it listens to Baka's own mod events and tells SkyrimNet what happened. Toggle: MCM > General > SkyrimNet > "Baka Defeat events" (ON, locked when the mod is missing). It also follows "Narration when it starts" and "Memory afterwards". With the master switch off or after the panic key, nothing is sent. Adults only: a scene with a child in it is never narrated.
+
+- **Beaten and taken**: when the first Baka scene with you as the victim starts, narration says who beat you, where, and that they force themselves on you. Later turns get a short line. A memory is written once the first scene ends.
+- **Afterwards**: waking up in an inn bed, being left for dead, being robbed, or getting away: narration and a memory each.
+- **Companions**: a follower taken after a lost fight (Baka's collateral scenes): narration and a memory with both names.
+- **NPC vs NPC**: an NPC beaten and taken by another NPC near you: narration and a memory.
+- **You on top**: when you use Baka's own actions on a beaten NPC: narration and a memory.
+- Consensual, paid and corpse scenes from Baka Defeat are not narrated.
+- A downed player is left to Baka Defeat; O'Deadly's Defeat module still handles your followers. While Baka Defeat has you, O'Deadly does not start its own encounters.
+- **Both defeat mods installed**: once per game load you get a notification, and the first time on a save a message box: *"O'Deadly Skyrim: Both ODefeat Reforged and Baka Defeat (OStim Edition) were detected. For stability use only one, preferably Baka Defeat since it does more."* MCM > General > Installed mods shows the same advice. O'Deadly still stands aside for a downed player and does not narrate the same defeat twice.
+- Updating from 0.4: overwrite the old files; settings carry over.
+
 ## New in 0.4 (Killer Rabbit of Caerbannog climax fauna option)
 
 MCM > More encounters > Climax fauna. Still **Off by default**, behind the master switch and the panic key.
@@ -322,7 +341,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 4. Press the panic key during the scene: it must stop at once, spawns vanish, the mod switches off (MCM shows the master OFF).
 5. Turn the master back on and try other force buttons (jail needs a jail and a guard; cheating needs your spouse nearby; road robbery: wait 1h outdoors).
 6. 0.2 force buttons (turn the module on first): morning after (next sleep), bathing (next real wash), shared room (sleep in an inn with a follower), Dark Gift (next sleep), watched (next outdoor scene), climax fauna (next climax).
-7. 0.3, with OStim Kidnapped Redux or ODefeat Reforged installed: MCM > General shows them as installed. Use their own menus to force a kidnapping or get defeated, then check that SkyrimNet narrates it.
+7. 0.3 / 0.5, with OStim Kidnapped Redux, ODefeat Reforged or Baka Defeat installed: MCM > General shows them as installed. Use their own menus to force a kidnapping or get defeated, then check that SkyrimNet narrates it.
 8. Follower rescue: turn it on (Danger page) and set the chance to 100, then let a follower go down in a fight with humans. One enemy should start a scene with them while the others keep fighting; hit that enemy to stop it. Try the panic key during one too.
 9. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
@@ -340,6 +359,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Followers are picked up for bleedout events when you change location (or load, or turn an option on), like the Defeat module; someone who joined you in the same area is covered after the next location change.
 - OStim Kidnapped Redux does not say who the kidnappers are or whether followers were taken, so its SkyrimNet text names you and the place only.
 - ODefeat Reforged's escape is read from its scene tag when the scene ends; third-party ODefeat outcomes other than slavery are not narrated.
+- Baka Defeat does not announce the knockdown, the surrender or the struggle itself, so SkyrimNet first hears about a defeat when Baka's first scene with you starts. A defeat that ends without a scene is only told through its outcome (robbed, left for dead, woke up at an inn, got away). Tied-up victims and Baka's third-party post-assault events are not narrated.
 - Creature probe spawns a hidden actor for a moment when the Creatures module is enabled and on load; if a type shows "No scenes found" wrongly, stand next to a follower and press Re-check.
 
 ## Repository contents
@@ -352,7 +372,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.4.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.5.zip`)
 
 ## Credits
 
@@ -362,6 +382,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
 - Optional 0.3 listeners for Lirael's [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) use only their documented / public mod events. Thanks to [Lirael](https://www.patreon.com/LiraelAtelier) and vinfamy; none of their files are included and neither is a master.
 - Optional 0.4 Climax fauna support for Mihail's [The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) uses only a runtime check for `mihailkillerbunny.esp` and his killer-rabbit race. Thanks to Mihail; none of his files are included, and his plugin is not a master.
+- Optional 0.5 listener for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288) uses only its own mod events and a runtime check for `SexLabDefeat.esp`. OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo; Baka Edition by BakaFactory. Thanks to all of them; none of their files are included, and the plugin is not a master.
 
 ## Other work
 

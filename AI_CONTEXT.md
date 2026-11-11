@@ -6,15 +6,15 @@ This file is for AI assistants, bots and modders who want to understand this mod
 
 Most "dangerous world" adult mods for Skyrim are narrow (nights only, prisons only) and often treat the player as the only victim. O'Deadly Skyrim is one all-in-one, toggleable engine for OStim + optional SkyrimNet. Events already in vanilla Skyrim (sleep, wait, lingering in a jail or barracks, inns, defeat, trespass, roads, wilderness) can start a scene with the people who are actually there, including followers. The end user turns on what they want. A master kill switch and a panic hotkey exist for family-safe play.
 
-It was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). The author never downloaded it, so compatibility is unknown, and it is not required — this already does the same thing and more. No ODN files are used; this is not an ODN patch. If `ODangerousNights.esp` is present, the engine tries to stay out of the way after an ODN attack; that path is untested.
+It was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). The author never downloaded it, so compatibility is unknown, and it is not required — this already does the same thing and more. No ODN files are used; this is not an ODN patch. If `ODangerousNights.esp` is present, the engine tries to stay out of the way after an ODN attack; feedback on that path is welcome.
 
 ## 2. Hard rules
 
 - Adults only. Children are refused for every role. There is no toggle.
 - The master switch defaults to OFF. With it off, nothing in the mod can fire.
 - The panic key (unbound by default) or turning the master off aborts scenes, deletes spawns, returns stolen gold, clears calming / essential flags, purges pending SkyrimNet dialogue, cancels timers, and leaves the switch OFF. In 0.2 it also cancels pending morning-after and bathing rolls, removes a spawned watcher and the easter-egg rabbits / butterflies, and switches the drink / wash listeners off.
-- Every module is its own MCM toggle. Every 0.2 module defaults to OFF. The 0.3 follower rescue defaults to OFF. The 0.3 SkyrimNet bridges default ON but only do anything when their mod is installed, and send nothing with the master off. The 0.4 climax-fauna menu defaults to Off (`iFaunaMode` 0).
-- Scenarios are based on the standard Skyrim environment. Optional mods (SkyrimNet, OCreatures, OCum, ZaZ, OStimNet, ODN, and in 0.2 iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct, JContainers; in 0.3 OStim Kidnapped Redux and ODefeat Reforged; in 0.4 Mihail's The Killer Rabbit of Caerbannog, `mihailkillerbunny.esp`) are soft-detected at runtime and are never plugin masters. Code that needs another mod's script types sits in small interface scripts (`ODS_DnB`, `ODS_IActions`, `ODS_Vamp`) whose global functions are only called after the plugin / SKSE plugin is confirmed loaded. Compile-only stubs for those types live in `tools/stubs/` and are never shipped.
+- Every module is its own MCM toggle. Every 0.2 module defaults to OFF. The 0.3 follower rescue defaults to OFF. The 0.3 SkyrimNet bridges default ON but only do anything when their mod is installed, and send nothing with the master off. The 0.4 climax-fauna menu defaults to Off (`iFaunaMode` 0). The 0.5 Baka Defeat bridge defaults ON but only does anything when `SexLabDefeat.esp` is installed, and sends nothing with the master off.
+- Scenarios are based on the standard Skyrim environment. Optional mods (SkyrimNet, OCreatures, OCum, ZaZ, OStimNet, ODN, and in 0.2 iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct, JContainers; in 0.3 OStim Kidnapped Redux and ODefeat Reforged; in 0.4 Mihail's The Killer Rabbit of Caerbannog, `mihailkillerbunny.esp`; in 0.5 Baka Defeat – OStim Edition, `SexLabDefeat.esp`) are soft-detected at runtime and are never plugin masters. Code that needs another mod's script types sits in small interface scripts (`ODS_DnB`, `ODS_IActions`, `ODS_Vamp`) whose global functions are only called after the plugin / SKSE plugin is confirmed loaded. Compile-only stubs for those types live in `tools/stubs/` and are never shipped.
 
 ## 3. Plugin and files
 
@@ -73,6 +73,22 @@ Registered in `Register()` (init, game load, master on) only when the plugin is 
 
 With `ODefeat.esp` loaded, `OnActorBleedout` sends the player to `DefeatFailed` and `UpdateEssential` does not make the player essential; follower defeat is unchanged. Stored settings are not changed. Only OStim's `OJson` is used to read scene metadata: no ODefeat or Kidnapped Redux script types, no stubs.
 
+### 0.5 Baka Defeat – OStim Edition bridge (listener only; `ODS_Main`, no new records)
+
+[Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288) (OStim conversion by Lauffey, released on Lirael Atelier's Patreon; original SexLab Defeat by Goubo, Baka Edition by BakaFactory) keeps the plugin name `SexLabDefeat.esp`. `BakaDefeatOK()` = `ModLoaded("SexLabDefeat.esp")`; `DefeatModOK()` = ODefeat or Baka; `BothDefeatsOK()` = both. Toggle `bBakaSkyrimNet` (MCM key `bakasn`), same gating as the 0.3 bridges (`BakaTalk()`: master, toggle, SkyrimNet loaded; narration / memory toggles). Registered in `Register()` only when the plugin is loaded:
+
+| Event (Baka sends) | Args | Use |
+|---|---|---|
+| `DefeatOStimStart` | numArg = OStim thread id, sender = Baka's `DefeatOStimThread` quest | `VictimRef` and `Hook` read from the sender (compile-only stub `tools/stubs/DefeatOStimThread.psc`, never shipped); actors from `OThread.GetActors`. `VictimRef` None (consensual / paid) and hooks `DefeatNecro` / `DefeatCons` are ignored. Any child (`IsMinor`) in the cast = nothing narrated. Kind: victim = player (hooks `DefeatPvic`; first one opens the defeat, sets `fBakaUntil` = +6 game hours, names the first other adult), player in the cast = player on top (`Defeat` / `DefeatC` from Baka's actions), victim a follower = companion (`Collateral`), otherwise NPC vs NPC (`NVNR`). Up to 8 threads cached (`iBakaTid` / `iBakaKind` / `kBakaVic` / `kBakaAgg`). |
+| `DefeatOStimEnd` | numArg = thread id | Memory for the cached thread (player victim: once per defeat). |
+| `DefeatPostAssault` | strArg `DefeatedBegin` (wakes at an inn), `LFDBegin` (left for dead), `RobEnd` (robbed), `EscapeEnd` (got away); `EscapeBegin`, `BlackOutBegin` logged only | Narration + memory for the player. Outcomes shorten `fBakaUntil` to +1 game hour; `EscapeEnd` clears it. |
+
+Not broadcast by Baka, so not narrated on their own: the knockdown / surrender / struggle QTE (`defeatplayer` states `Downed`, `QTE`, `KnockedOut`, no mod event), tying up (`DefeatTieUpFaction`, NPC-side state effects), and third-party post-assault events (`DefeatPostAssault` with custom names). Baka's own mod events `DefeatOStimStart_<hook>` / `DefeatOStimEnd_<hook>` exist too; the generic ones are used.
+
+With `SexLabDefeat.esp` loaded, `OnActorBleedout` sends the player to `DefeatFailed` and `UpdateEssential` does not make the player essential, exactly as with ODefeat. `OtherBusy()` and the follower-rescue check also respect `fBakaUntil`.
+
+Both plugins loaded: `BothDefeatsWarn()` (from `OnInit` and from `ODS_PlayerAlias.OnUpdate`, a single update 8 s after each load) shows `Debug.Notification` every load and `Debug.MessageBox` once per save (`bBothDefeatsWarned`), even with the master off (plain text only). Exact box text: "O'Deadly Skyrim: Both ODefeat Reforged and Baka Defeat (OStim Edition) were detected. For stability use only one, preferably Baka Defeat since it does more." MCM Installed mods shows the same advice. `OnODefStart` is skipped while `fBakaUntil` is running, and a Baka player-victim start clears an ODefeat defeat in progress, so one defeat is narrated once (Baka preferred). MCM `GetVersion` 6.
+
 Scene engine additions: a module can preselect a scene and furniture (`sPreScene`, `kFurn`); `StartThread` then uses `OThreadBuilder.SetFurniture` instead of `NoFurniture`. Spawned or hostile participants are calmed for non-forced scenes too and their aggression is restored afterwards.
 
 ## 6. Known limits
@@ -81,9 +97,10 @@ Scene engine additions: a module can preselect a scene and furniture (`sPreScene
 - Pickpocket and brawl escalation are shown as locked in the MCM, not built.
 - A jail or barracks that shares a location with its town is only caught by sleeping or waiting there.
 - ZaZ only changes preferred scenes plus narration. No ZaZ functions are called.
-- Defeat of the player needs the optional "keep the player alive" setting, or they die normally. With ODefeat Reforged installed, player defeat is left to it.
+- Defeat of the player needs the optional "keep the player alive" setting, or they die normally. With ODefeat Reforged or Baka Defeat installed, player defeat is left to it.
 - OStim Kidnapped Redux's events carry no actors, so kidnappers and taken followers are not named. Its night-roll handoff only knows ODangerousNights, so O'Deadly night attacks and its kidnappings can both happen at night.
 - ODefeat Reforged third-party outcomes other than `SSLV Entry` are not narrated.
+- Baka Defeat does not broadcast the knockdown, surrender or struggle; the defeat is first told when Baka's first scene with the player starts (or through its outcome event). Tied-up states are not narrated.
 - Follower rescue starts OStim while combat continues nearby; other enemies can still hit the follower (kept from dying only through the temporary protected flag).
 - iActions drunk tiers assume its default 2 points per level.
 - Bathing in Skyrim's start event exists only for the player; followers are caught through its bathing effect.
@@ -92,7 +109,7 @@ Scene engine additions: a module can preselect a scene and furniture (`sPreScene
 
 ## 7. Rebuild
 
-From this repo, with Caprica (`-g skyrim`) and import folders for vanilla/SKSE, SkyUI SDK (`SKI_ConfigBase` must include `SetInputOptionValue`), OStim Standalone, powerofthree's Papyrus Extender and the SkyrimNet API. `compile.sh` adds `tools/stubs/` (compile-only stand-ins for `Dirty_BathingQuest`, `JValue`, `JArray`, `PlayerVampireQuestScript`; never ship them):
+From this repo, with Caprica (`-g skyrim`) and import folders for vanilla/SKSE, SkyUI SDK (`SKI_ConfigBase` must include `SetInputOptionValue`), OStim Standalone, powerofthree's Papyrus Extender and the SkyrimNet API. `compile.sh` adds `tools/stubs/` (compile-only stand-ins for `Dirty_BathingQuest`, `JValue`, `JArray`, `PlayerVampireQuestScript`, `DefeatOStimThread`; never ship them):
 
 ```
 CAPRICA=/path/to/caprica IMPORTS=/path/to/import1:/path/to/import2 ./tools/compile.sh
@@ -105,4 +122,4 @@ python3 tools/verify.py build/ODeadlySkyrim.esp
 
 ## 8. Credit and publishing
 
-Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4). Do not treat a Nexus listing as authorized unless the author says so.
+Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.

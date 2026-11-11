@@ -226,6 +226,7 @@ bool Property bForceWatch = false Auto Hidden       ; debug: next outdoor scene
 ; ======================= settings: 0.3 (SkyrimNet bridges, only active when the other mod is installed) =======================
 bool Property bOKRSkyrimNet = true Auto Hidden      ; OStim Kidnapped Redux events -> SkyrimNet
 bool Property bODefSkyrimNet = true Auto Hidden     ; ODefeat Reforged events -> SkyrimNet
+bool Property bBakaSkyrimNet = true Auto Hidden     ; 0.5: Baka Defeat (OStim Edition) events -> SkyrimNet
 bool Property bRescue = false Auto Hidden           ; follower rescue (mid-battle), OFF by default
 float Property fRescueChance = 50.0 Auto Hidden     ; % when a matching follower goes down
 int Property iRescueGender = 0 Auto Hidden          ; downed follower: 0 both, 1 female, 2 male (this module only)
@@ -318,6 +319,16 @@ bool bRescueFac = false
 bool bRescueProt = false
 string sRescueWhere = ""
 float fLastRescue = -10.0
+; 0.5 runtime (Baka Defeat listener only)
+float fBakaUntil = 0.0      ; game time; a Baka Defeat defeat of the player is in progress
+string sBakaWhere = ""      ; where the player went down
+string sBakaBy = ""         ; display name of the first one who took the player (may be empty)
+bool bBakaMemDone = false   ; the "had their way" memory for this defeat is written
+int[] iBakaTid              ; [8] Baka scene threads O'Deadly is narrating
+int[] iBakaKind             ; [8] 1 player victim, 2 companion, 3 player on top, 4 NPC victim
+Actor[] kBakaVic            ; [8]
+Actor[] kBakaAgg            ; [8]
+bool bBothDefeatsWarned = false   ; the one-time MessageBox for this save
 
 string Property MODNAME = "O'Deadly Skyrim" AutoReadOnly
 
@@ -325,6 +336,7 @@ string Property MODNAME = "O'Deadly Skyrim" AutoReadOnly
 Event OnInit()
 	InitArrays()
 	Register()
+	BothDefeatsWarn()
 EndEvent
 
 Function InitArrays()
@@ -381,6 +393,12 @@ Function InitArrays()
 	If kBathFx == None
 		kBathFx = new MagicEffect[8]
 	EndIf
+	If iBakaTid == None
+		iBakaTid = new int[8]
+		iBakaKind = new int[8]
+		kBakaVic = new Actor[8]
+		kBakaAgg = new Actor[8]
+	EndIf
 	MigrateFaunaMode()
 EndFunction
 
@@ -407,6 +425,11 @@ Function Register()
 		RegisterForModEvent("oDefeat_killEvent", "OnODefKill")
 		RegisterForModEvent("oDefeat_arrestEvent", "OnODefArrest")
 		RegisterForModEvent("SSLV Entry", "OnODefSlavery")
+	EndIf
+	If BakaDefeatOK()
+		RegisterForModEvent("DefeatOStimStart", "OnBakaSceneStart")
+		RegisterForModEvent("DefeatOStimEnd", "OnBakaSceneEnd")
+		RegisterForModEvent("DefeatPostAssault", "OnBakaPostAssault")
 	EndIf
 	RegisterPanicKey()
 EndFunction
@@ -538,6 +561,47 @@ EndFunction
 
 bool Function ODefeatOK()
 	return ModLoaded("ODefeat.esp")
+EndFunction
+
+; ---- 0.5 soft detection (never masters) ----
+; Baka Defeat - OStim Edition keeps the old plugin name so mods that hook Defeat still find it
+bool Function BakaDefeatOK()
+	return ModLoaded("SexLabDefeat.esp")
+EndFunction
+
+; any defeat mod that takes over a downed player: O'Deadly's own player defeat stands down
+bool Function DefeatModOK()
+	return ODefeatOK() || BakaDefeatOK()
+EndFunction
+
+bool Function BothDefeatsOK()
+	return ODefeatOK() && BakaDefeatOK()
+EndFunction
+
+string Function DefeatModName()
+	If BakaDefeatOK()
+		return "Baka Defeat"
+	ElseIf ODefeatOK()
+		return "ODefeat Reforged"
+	EndIf
+	return ""
+EndFunction
+
+string Property BOTH_DEFEATS_MSG = "O'Deadly Skyrim: Both ODefeat Reforged and Baka Defeat (OStim Edition) were detected. For stability use only one, preferably Baka Defeat since it does more." AutoReadOnly
+string Property BOTH_DEFEATS_NOTE = "O'Deadly Skyrim: ODefeat Reforged and Baka Defeat both detected. Use only one (Baka Defeat preferred)." AutoReadOnly
+
+; once per game load (from ODS_PlayerAlias a few seconds after loading) and on first install;
+; the MessageBox only the first time on a save. Plain text, shown even with the master switch off.
+Function BothDefeatsWarn()
+	If !BothDefeatsOK()
+		return
+	EndIf
+	Debug.Trace("[ODeadlySkyrim] both ODefeat Reforged and Baka Defeat detected")
+	Debug.Notification(BOTH_DEFEATS_NOTE)
+	If !bBothDefeatsWarned
+		bBothDefeatsWarned = true
+		Debug.MessageBox(BOTH_DEFEATS_MSG)
+	EndIf
 EndFunction
 
 bool Function KillerBunnyOK()
@@ -925,7 +989,7 @@ bool Function OtherBusy(bool allowCombat)
 		return true
 	EndIf
 	float now = Utility.GetCurrentGameTime()
-	If now < fOKRHeldUntil || now < fODefUntil      ; 0.3: Kidnapped Redux / ODefeat Reforged has the player
+	If now < fOKRHeldUntil || now < fODefUntil || now < fBakaUntil   ; 0.3/0.5: Kidnapped Redux / a defeat mod has the player
 		return true
 	EndIf
 	If bRescueOn                                     ; 0.3: a follower rescue side scene is running
@@ -2844,7 +2908,7 @@ Function OnActorBleedout(Actor a)
 		return
 	EndIf
 	bool forced = iForceMode == K_DEFEAT
-	If a == PlayerRef && (!bDefeatPlayer || ODefeatOK())   ; 0.3: ODefeat Reforged handles a downed player
+	If a == PlayerRef && (!bDefeatPlayer || DefeatModOK())   ; 0.3/0.5: ODefeat Reforged / Baka Defeat handles a downed player
 		DefeatFailed(a)
 		return
 	EndIf
@@ -2959,7 +3023,7 @@ bool Function StageDefeat(Actor vic, int ep)
 EndFunction
 
 Function UpdateEssential()
-	If bMaster && bDefeatEnabled && bDefeatPlayer && bDefeatEssential && !ODefeatOK()
+	If bMaster && bDefeatEnabled && bDefeatPlayer && bDefeatEssential && !DefeatModOK()
 		EssentialAlias.ForceRefTo(PlayerRef)
 	ElseIf EssentialAlias.GetReference()
 		EssentialAlias.Clear()
@@ -3835,7 +3899,7 @@ Function ResolveSoft()
 		AddBathFx(kBisFx2)
 	EndIf
 	UpdateWatchers()
-	Log("soft: iActions " + IActionsOK() + ", Dirt and Blood " + DnBOK() + " (list " + kDnBList + "), Bathing in Skyrim " + BiSOK() + ", Blood and OStim " + BaOOK() + ", Sacrosanct " + SacrosanctOK() + ", OStim Kidnapped Redux " + OKROK() + ", ODefeat Reforged " + ODefeatOK() + ", Killer Rabbit of Caerbannog " + KillerBunnyOK())
+	Log("soft: iActions " + IActionsOK() + ", Dirt and Blood " + DnBOK() + " (list " + kDnBList + "), Bathing in Skyrim " + BiSOK() + ", Blood and OStim " + BaOOK() + ", Sacrosanct " + SacrosanctOK() + ", OStim Kidnapped Redux " + OKROK() + ", ODefeat Reforged " + ODefeatOK() + ", Baka Defeat " + BakaDefeatOK() + ", Killer Rabbit of Caerbannog " + KillerBunnyOK())
 EndFunction
 
 Function AddDlcDrink(int id, string plugin)
@@ -5030,6 +5094,10 @@ Event OnODefStart(string eventName, string strArg, float numArg, Form sender)
 	If !ODefPlayerScene(strArg)
 		return      ; an NPC's defeat scene
 	EndIf
+	If Utility.GetCurrentGameTime() < fBakaUntil
+		Log("ODefeat: player scene while Baka Defeat has the player, not narrated twice")
+		return
+	EndIf
 	fODefUntil = Utility.GetCurrentGameTime() + 0.25     ; cleared by the outcome, lapses after 6 game hours
 	bODefAwait = false
 	sODefWhere = WhereName()
@@ -5151,6 +5219,213 @@ Event OnODefSlavery(string eventName, string strArg, float numArg, Form sender)
 	ODefSay("After the defeat, " + pn + " is sold on into slavery.", ODefWho() + ", had their way with them and sold them into slavery.")
 EndEvent
 
+; ======================= 0.5: BAKA DEFEAT (OStim Edition) BRIDGE (listener only) =======================
+; Baka Defeat - OStim Edition (an OStim conversion of BakaFactory's SexLab Defeat, plugin
+; SexLabDefeat.esp). O'Deadly never starts, stops or changes its defeats. It listens to Baka's
+; own public mod events and tells SkyrimNet what happened:
+;   DefeatOStimStart / DefeatOStimEnd  numArg = OStim thread id, sender = Baka's scene thread quest.
+;     Its VictimRef / Hook properties are read through a compile-only stub (never shipped);
+;     the actors come from OStim's OThread. VictimRef None = a consensual or paid scene: ignored.
+;     Hook "DefeatNecro" / "DefeatCons" are ignored.
+;   DefeatPostAssault  strArg "DefeatedBegin" (wakes up at an inn), "LFDBegin" (left for dead),
+;     "RobEnd" (robbed), "EscapeEnd" (got away), "EscapeBegin" / "BlackOutBegin" (logged only).
+; Baka does not broadcast the knockdown, surrender or the struggle itself, so the defeat is told
+; when the first scene with the player as victim starts. Master switch off / panic: no text.
+; Adults only: a scene with a child in it is never narrated or remembered.
+bool Function BakaTalk()
+	return bMaster && bBakaSkyrimNet && SNetOK()
+EndFunction
+
+Function BakaSay(string n, string m, Actor a1, Actor a2)
+	If !BakaTalk()
+		return
+	EndIf
+	If bSkyrimNetStart && n != ""
+		SkyrimNetApi.DirectNarration(n, a1, a2)
+	EndIf
+	If bSkyrimNetLog && m != ""
+		Actor who = a1
+		If who == None
+			who = PlayerRef
+		EndIf
+		SkyrimNetApi.RegisterPersistentEvent(m, who, a2)
+	EndIf
+EndFunction
+
+int Function BakaSlot(int tid)
+	If iBakaTid == None
+		InitArrays()
+	EndIf
+	int i = 0
+	While i < 8
+		If iBakaKind[i] > 0 && iBakaTid[i] == tid
+			return i
+		EndIf
+		i += 1
+	EndWhile
+	return -1
+EndFunction
+
+int Function BakaFreeSlot()
+	int i = 0
+	While i < 8
+		If iBakaKind[i] == 0
+			return i
+		EndIf
+		i += 1
+	EndWhile
+	return 0     ; all busy (stale): reuse the first
+EndFunction
+
+; "<who> beat <player> near <place>"
+string Function BakaWho()
+	string w = sBakaWhere
+	If w == ""
+		w = WhereName()
+	EndIf
+	string by = sBakaBy
+	If by == ""
+		by = "Someone"
+	EndIf
+	return by + " beat " + PlayerRef.GetDisplayName() + " near " + w
+EndFunction
+
+Function BakaClear()
+	sBakaWhere = ""
+	sBakaBy = ""
+	bBakaMemDone = false
+EndFunction
+
+Event OnBakaSceneStart(string eventName, string strArg, float numArg, Form sender)
+	int tid = numArg as int
+	DefeatOStimThread t = sender as DefeatOStimThread
+	If t == None || tid < 0
+		return
+	EndIf
+	string hook = t.Hook
+	Actor vic = t.VictimRef
+	If vic == None || hook == "DefeatNecro" || hook == "DefeatCons"
+		return       ; consensual, paid or a corpse: not told
+	EndIf
+	Actor[] acts = OThread.GetActors(tid)
+	If !acts || acts.Length < 2 || acts.Find(vic) < 0
+		return
+	EndIf
+	Actor agg = None
+	int i = 0
+	While i < acts.Length
+		If acts[i] == None || IsMinor(acts[i])
+			Log("Baka Defeat: scene " + tid + " has a child or an empty slot, not narrated")
+			return
+		EndIf
+		If agg == None && acts[i] != vic
+			agg = acts[i]
+		EndIf
+		i += 1
+	EndWhile
+	bool playerIn = acts.Find(PlayerRef) >= 0
+	int kind = 4
+	If vic == PlayerRef
+		kind = 1
+	ElseIf playerIn
+		kind = 3
+		agg = PlayerRef
+	ElseIf IsFollowerActor(vic)
+		kind = 2
+	EndIf
+	int s = BakaSlot(tid)
+	If s < 0
+		s = BakaFreeSlot()
+	EndIf
+	iBakaTid[s] = tid
+	iBakaKind[s] = kind
+	kBakaVic[s] = vic
+	kBakaAgg[s] = agg
+	string pn = PlayerRef.GetDisplayName()
+	string w = WhereName()
+	string an = agg.GetDisplayName()
+	string vn = vic.GetDisplayName()
+	Log("Baka Defeat: scene " + tid + " hook " + hook + " kind " + kind + " victim " + vn + " by " + an)
+	If kind == 1
+		float now = Utility.GetCurrentGameTime()
+		bool fresh = now >= fBakaUntil
+		fBakaUntil = now + 0.25        ; cleared by the outcome, lapses after 6 game hours
+		If now < fODefUntil
+			ODefClear()                ; both installed: Baka is the one telling this defeat
+		EndIf
+		If fresh
+			BakaClear()
+			sBakaWhere = w
+			sBakaBy = an
+			BakaSay(an + " has beaten " + pn + " near " + w + ". " + pn + " lies on the ground, disarmed and helpless, and " + an + " forces themselves on them.", "", agg, PlayerRef)
+		Else
+			BakaSay(an + " takes their turn with the beaten " + pn + ".", "", agg, PlayerRef)
+		EndIf
+	ElseIf kind == 2
+		BakaSay(an + " drags " + pn + "'s companion " + vn + " down near " + w + " and forces themselves on them while the fight is lost.", "", agg, vic)
+	ElseIf kind == 3
+		BakaSay(pn + " pins the beaten " + vn + " to the ground near " + w + " and forces themselves on them.", "", PlayerRef, vic)
+	Else
+		BakaSay(an + " has beaten " + vn + " near " + w + " and forces themselves on them.", "", agg, vic)
+	EndIf
+EndEvent
+
+Event OnBakaSceneEnd(string eventName, string strArg, float numArg, Form sender)
+	int s = BakaSlot(numArg as int)
+	If s < 0
+		return
+	EndIf
+	int kind = iBakaKind[s]
+	Actor vic = kBakaVic[s]
+	Actor agg = kBakaAgg[s]
+	iBakaKind[s] = 0
+	iBakaTid[s] = -1
+	kBakaVic[s] = None
+	kBakaAgg[s] = None
+	If vic == None || agg == None
+		return
+	EndIf
+	string pn = PlayerRef.GetDisplayName()
+	string w = WhereName()
+	If kind == 1
+		If !bBakaMemDone
+			bBakaMemDone = true
+			BakaSay("", BakaWho() + " in a fight and had their way with them while " + pn + " lay helpless.", agg, PlayerRef)
+		EndIf
+	ElseIf kind == 2
+		BakaSay("", agg.GetDisplayName() + " overpowered " + vic.GetDisplayName() + ", " + pn + "'s companion, near " + w + " and had their way with them.", agg, vic)
+	ElseIf kind == 3
+		BakaSay("", pn + " beat " + vic.GetDisplayName() + " near " + w + " and forced themselves on them.", PlayerRef, vic)
+	Else
+		BakaSay("", agg.GetDisplayName() + " beat " + vic.GetDisplayName() + " near " + w + " and had their way with them.", agg, vic)
+	EndIf
+EndEvent
+
+; the player's post-assault events (Baka sends them only for the player)
+Event OnBakaPostAssault(string eventName, string strArg, float numArg, Form sender)
+	Log("Baka Defeat: post assault " + strArg)
+	string pn = PlayerRef.GetDisplayName()
+	float now = Utility.GetCurrentGameTime()
+	If strArg == "DefeatedBegin"
+		fBakaUntil = now + 0.04
+		BakaSay(pn + " comes to in a rented bed at an inn, bruised and used. Someone hauled them off the field after the defeat.", BakaWho() + ". " + pn + " woke up later in a bed at an inn.", None, PlayerRef)
+	ElseIf strArg == "LFDBegin"
+		fBakaUntil = now + 0.04
+		BakaSay("Hours later, " + pn + " comes to where the winners dumped them and left them for dead.", BakaWho() + ", used them and left them for dead.", None, PlayerRef)
+	ElseIf strArg == "RobEnd"
+		fBakaUntil = now + 0.04
+		string by = "The ones who beat them"
+		If sBakaBy != ""
+			by = sBakaBy
+		EndIf
+		BakaSay(by + " goes through " + pn + "'s belongings and takes what is worth taking.", BakaWho() + " and robbed them of their valuables.", None, PlayerRef)
+	ElseIf strArg == "EscapeEnd"
+		fBakaUntil = 0.0
+		BakaSay(pn + " gets away from the ones who beat them.", BakaWho() + ", but " + pn + " got away.", None, PlayerRef)
+		BakaClear()
+	EndIf
+EndEvent
+
 ; ======================= 0.3: FOLLOWER RESCUE (mid-battle) =======================
 ; A follower who goes down in a fight may be taken by one nearby hostile while the rest of the
 ; fight goes on; the player can stop it. OFF by default, master switch and panic key apply, adults
@@ -5195,7 +5470,7 @@ bool Function TryFollowerRescue(Actor vic)
 		return false
 	EndIf
 	float now = Utility.GetCurrentGameTime()
-	If now < fOKRHeldUntil || now < fODefUntil || (now - fLastRescue) * 24.0 < 1.0
+	If now < fOKRHeldUntil || now < fODefUntil || now < fBakaUntil || (now - fLastRescue) * 24.0 < 1.0
 		return false
 	EndIf
 	If Utility.RandomFloat(0.0, 100.0) >= fRescueChance

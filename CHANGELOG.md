@@ -2,6 +2,17 @@
 
 By That Guy (Coronerra).
 
+## 0.5
+
+- **[Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288)** support (plugin `SexLabDefeat.esp`; OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo, Baka Edition by BakaFactory). Soft-detected: no new masters (the plugin still needs only `Skyrim.esm`), no new records, and none of its files are included. O'Deadly does not run, start or stop anything in it.
+- With Baka Defeat installed, O'Deadly's Defeat module leaves a downed player to it (your settings are kept) and still handles followers. While Baka Defeat has the player, O'Deadly does not start its own encounters.
+- SkyrimNet narration and memories from Baka Defeat's own mod events: beaten and taken (names who took you when the scene shows it, a shorter line for later turns), waking up at an inn, left for dead, robbed, getting away, a companion taken after a lost fight, an NPC beaten and taken by another NPC, and your own victims when you use Baka's actions. Consensual, paid and corpse scenes are not narrated. Adults only: a scene with a child in it is never narrated.
+- **Both defeat mods installed** (ODefeat Reforged and Baka Defeat): a notification once per game load and a one-time message box per save: "O'Deadly Skyrim: Both ODefeat Reforged and Baka Defeat (OStim Edition) were detected. For stability use only one, preferably Baka Defeat since it does more." The same advice shows on MCM > General > Installed mods. O'Deadly still stands aside for a downed player and does not narrate the same defeat twice.
+- MCM > General: Baka Defeat listed under "Installed mods"; new SkyrimNet toggle "Baka Defeat events" (ON, locked when the mod is missing). It follows the narration / memory toggles, the master switch and the panic key. MCM rebuilds its pages (`GetVersion` 6). SkyrimNet pack version 0.5.0.
+- Docs: the "one defeat mod only, preferably Baka Defeat" advice, and neutral wording throughout. Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues).
+
+Updating from 0.4: overwrite the old files; settings carry over.
+
 ## 0.4
 
 - **Climax fauna** is now a three-way menu: Off (default), Vanilla rabbits, or Killer Rabbit of Caerbannog. The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`); without it the choice is locked and labelled "not installed". None of his files are included, and his plugin is not a master.
@@ -47,6 +58,6 @@ Other changes:
 
 Updating from 0.1: overwrite the old files; settings carry over.
 
-## 0.1
+## 0.1 (first preview)
 
 First public build.

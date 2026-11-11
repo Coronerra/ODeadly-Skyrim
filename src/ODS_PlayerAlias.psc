@@ -1,5 +1,6 @@
 Scriptname ODS_PlayerAlias extends ReferenceAlias
 {O'Deadly Skyrim: game load, location change and bleedout events for the player. No polling.
+0.5: one single update a few seconds after a load for the both-defeat-mods notice.
 0.2: while Morning after or Bathing is on, the "Watching" state also listens for drinks and wash effects.}
 
 MagicEffect[] kFx
@@ -8,6 +9,12 @@ bool bDrinks = false
 
 Event OnPlayerLoadGame()
 	(GetOwningQuest() as ODS_Main).OnGameLoaded()
+	RegisterForSingleUpdate(8.0)      ; 0.5: one late check once the HUD is up
+EndEvent
+
+; 0.5: single update after a load only (never re-registered): both defeat mods installed?
+Event OnUpdate()
+	(GetOwningQuest() as ODS_Main).BothDefeatsWarn()
 EndEvent
 
 Event OnLocationChange(Location akOldLoc, Location akNewLoc)

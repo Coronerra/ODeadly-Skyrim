@@ -57,12 +57,12 @@ string[] jailOpts
 string[] faunaOpts
 
 int Function GetVersion()
-	return 5
+	return 6
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4 rebuild them for new options
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4/0.5 rebuild them for new options
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -184,6 +184,8 @@ bool Function GetB(string k)
 		return Main.bRescue
 	ElseIf k == "odefsn"
 		return Main.bODefSkyrimNet
+	ElseIf k == "bakasn"
+		return Main.bBakaSkyrimNet
 	ElseIf k == "bio"
 		return Main.bBioCheck
 	ElseIf k == "drunkmod"
@@ -341,6 +343,8 @@ Function SetB(string k, bool v)
 		Main.bRescue = v
 	ElseIf k == "odefsn"
 		Main.bODefSkyrimNet = v
+	ElseIf k == "bakasn"
+		Main.bBakaSkyrimNet = v
 	ElseIf k == "bio"
 		Main.bBioCheck = v
 	ElseIf k == "drunkmod"
@@ -984,6 +988,11 @@ Function PageGeneral()
 	AddTextOption("ODangerousNights", YesNo(Main.ODNLoaded()), OPTION_FLAG_DISABLED)
 	AddTextOption("OStim Kidnapped Redux", YesNo(Main.OKROK()), OPTION_FLAG_DISABLED)
 	AddTextOption("ODefeat Reforged", YesNo(Main.ODefeatOK()), OPTION_FLAG_DISABLED)
+	AddTextOption("Baka Defeat (OStim Edition)", YesNo(Main.BakaDefeatOK()), OPTION_FLAG_DISABLED)
+	If Main.BothDefeatsOK()
+		AddTextOption("  Both defeat mods detected:", "use only one", OPTION_FLAG_DISABLED)
+		AddTextOption("  Preferably Baka Defeat (it does more)", "", OPTION_FLAG_DISABLED)
+	EndIf
 	AddTextOption("Killer Rabbit of Caerbannog", YesNo(Main.KillerBunnyOK()), OPTION_FLAG_DISABLED)
 	AddHeaderOption("Victims")
 	oGender = AddMenuOption("Victim gender", genderOpts[Main.iVictimGender])
@@ -1006,6 +1015,7 @@ Function PageGeneral()
 	AddT("Rumours", "rumors")
 	AddT("Kidnapped Redux events", "okrsn", Flag(Main.OKROK()))
 	AddT("ODefeat Reforged events", "odefsn", Flag(Main.ODefeatOK()))
+	AddT("Baka Defeat events", "bakasn", Flag(Main.BakaDefeatOK()))
 	AddT("Ask SkyrimNet if the NPC would", "bio", Flag(Main.SNetOK()))
 	AddS("SkyrimNet answer timeout", "biotimeout", Flag(Main.SNetOK() && Main.bBioCheck))
 	AddHeaderOption("Modifiers")
@@ -1110,10 +1120,10 @@ Function PageDanger()
 	AddT("Enable defeat", "defeat")
 	int f = Flag(Main.bDefeatEnabled)
 	AddS("Chance when downed", "defeatch", f)
-	AddT("Player can be taken", "defeatplayer", Flag(Main.bDefeatEnabled && !Main.ODefeatOK()))
-	AddT("Keep the player alive for defeat", "essential", Flag(Main.bDefeatEnabled && Main.bDefeatPlayer && !Main.ODefeatOK()))
-	If Main.ODefeatOK()
-		AddTextOption("  Player: left to ODefeat Reforged", "", OPTION_FLAG_DISABLED)
+	AddT("Player can be taken", "defeatplayer", Flag(Main.bDefeatEnabled && !Main.DefeatModOK()))
+	AddT("Keep the player alive for defeat", "essential", Flag(Main.bDefeatEnabled && Main.bDefeatPlayer && !Main.DefeatModOK()))
+	If Main.DefeatModOK()
+		AddTextOption("  Player: left to " + Main.DefeatModName(), "", OPTION_FLAG_DISABLED)
 	EndIf
 	AddHeaderOption("Follower rescue (mid-battle)")
 	AddT("Enable follower rescue", "rescue")
@@ -1674,9 +1684,13 @@ string Function Hint(string k)
 		return "Only does anything when Lirael's OStim Kidnapped Redux is installed: tells SkyrimNet when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly does not run the kidnapping. Uses the narration / memory settings above."
 	ElseIf k == "odefsn"
 		return "Only does anything when Lirael's ODefeat Reforged is installed: tells SkyrimNet when you are defeated and what happened afterwards (escape, robbery, waking up, arrest, being sold, execution). O'Deadly does not run the defeat. Uses the narration / memory settings above."
+	ElseIf k == "bakasn"
+		return "Only does anything when Baka Defeat - OStim Edition (SexLabDefeat.esp) is installed: tells SkyrimNet when you are beaten and taken, what happened afterwards (waking at an inn, left for dead, robbed, getting away), companions taken after a lost fight, NPCs beaten by NPCs, and your own victims. O'Deadly does not run the defeat. Uses the narration / memory settings above."
 	ElseIf k == "defeatplayer"
-		If Main.ODefeatOK()
-			return "ODefeat Reforged is installed: a downed player is left to it, so the two mods never both grab you. Your setting is kept for when it is not installed. Followers still use this page."
+		If Main.BothDefeatsOK()
+			return "ODefeat Reforged and Baka Defeat are both installed. For stability use only one, preferably Baka Defeat since it does more. A downed player is left to them, so O'Deadly never grabs you as well. Your setting is kept for when neither is installed. Followers still use this page."
+		ElseIf Main.DefeatModOK()
+			return Main.DefeatModName() + " is installed: a downed player is left to it, so the two mods never both grab you. Your setting is kept for when it is not installed. Followers still use this page."
 		EndIf
 		return "The winner may take you when you are downed. Needs 'Keep the player alive for defeat' unless you are essential anyway."
 	ElseIf k == "drunkmod"
