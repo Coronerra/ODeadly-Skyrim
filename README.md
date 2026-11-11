@@ -16,7 +16,7 @@ This repository is the full public source and notes: Papyrus scripts, the plugin
 
 I really don't care for most of the features of this mod, but I realized I have a superpower. Because of my messed-up past, I can look at things with a clinical, non-judgmental mind. I saw a lot of what was on LoversLab, so I told my agent to try to make a true all-in-one, environmentally adjusting world for SkyrimNet that should work with any system. Instead of hunting for a million different environmental mods, just one big dark one the end user can tweak to their personal preferences or likings. This is what it gave me.
 
-The original idea came when I saw the description of ODangerous Nights. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
+This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). I never downloaded ODangerous Nights, so I have no idea if it is compatible. ODangerous Nights is not needed — this does the same thing, and so much more. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
 
 Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, and 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, but none of them is required.
 
@@ -76,7 +76,7 @@ Found a problem? Please report it with your Papyrus log (lines start with `[ODea
 
 ## Requirements
 
-These are the only hard requirements. The scenarios themselves use vanilla Skyrim locations and events. You do not need ODangerous Nights or a stack of other danger / environment mods.
+These are the only hard requirements. The scenarios themselves use vanilla Skyrim locations and events. You do not need ODangerous Nights or a stack of other danger / environment mods — this does the same thing, and so much more.
 
 ### Game versions
 
@@ -96,7 +96,7 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **OCum**: messier memories.
 - **ZaZ Animation Pack**: jail scenes prefer restraint scenes; made-to-watch narration.
 - **OStimNet / OStim Navigator**: better scene tags.
-- **ODangerousNights**: soft-compatible; this mod stays out of the way if ODN just ran an attack.
+- **ODangerousNights**: not needed. This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223), but I never downloaded it, so I have no idea if they are compatible. This already does the same thing, and so much more.
 - **iActions** (0.2): its alcohol list (including its `extra_alcohol.json`) is used to count your drinks, and NPCs it marks as drunk, plastered or blacked out are preferred for the morning after. Without it, vanilla and DLC drinks are recognised.
 - **Dirt and Blood** or **Bathing in Skyrim** (0.2): needed for the Bathing module. Only a real wash counts, never swimming or rain. With both installed, one wash still gives one roll.
 - **Blood and OStim** (0.2): the Dark Gift becomes a feeding scene.
@@ -346,7 +346,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 ## Credits
 
 - That Guy (Coronerra).
-- Design inspired by ODangerousNights. No ODN files are used; this is not an ODN patch.
+- This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). I never downloaded it, so I have no idea if they are compatible. No ODN files are used; this is not an ODN patch.
 - Built on OStim Standalone, SkyUI, powerofthree's Papyrus Extender and SkyrimNet APIs (none of their files are included).
 - Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
 - Optional 0.3 listeners for Lirael's [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) use only their documented / public mod events. Thanks to [Lirael](https://www.patreon.com/LiraelAtelier) and vinfamy; none of their files are included and neither is a master.

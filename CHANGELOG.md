@@ -13,7 +13,7 @@ SkyrimNet listeners for two of Lirael's mods. Both are soft-detected: no new mas
 - With ODefeat Reforged installed, O'Deadly's Defeat module leaves a downed player to it (your settings are kept) and still handles followers.
 - MCM > Danger: "Follower rescue (mid-battle)" section. MCM > General: both mods listed under "Installed mods"; two new SkyrimNet toggles, "Kidnapped Redux events" and "ODefeat Reforged events" (ON, locked when the mod is missing). Both also follow the narration / memory toggles, the master switch and the panic key. The MCM rebuilds its pages on update.
 - SkyrimNet pack version 0.3.0.
-- Docs updated: original cover at the top of the repository README, and Patreon links for the two optional Lirael mods.
+- Docs updated: original cover at the top of the repository README, and Patreon links for the two optional Lirael mods. The README now states that this was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223), that ODangerous Nights was never downloaded so compatibility is unknown, and that it is not needed because this already does the same thing and more.
 
 Updating from 0.2: overwrite the old files; settings carry over.
 

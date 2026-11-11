@@ -6,7 +6,7 @@ This file is for AI assistants, bots and modders who want to understand this mod
 
 Most "dangerous world" adult mods for Skyrim are narrow (nights only, prisons only) and often treat the player as the only victim. O'Deadly Skyrim is one all-in-one, toggleable engine for OStim + optional SkyrimNet. Events already in vanilla Skyrim (sleep, wait, lingering in a jail or barracks, inns, defeat, trespass, roads, wilderness) can start a scene with the people who are actually there, including followers. The end user turns on what they want. A master kill switch and a panic hotkey exist for family-safe play.
 
-It is inspired by ODangerousNights. No ODN files are used; this is not an ODN patch.
+It was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). The author never downloaded it, so compatibility is unknown, and it is not required — this already does the same thing and more. No ODN files are used; this is not an ODN patch. If `ODangerousNights.esp` is present, the engine tries to stay out of the way after an ODN attack; that path is untested.
 
 ## 2. Hard rules
 
