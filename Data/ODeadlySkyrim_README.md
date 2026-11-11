@@ -1,10 +1,12 @@
+![O'Deadly Skyrim](docs/ODeadly_Skyrim_cover.jpg)
+
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
 **v0.3**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2)** (latest published release) · [Changelog](CHANGELOG.md) · [Earlier v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3)** · [Changelog](CHANGELOG.md) · [Earlier v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
 Version 0.3 (`ODeadly_Skyrim_0.3.zip`) is the new build: a mid-battle follower rescue module, and SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged when you have them. See [New in 0.3](#new-in-03-follower-rescue-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged) and the [changelog](CHANGELOG.md).
 
@@ -100,8 +102,8 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **Blood and OStim** (0.2): the Dark Gift becomes a feeding scene.
 - **Sacrosanct** (0.2): the Dark Gift turns you through Sacrosanct's own vampirism.
 - **JContainers**: only used to read iActions' `extra_alcohol.json` directly.
-- **OStim Kidnapped Redux** (0.3, Lirael's OStim conversion of vinfamy's SexLab Kidnapped Redux): SkyrimNet hears when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly holds its own encounters while you are held.
-- **ODefeat Reforged** (0.3, by Lirael): SkyrimNet hears when you are defeated and what happens next. A downed player is left to ODefeat Reforged; O'Deadly's Defeat module keeps handling followers.
+- **[OStim Kidnapped Redux](https://www.patreon.com/posts/175042213)** (0.3, [Lirael's](https://www.patreon.com/LiraelAtelier) OStim conversion of vinfamy's SexLab Kidnapped Redux): SkyrimNet hears when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly holds its own encounters while you are held.
+- **[ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196)** (0.3, by [Lirael](https://www.patreon.com/LiraelAtelier)): SkyrimNet hears when you are defeated and what happens next. A downed player is left to ODefeat Reforged; O'Deadly's Defeat module keeps handling followers.
 
 None of these mods' files are included, and none of them is a master of this plugin.
 
@@ -283,7 +285,7 @@ MCM > Danger > "Follower rescue (mid-battle)". **OFF by default**, behind the ma
 
 Two listeners, not new encounter modules: O'Deadly does not start, stop or change anything in those mods. It listens to their public mod events and tells SkyrimNet what happened, using your name and the place. Each has a toggle on MCM > General > SkyrimNet (ON, locked when the mod is missing) and also follows "Narration when it starts" and "Memory afterwards". With the master switch off or after the panic key, nothing is sent. Adults only, as everywhere in this mod.
 
-#### OStim Kidnapped Redux (Lirael)
+#### [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (Lirael)
 
 - Taken (its own ambush, or handed over by another mod): narration and a memory of being dragged off to the hideout, near where it happened.
 - Slipped the ambush: one line of narration.
@@ -291,7 +293,7 @@ Two listeners, not new encounter modules: O'Deadly does not start, stop or chang
 - While you are held, O'Deadly does not start its own encounters.
 - Kidnapped Redux only knows to leave its night rolls to ODangerousNights, so with both O'Deadly's night attacks and Kidnapped Redux on, either one can still happen at night.
 
-#### ODefeat Reforged (Lirael)
+#### [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) (Lirael)
 
 - Defeated: narration that you are at the mercy of whoever won, by name when the scene shows who.
 - Escaped (you won the struggle), robbed, left where you fell, arrested by a guard, sold into slavery, or executed: narration, plus a memory (except for execution, which reloads your last save).
@@ -332,13 +334,14 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 ## Repository contents
 
 - `README.md` — these notes (a copy also ships in the zip as `ODeadlySkyrim_README.md`)
+- `docs/ODeadly_Skyrim_cover.jpg` — the cover shown at the top of this page
 - `CHANGELOG.md` — what changed in each version
 - `AI_CONTEXT.md` — engine overview, module kinds, form IDs, events, and how to rebuild
 - `LICENSE` — MIT for work by That Guy (Coronerra)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest published there: `ODeadly_Skyrim_0.2.zip`; 0.3 is `ODeadly_Skyrim_0.3.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.3.zip`)
 
 ## Credits
 
@@ -346,7 +349,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Design inspired by ODangerousNights. No ODN files are used; this is not an ODN patch.
 - Built on OStim Standalone, SkyUI, powerofthree's Papyrus Extender and SkyrimNet APIs (none of their files are included).
 - Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
-- Optional 0.3 listeners for Lirael's OStim Kidnapped Redux (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's ODefeat Reforged use only their documented / public mod events. Thanks to Lirael and vinfamy; none of their files are included and neither is a master.
+- Optional 0.3 listeners for Lirael's [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) use only their documented / public mod events. Thanks to [Lirael](https://www.patreon.com/LiraelAtelier) and vinfamy; none of their files are included and neither is a master.
 
 ## Other work
 
