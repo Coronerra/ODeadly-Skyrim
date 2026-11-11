@@ -2,6 +2,14 @@
 
 By That Guy (Coronerra).
 
+## 0.4
+
+- **Climax fauna** is now a three-way menu: Off (default), Vanilla rabbits, or Killer Rabbit of Caerbannog. The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`); without it the choice is locked and labelled "not installed". None of his files are included, and his plugin is not a master.
+- When that option is on, the usual ring of hares is reskinned to his killer-rabbit race (his unique cave rabbit is never spawned or moved). If the race cannot be found, it falls back to vanilla rabbits. Butterflies are unchanged. SkyrimNet narration names the Killer Rabbits of Caerbannog when that option is used.
+- Old saves that already had the easter egg on become Vanilla rabbits. MCM rebuilds its pages (`GetVersion` 5). Listed under Installed mods. SkyrimNet pack version 0.4.0.
+
+Updating from 0.3: overwrite the old files; settings carry over.
+
 ## 0.3
 
 - **Follower rescue (mid-battle)**, new option on the Danger page, **OFF by default**, behind the master switch and the panic key, adults only. When a follower goes down in a fight while you are still standing, one nearby enemy may start taking them (50% by default) while the rest of the fight goes on. Hit or kill that enemy to pull your follower away. "Downed follower": Both / Female / Male (only for this option). One at a time, at most one per game hour. SkyrimNet narration when it starts and a memory of how it ended. With this option off, the Defeat module works exactly as before; with both on, a downed follower goes to the rescue first and Defeat takes over when the rescue does not start.

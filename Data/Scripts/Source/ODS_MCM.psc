@@ -15,6 +15,7 @@ int oMaster
 int oPanicKey
 int oMsg
 int oGender
+int oFauna
 int oRecheck
 int oForceAttack
 int oForceCreature
@@ -53,14 +54,18 @@ int oRescueGender
 string[] msgOpts
 string[] catOpts
 string[] jailOpts
+string[] faunaOpts
 
 int Function GetVersion()
-	return 4
+	return 5
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3 rebuilds them for the new options
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4 rebuild them for new options
+	EndIf
+	If a_version >= 5
+		Main.MigrateFaunaMode()
 	EndIf
 EndEvent
 
@@ -97,6 +102,21 @@ Function SetupPages()
 	jailOpts[0] = "Auto-detect"
 	jailOpts[1] = "Yes, jail / barracks"
 	jailOpts[2] = "Never"
+	faunaOpts = new string[3]
+	faunaOpts[0] = "Off"
+	faunaOpts[1] = "Vanilla rabbits"
+	RefreshFaunaOpts()
+EndFunction
+
+Function RefreshFaunaOpts()
+	If faunaOpts == None || faunaOpts.Length < 3
+		return
+	EndIf
+	If Main.KillerBunnyOK()
+		faunaOpts[2] = "Killer Rabbit of Caerbannog"
+	Else
+		faunaOpts[2] = "Killer Rabbit of Caerbannog (not installed)"
+	EndIf
 EndFunction
 
 int Function Flag(bool on)
@@ -878,6 +898,7 @@ Function ResetIds()
 	oPanicKey = -100
 	oMsg = -100
 	oGender = -100
+	oFauna = -100
 	oRescueGender = -100
 	oRecheck = -100
 	oForceAttack = -100
@@ -914,7 +935,7 @@ EndFunction
 ; ---------------- pages ----------------
 Event OnPageReset(string page)
 	ResetIds()
-	If genderOpts == None || jailOpts == None || rescueGenderOpts == None
+	If genderOpts == None || jailOpts == None || rescueGenderOpts == None || faunaOpts == None
 		SetupPages()
 	EndIf
 	Main.InitArrays()
@@ -963,6 +984,7 @@ Function PageGeneral()
 	AddTextOption("ODangerousNights", YesNo(Main.ODNLoaded()), OPTION_FLAG_DISABLED)
 	AddTextOption("OStim Kidnapped Redux", YesNo(Main.OKROK()), OPTION_FLAG_DISABLED)
 	AddTextOption("ODefeat Reforged", YesNo(Main.ODefeatOK()), OPTION_FLAG_DISABLED)
+	AddTextOption("Killer Rabbit of Caerbannog", YesNo(Main.KillerBunnyOK()), OPTION_FLAG_DISABLED)
 	AddHeaderOption("Victims")
 	oGender = AddMenuOption("Victim gender", genderOpts[Main.iVictimGender])
 	AddS("Victim search range", "range")
@@ -1193,8 +1215,13 @@ Function PageMore()
 	AddTextOption("  Blood and OStim (feeding)", YesNo(Main.BaOOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("  Sacrosanct", YesNo(Main.SacrosanctOK()), OPTION_FLAG_DISABLED)
 	AddHeaderOption("Climax fauna (easter egg)")
-	AddT("Nature answers your climax", "fauna")
-	int f = Flag(Main.bFauna)
+	RefreshFaunaOpts()
+	int fm = Main.iFaunaMode
+	If fm < 0 || fm > 2
+		fm = 0
+	EndIf
+	oFauna = AddMenuOption("Nature answers your climax", faunaOpts[fm])
+	int f = Flag(fm > 0)
 	AddS("Chance per climax", "faunach", f)
 	AddS("Rabbits", "faunarabbits", f)
 EndFunction
@@ -1500,6 +1527,18 @@ Event OnOptionMenuOpen(int o)
 		SetMenuDialogOptions(rescueGenderOpts)
 		SetMenuDialogStartIndex(Main.iRescueGender)
 		SetMenuDialogDefaultIndex(0)
+	ElseIf o == oFauna
+		RefreshFaunaOpts()
+		SetMenuDialogOptions(faunaOpts)
+		int start = Main.iFaunaMode
+		If start < 0 || start > 2
+			start = 0
+		EndIf
+		If start == 2 && !Main.KillerBunnyOK()
+			start = 0
+		EndIf
+		SetMenuDialogStartIndex(start)
+		SetMenuDialogDefaultIndex(0)
 	ElseIf o == oMsg
 		SetMenuDialogOptions(msgOpts)
 		SetMenuDialogStartIndex(Main.iMsgStyle)
@@ -1532,7 +1571,19 @@ Event OnOptionMenuAccept(int o, int i)
 	If i < 0
 		return
 	EndIf
-	If o == oGender
+	If o == oFauna
+		If i == 2 && !Main.KillerBunnyOK()
+			ShowMessage("The Killer Rabbit of Caerbannog option needs Mihail's mod (mihailkillerbunny.esp). It is not included here.", false)
+			return
+		EndIf
+		If i < 0 || i > 2
+			return
+		EndIf
+		Main.iFaunaMode = i
+		Main.SyncFaunaFlag()
+		SetMenuOptionValue(o, faunaOpts[i])
+		ForcePageReset()
+	ElseIf o == oGender
 		Main.iVictimGender = i
 		SetMenuOptionValue(o, genderOpts[i])
 	ElseIf o == oRescueGender
@@ -1695,7 +1746,7 @@ string Function Hint(string k)
 	ElseIf k == "darkinfect"
 		return "Afterwards you contract vampirism (through Sacrosanct when installed). Immune to disease, or already a vampire: nothing infectious happens."
 	ElseIf k == "fauna"
-		return "Easter egg, OFF by default. After your climax, a ring of rabbits may appear and come for you, with a cloud of butterflies. Pure silliness. The master switch and panic key stop it too."
+		return "Easter egg, Off by default. After your climax, a ring of rabbits may appear and come for you, with a cloud of butterflies. The third option uses Mihail's Killer Rabbit of Caerbannog when that mod is installed; his files are not included. The master switch and panic key stop it too."
 	EndIf
 	return ""
 EndFunction
@@ -1711,6 +1762,8 @@ Event OnOptionHighlight(int o)
 		SetInfoText("Probe OStim again for each creature type (stand near a follower for best results).")
 	ElseIf o == oRescueGender
 		SetInfoText("Which downed followers this module can pick: Both (default), Female or Male. Only for follower rescue; the victim gender on the General page is not changed.")
+	ElseIf o == oFauna
+		SetInfoText("Easter egg, Off by default. Vanilla rabbits is the original gag: a ring of hares and a cloud of butterflies after your climax. The third option, Killer Rabbit of Caerbannog, needs Mihail's mod; it is locked without it, and none of his files are included. The master switch and panic key stop it too.")
 	Else
 		string k = KeyOfT(o)
 		If k == ""

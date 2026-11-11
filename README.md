@@ -2,13 +2,13 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.3**
+**v0.4**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3)** · [Changelog](CHANGELOG.md) · [Earlier v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4)** · [Changelog](CHANGELOG.md) · [Earlier v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
-Version 0.3 (`ODeadly_Skyrim_0.3.zip`) is the new build: a mid-battle follower rescue module, and SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged when you have them. See [New in 0.3](#new-in-03-follower-rescue-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged) and the [changelog](CHANGELOG.md).
+Version 0.4 (`ODeadly_Skyrim_0.4.zip`) adds a third Climax fauna option that can spawn Mihail's Killer Rabbits of Caerbannog when his mod is installed. See [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option) and the [changelog](CHANGELOG.md).
 
 This repository is the full public source and notes: Papyrus scripts, the plugin, the SkyrimNet decision pack, the compile and plugin-builder tools, the [changelog](CHANGELOG.md), and hook-level details in **[AI_CONTEXT.md](AI_CONTEXT.md)** (start there if you are an AI assistant or a modder extending this). License: [MIT for coronerra's work](LICENSE).
 
@@ -18,7 +18,7 @@ I really don't care for most of the features of this mod, but I realized I have 
 
 This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). I never downloaded ODangerous Nights, so I have no idea if it is compatible. ODangerous Nights is not needed — this does the same thing, and so much more. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
 
-Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, and 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, but none of them is required.
+Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, and 0.4 can use Mihail's Killer Rabbit of Caerbannog for the climax fauna easter egg, but none of them is required.
 
 If there are any other scenarios you want added that can work without additional mod requirements, I can.
 
@@ -37,6 +37,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [Modules and defaults](#modules-and-defaults)
 - [New in 0.2](#new-in-02-mcm-page-more-encounters-inn-rooms-on-jail--inns)
 - [New in 0.3](#new-in-03-follower-rescue-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged)
+- [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [MCM pages](#mcm-pages)
 - [Test checklist](#test-checklist)
 - [Known limits](#known-limits)
@@ -104,6 +105,7 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **JContainers**: only used to read iActions' `extra_alcohol.json` directly.
 - **[OStim Kidnapped Redux](https://www.patreon.com/posts/175042213)** (0.3, [Lirael's](https://www.patreon.com/LiraelAtelier) OStim conversion of vinfamy's SexLab Kidnapped Redux): SkyrimNet hears when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly holds its own encounters while you are held.
 - **[ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196)** (0.3, by [Lirael](https://www.patreon.com/LiraelAtelier)): SkyrimNet hears when you are defeated and what happens next. A downed player is left to ODefeat Reforged; O'Deadly's Defeat module keeps handling followers.
+- **[The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905)** (0.4, by Mihail): unlocks the third Climax fauna option, which can spawn his killer rabbits after a climax. The unique rabbit in the Cave of Caerbannog is left alone.
 
 None of these mods' files are included, and none of them is a master of this plugin.
 
@@ -165,7 +167,7 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Inns full: shared room (0.2) | OFF | 4% per hour slept in an inn with your party. |
 | Watched from a distance (0.2) | OFF | 25% per outdoor scene, 2 game hour cooldown. |
 | Dark Gift (0.2) | OFF | 1% per hour slept. Vampirism ON (unless immune). |
-| Climax fauna easter egg (0.2) | OFF | 5% per climax, 20 rabbits. Last option in the MCM. |
+| Climax fauna easter egg (0.2 / 0.4) | OFF | Off, Vanilla rabbits, or Killer Rabbit of Caerbannog if Mihail's mod is detected. 5% per climax, 20 rabbits. Last option in the MCM. |
 
 ### Night attacks
 
@@ -264,7 +266,16 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 ### Climax fauna (easter egg)
 
-- The very last option in the MCM. 5% after your climax: twenty rabbits appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
+- The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
+- The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
+
+## New in 0.4 (Killer Rabbit of Caerbannog climax fauna option)
+
+MCM > More encounters > Climax fauna. Still **Off by default**, behind the master switch and the panic key.
+
+- The old on/off toggle is now Off / Vanilla rabbits / Killer Rabbit of Caerbannog. Chance and rabbit-count sliders are unchanged, and only apply when the option is not Off.
+- If you already had the easter egg on, it becomes Vanilla rabbits. The third choice stays locked until `mihailkillerbunny.esp` is loaded.
+- Updating from 0.3: overwrite the old files; other settings carry over.
 
 ## New in 0.3 (follower rescue, SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged)
 
@@ -341,7 +352,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.3.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.4.zip`)
 
 ## Credits
 
@@ -350,6 +361,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Built on OStim Standalone, SkyUI, powerofthree's Papyrus Extender and SkyrimNet APIs (none of their files are included).
 - Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
 - Optional 0.3 listeners for Lirael's [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) use only their documented / public mod events. Thanks to [Lirael](https://www.patreon.com/LiraelAtelier) and vinfamy; none of their files are included and neither is a master.
+- Optional 0.4 Climax fauna support for Mihail's [The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) uses only a runtime check for `mihailkillerbunny.esp` and his killer-rabbit race. Thanks to Mihail; none of his files are included, and his plugin is not a master.
 
 ## Other work
 

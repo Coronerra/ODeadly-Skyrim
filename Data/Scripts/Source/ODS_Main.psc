@@ -216,7 +216,8 @@ bool Property bDarkGift = false Auto Hidden
 float Property fDarkGiftChance = 1.0 Auto Hidden    ; % per hour slept
 bool Property bDarkInfect = true Auto Hidden        ; vampirism unless immune to disease
 
-bool Property bFauna = false Auto Hidden            ; easter egg: climax fauna
+bool Property bFauna = false Auto Hidden            ; easter egg: climax fauna (true when iFaunaMode > 0)
+int Property iFaunaMode = 0 Auto Hidden             ; 0 off, 1 vanilla rabbits, 2 Killer Rabbit of Caerbannog if detected
 float Property fFaunaChance = 5.0 Auto Hidden       ; % per climax
 int Property iFaunaRabbits = 20 Auto Hidden
 bool Property bForceFauna = false Auto Hidden       ; debug: next climax
@@ -380,6 +381,7 @@ Function InitArrays()
 	If kBathFx == None
 		kBathFx = new MagicEffect[8]
 	EndIf
+	MigrateFaunaMode()
 EndFunction
 
 ; registrations are cheap and event-only: no polling anywhere
@@ -537,6 +539,32 @@ EndFunction
 bool Function ODefeatOK()
 	return ModLoaded("ODefeat.esp")
 EndFunction
+
+bool Function KillerBunnyOK()
+	return ModLoaded("mihailkillerbunny.esp")
+EndFunction
+
+; Mihail's cave rabbit is Unique, so we never PlaceAtMe that actor (killing a copy can kill the original).
+; When the third climax-fauna option is on, vanilla hares are reskinned to his killer-rabbit race instead.
+Race Function KillerBunnyRace()
+	If !KillerBunnyOK()
+		return None
+	EndIf
+	return Game.GetFormFromFile(0x00000800, "mihailkillerbunny.esp") as Race
+EndFunction
+
+Function SyncFaunaFlag()
+	bFauna = iFaunaMode > 0
+EndFunction
+
+; Old saves only had bFauna on/off: on becomes vanilla rabbits (mode 1).
+Function MigrateFaunaMode()
+	If iFaunaMode == 0 && bFauna
+		iFaunaMode = 1
+	EndIf
+	SyncFaunaFlag()
+EndFunction
+
 
 ; mod is on and able to run
 bool Function Ready()
@@ -3807,7 +3835,7 @@ Function ResolveSoft()
 		AddBathFx(kBisFx2)
 	EndIf
 	UpdateWatchers()
-	Log("soft: iActions " + IActionsOK() + ", Dirt and Blood " + DnBOK() + " (list " + kDnBList + "), Bathing in Skyrim " + BiSOK() + ", Blood and OStim " + BaOOK() + ", Sacrosanct " + SacrosanctOK() + ", OStim Kidnapped Redux " + OKROK() + ", ODefeat Reforged " + ODefeatOK())
+	Log("soft: iActions " + IActionsOK() + ", Dirt and Blood " + DnBOK() + " (list " + kDnBList + "), Bathing in Skyrim " + BiSOK() + ", Blood and OStim " + BaOOK() + ", Sacrosanct " + SacrosanctOK() + ", OStim Kidnapped Redux " + OKROK() + ", ODefeat Reforged " + ODefeatOK() + ", Killer Rabbit of Caerbannog " + KillerBunnyOK())
 EndFunction
 
 Function AddDlcDrink(int id, string plugin)
@@ -4767,6 +4795,13 @@ Function FaunaBurst(int id)
 	If ODS_PoolFauna && ODS_PoolFauna.GetSize() > 0
 		hare = ODS_PoolFauna.GetAt(0) as ActorBase
 	EndIf
+	Race killerRace = None
+	If iFaunaMode == 2
+		killerRace = KillerBunnyRace()
+		If !killerRace
+			Log("fauna: Killer Rabbit option on, but mihailkillerbunny.esp was not found; using vanilla rabbits")
+		EndIf
+	EndIf
 	int n = iFaunaRabbits
 	If n > 30
 		n = 30
@@ -4779,6 +4814,10 @@ Function FaunaBurst(int id)
 	While hare && i < n && Alive(ep)
 		Actor r = PlayerRef.PlaceAtMe(hare, 1, false, true) as Actor
 		If r
+			If killerRace
+				r.SetRace(killerRace)
+				r.QueueNiNodeUpdate()
+			EndIf
 			float ang = (360.0 / n) * i + Utility.RandomFloat(-8.0, 8.0)
 			float dist = Utility.RandomFloat(260.0, 460.0)
 			r.SetPosition(px + Math.cos(ang) * dist, py + Math.sin(ang) * dist, pz)
@@ -4809,10 +4848,18 @@ Function FaunaBurst(int id)
 			k += 1
 		EndWhile
 	EndIf
-	Log("fauna: " + n + " rabbits, " + nb + " butterflies")
+	string who = "rabbits"
+	If killerRace
+		who = "Killer Rabbits of Caerbannog"
+	EndIf
+	Log("fauna: " + n + " " + who + ", " + nb + " butterflies")
 	ShowMsg("Wild magic answers the moment... the meadow comes alive.")
 	If SNetOK() && bSkyrimNetStart
-		SkyrimNetApi.DirectNarration("At the peak of the moment a burst of wild, giddy magic ripples out from " + PlayerRef.GetDisplayName() + ": a swarm of butterflies of every colour whirls around them, and a ring of rabbits appears out of nowhere, glaring.", None, None)
+		If killerRace
+			SkyrimNetApi.DirectNarration("At the peak of the moment a burst of wild, giddy magic ripples out from " + PlayerRef.GetDisplayName() + ": a swarm of butterflies of every colour whirls around them, and a ring of Killer Rabbits of Caerbannog appears out of nowhere, glaring.", None, None)
+		Else
+			SkyrimNetApi.DirectNarration("At the peak of the moment a burst of wild, giddy magic ripples out from " + PlayerRef.GetDisplayName() + ": a swarm of butterflies of every colour whirls around them, and a ring of rabbits appears out of nowhere, glaring.", None, None)
+		EndIf
 	EndIf
 	; flutter around the player for a while
 	int t = 0
