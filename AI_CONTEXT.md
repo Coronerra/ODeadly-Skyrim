@@ -13,7 +13,7 @@ It is inspired by ODangerousNights. No ODN files are used; this is not an ODN pa
 - Adults only. Children are refused for every role. There is no toggle.
 - The master switch defaults to OFF. With it off, nothing in the mod can fire.
 - The panic key (unbound by default) or turning the master off aborts scenes, deletes spawns, returns stolen gold, clears calming / essential flags, purges pending SkyrimNet dialogue, cancels timers, and leaves the switch OFF. In 0.2 it also cancels pending morning-after and bathing rolls, removes a spawned watcher and the easter-egg rabbits / butterflies, and switches the drink / wash listeners off.
-- Every module is its own MCM toggle. Every 0.2 module defaults to OFF. The 0.3 SkyrimNet bridges default ON but only do anything when their mod is installed, and send nothing with the master off.
+- Every module is its own MCM toggle. Every 0.2 module defaults to OFF. The 0.3 follower rescue defaults to OFF. The 0.3 SkyrimNet bridges default ON but only do anything when their mod is installed, and send nothing with the master off.
 - Scenarios are based on the standard Skyrim environment. Optional mods (SkyrimNet, OCreatures, OCum, ZaZ, OStimNet, ODN, and in 0.2 iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct, JContainers; in 0.3 OStim Kidnapped Redux and ODefeat Reforged) are soft-detected at runtime and are never plugin masters. Code that needs another mod's script types sits in small interface scripts (`ODS_DnB`, `ODS_IActions`, `ODS_Vamp`) whose global functions are only called after the plugin / SKSE plugin is confirmed loaded. Compile-only stubs for those types live in `tools/stubs/` and are never shipped.
 
 ## 3. Plugin and files
@@ -47,6 +47,17 @@ Defaults: everything off except the night-attack module inside the master switch
 | Dark Gift | `K_DARKGIFT` 15 | Hourly sleep roll. Vampire nearby first, else `ODS_PoolVampire`. Blood and OStim: one of its 2-actor feeding scenes (ordered by sex). Aftermath: `DiseaseResist >= 100` or already a vampire = nothing; Sacrosanct loaded = `PlayerVampireQuestScript.VampireChange` on vanilla `PlayerVampireQuest` (0x0EAFD5), which Sacrosanct overrides; otherwise vanilla Sanguinare Vampiris (0x0B8780). Own toggle for the infection. |
 | Climax fauna (easter egg) | — | `ostim_actor_orgasm` with the player in the thread, 1 hour cooldown. Hares (`ODS_PoolFauna`) in a ring with Aggression 0; butterflies (`ODS_PoolButterfly`) moved with `TranslateTo` for ~20 s then deleted; after the thread ends the hares get Aggression 2 and `StartCombat`, all deleted 60 s later. Last option in the MCM. |
 
+### 0.3 Follower rescue (mid-battle; `bRescue`, OFF by default)
+
+Side thread, not a staged encounter: it never sets `bBusy`, never calls `StageDefeat`, `Pacify`, `CalmFollowers` or `AddSecondVictim`, and never puts the player in the scene.
+
+- Trigger: `ODS_FollowerAlias.OnEnterBleedout` → `OnActorBleedout` → `TryFollowerRescue` before the Defeat path. Conditions: `Ready()`, `bRescue`, no rescue running, not `bBusy`; follower (`IsFollowerActor`), adult, not on the protect list, guard rule, local gender filter `iRescueGender` (0 both, 1 female, 2 male; `iVictimGender` untouched); player alive, not in bleedout, not in OStim, not held by Kidnapped Redux / ODefeat Reforged; 1 game hour since the last rescue; `fRescueChance` (50). `FillFollowerAliases` also fills the follower aliases while `bRescue` is on.
+- Attacker: first actor within 1500 units of the follower who is not a follower, not in bleedout, hostile to the player or follower, `BaseEligible` (adult, `NamedOK`), `CreatureAllowed`, guard rule, and has an aggressive scene with the follower (`SceneForSet`, forced).
+- Calming only the pair: attacker Aggression 0 (old value saved), `StopCombat`, `StopCombatAlarm`, added to `PlayerFaction` if not already in it (so followers stop attacking it); not ghosted. Follower: `StopCombat`, health to 50%, `ActorBase.SetProtected(true)` for the scene only if it was neither essential nor protected. One bounded `Wait(1.0)`, then `OThreadBuilder` with `NoPlayerControl`, `NoFurniture`, `UndressActors`, the normal duration range and metadata `odangerous,aggressive,follower_rescue`.
+- The attacker goes into `Extra3Alias` (`ODS_AttackerAlias`, only used by 4-attacker group encounters, which cannot start while a rescue runs). `ODS_AttackerAlias` asks `IsRescueAlias(self)`: player `OnHit` / `OnActivate` → `RescueOutcome(1)` (rescued), `OnDeath` → `RescueOutcome(2)`; otherwise the old `Intervene()`.
+- `ostim_thread_end` for the rescue thread id → `RescueOutcome(0)` (not in time). The player going into bleedout during a rescue also counts as not in time, then the normal player path runs. `RescueRelease` stops the thread, clears the alias, restores faction and aggression, sends the attacker back into combat with the player, removes the temporary protected flag and gives the follower 50% health. Panic / master off (`AbortAll`) and game load release without SkyrimNet text.
+- While it runs: `OtherBusy()` is true (O'Deadly encounters wait), another downed follower bleeds out normally, and `OnOStimThreadStart` skips the caught / watched checks.
+
 ### 0.3 SkyrimNet bridges (listeners only; `ODS_Main`, no new records)
 
 Registered in `Register()` (init, game load, master on) only when the plugin is loaded (`ModLoaded`, regular or light). Text goes out with `SkyrimNetApi.DirectNarration` (gated by "Narration when it starts") and `RegisterPersistentEvent` (gated by "Memory afterwards"), only with the master on, the bridge toggle on, and SkyrimNet loaded. Neither mod is started, stopped or changed. While one of them has the player, `OtherBusy()` is true, so O'Deadly does not stage its own encounters (cleared by the end event; lapses after 1 game day / 6 game hours).
@@ -69,6 +80,7 @@ Scene engine additions: a module can preselect a scene and furniture (`sPreScene
 - Defeat of the player needs the optional "keep the player alive" setting, or they die normally. With ODefeat Reforged installed, player defeat is left to it.
 - OStim Kidnapped Redux's events carry no actors, so kidnappers and taken followers are not named. Its night-roll handoff only knows ODangerousNights, so O'Deadly night attacks and its kidnappings can both happen at night.
 - ODefeat Reforged third-party outcomes other than `SSLV Entry` are not narrated.
+- Follower rescue starts OStim while combat continues nearby; other enemies can still hit the follower (kept from dying only through the temporary protected flag).
 - iActions drunk tiers assume its default 2 points per level.
 - Bathing in Skyrim's start event exists only for the player; followers are caught through its bathing effect.
 - With Sacrosanct the Dark Gift turns the player at once (via `VampireChange`) rather than through the disease stage.

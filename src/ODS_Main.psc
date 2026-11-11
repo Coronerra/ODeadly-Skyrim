@@ -225,6 +225,9 @@ bool Property bForceWatch = false Auto Hidden       ; debug: next outdoor scene
 ; ======================= settings: 0.3 (SkyrimNet bridges, only active when the other mod is installed) =======================
 bool Property bOKRSkyrimNet = true Auto Hidden      ; OStim Kidnapped Redux events -> SkyrimNet
 bool Property bODefSkyrimNet = true Auto Hidden     ; ODefeat Reforged events -> SkyrimNet
+bool Property bRescue = false Auto Hidden           ; follower rescue (mid-battle), OFF by default
+float Property fRescueChance = 50.0 Auto Hidden     ; % when a matching follower goes down
+int Property iRescueGender = 0 Auto Hidden          ; downed follower: 0 both, 1 female, 2 male (this module only)
 
 ; ======================= runtime =======================
 bool Property bBusy = false Auto Hidden
@@ -304,6 +307,16 @@ float fODefUntil = 0.0      ; game time; an ODefeat Reforged defeat of the playe
 bool bODefAwait = false     ; its scene ended without an escape: an outcome event is due
 string sODefWhere = ""
 string sODefBy = ""         ; display name of the winner, from the OStim scene (may be empty)
+bool bRescueOn = false      ; follower rescue side scene running (not an O'Deadly encounter: bBusy stays as it is)
+bool bRescueDone = false
+int iRescueThread = -1
+Actor kRescueVic
+Actor kRescueAtt
+float fRescueAgg = 0.0
+bool bRescueFac = false
+bool bRescueProt = false
+string sRescueWhere = ""
+float fLastRescue = -10.0
 
 string Property MODNAME = "O'Deadly Skyrim" AutoReadOnly
 
@@ -407,6 +420,9 @@ EndFunction
 Function OnGameLoaded()
 	InitArrays()
 	Register()
+	If bRescueOn
+		RescueRelease(false)
+	EndIf
 	If bBusy && iThread < 0 && iThread2 < 0 && bAftermathDone
 		bBusy = false
 	EndIf
@@ -567,6 +583,7 @@ Function Panic()
 EndFunction
 
 Function AbortAll()
+	RescueRelease(false)
 	bAftermathDone = true
 	int t = iThread
 	int t2 = iThread2
@@ -881,6 +898,9 @@ bool Function OtherBusy(bool allowCombat)
 	EndIf
 	float now = Utility.GetCurrentGameTime()
 	If now < fOKRHeldUntil || now < fODefUntil      ; 0.3: Kidnapped Redux / ODefeat Reforged has the player
+		return true
+	EndIf
+	If bRescueOn                                     ; 0.3: a follower rescue side scene is running
 		return true
 	EndIf
 	return false
@@ -2779,6 +2799,18 @@ Function OnActorBleedout(Actor a)
 	If a == None
 		return
 	EndIf
+	; 0.3 follower rescue comes first for a downed follower; the full Defeat path below is unchanged
+	If bRescueOn
+		If a == PlayerRef
+			RescueOutcome(0)       ; the player went down too: they did not get there in time
+		ElseIf a == kRescueVic
+			return
+		Else
+			return                 ; another follower: plain bleedout, the fight goes on
+		EndIf
+	ElseIf a != PlayerRef && TryFollowerRescue(a)
+		return
+	EndIf
 	If !Ready() || !bDefeatEnabled
 		DefeatFailed(a)
 		return
@@ -3245,6 +3277,10 @@ Event OnOStimThreadEnd(string eventName, string strArgs, float numArg, Form send
 		ODefSceneEnded(strArgs)
 	EndIf
 	int id = numArg as int
+	If bRescueOn && id >= 0 && id == iRescueThread
+		RescueOutcome(0)
+		return
+	EndIf
 	If id < 0 || (id != iThread && id != iThread2)
 		return
 	EndIf
@@ -3282,6 +3318,9 @@ EndEvent
 
 ; another mod's OStim scene with the player: the spouse or a follower may walk in on it
 Event OnOStimThreadStart(string eventName, string strArgs, float numArg, Form sender)
+	If bRescueOn
+		return       ; mid-battle: no walk-ins or distant watchers on top of a rescue
+	EndIf
 	int id = numArg as int
 	CaughtCheck(id)
 	WatchCheck(id)
@@ -3698,7 +3737,7 @@ Function FillFollowerAliases()
 	al[2] = Follower3Alias
 	al[3] = Follower4Alias
 	int c = 0
-	If bMaster && ((bDefeatEnabled && bDefeatFollowers) || (bBath && bBathFollowers && BathModOK()))
+	If bMaster && ((bDefeatEnabled && bDefeatFollowers) || bRescue || (bBath && bBathFollowers && BathModOK()))
 		Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 4000.0, false, false, false)
 		int i = 0
 		While i < near.Length && c < 4
@@ -5064,6 +5103,232 @@ Event OnODefSlavery(string eventName, string strArg, float numArg, Form sender)
 	string pn = PlayerRef.GetDisplayName()
 	ODefSay("After the defeat, " + pn + " is sold on into slavery.", ODefWho() + ", had their way with them and sold them into slavery.")
 EndEvent
+
+; ======================= 0.3: FOLLOWER RESCUE (mid-battle) =======================
+; A follower who goes down in a fight may be taken by one nearby hostile while the rest of the
+; fight goes on; the player can stop it. OFF by default, master switch and panic key apply, adults
+; only. A side thread: it never sets bBusy, never pacifies the battlefield, never pulls the player
+; or a second victim in. Only the pair is calmed: the attacker gets Aggression 0, stops combat and
+; joins PlayerFaction (so followers stop fighting it); it is put in Extra3Alias (ODS_AttackerAlias),
+; whose OnHit / OnActivate / OnDeath route here. It is not ghosted, so the player's hits land.
+; The downed follower is healed to half, stops combat, and is set protected for the scene if it
+; was neither essential nor protected (undone afterwards). While it runs, O'Deadly's own
+; encounters wait (OtherBusy) and another downed follower bleeds out normally.
+; Rescue = the player hits or activates the attacker, or the attacker dies. Scene ends on its own
+; = the player did not get there in time. Either way both actors are released and the attacker
+; goes back to the fight. Event-based: bleedout, OnHit / OnDeath, ostim_thread_end, panic.
+
+bool Function RescueGenderOK(Actor a)
+	If iRescueGender == 0
+		return true
+	EndIf
+	int sex = a.GetLeveledActorBase().GetSex()
+	If iRescueGender == 1
+		return sex == 1
+	EndIf
+	return sex == 0
+EndFunction
+
+bool Function IsRescueAlias(ReferenceAlias r)
+	return bRescueOn && r == Extra3Alias
+EndFunction
+
+; from OnActorBleedout for a downed follower. true = handled here (the full Defeat path is skipped)
+bool Function TryFollowerRescue(Actor vic)
+	If !Ready() || !bRescue || bRescueOn || bBusy || vic == None || vic == PlayerRef
+		return false
+	EndIf
+	If !IsFollowerActor(vic) || IsMinor(vic) || IsProtected(vic) || vic.IsDead() || OActor.IsInOStim(vic)
+		return false
+	EndIf
+	If (!bGuardVictims && IsGuardActor(vic)) || !RescueGenderOK(vic)
+		return false
+	EndIf
+	If PlayerRef.IsDead() || PlayerRef.IsBleedingOut() || OActor.IsInOStim(PlayerRef)
+		return false
+	EndIf
+	float now = Utility.GetCurrentGameTime()
+	If now < fOKRHeldUntil || now < fODefUntil || (now - fLastRescue) * 24.0 < 1.0
+		return false
+	EndIf
+	If Utility.RandomFloat(0.0, 100.0) >= fRescueChance
+		return false
+	EndIf
+	; one nearby hostile with an aggressive scene for the pair
+	Actor att = None
+	string scene = ""
+	Actor[] acts = new Actor[2]
+	Actor[] near = OActorUtil.GetActorsInRangeV2(vic, 1500.0, false, false, false)
+	int i = 0
+	While i < near.Length && att == None
+		Actor x = near[i]
+		If x && !IsFollowerActor(x) && !x.IsBleedingOut() && (x.IsHostileToActor(PlayerRef) || x.IsHostileToActor(vic)) && BaseEligible(x, true) && CreatureAllowed(x) && (bGuardAttackers || !IsGuardActor(x))
+			Actor[] a1 = new Actor[1]
+			a1[0] = x
+			Actor[] v1 = new Actor[1]
+			v1[0] = vic
+			string s = SceneForSet(a1, 1, v1, 1, true, acts)
+			If s != ""
+				att = x
+				scene = s
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	If att == None
+		Log("rescue: no hostile with a scene near " + vic.GetDisplayName())
+		return false
+	EndIf
+	int ep = iEpoch
+	bRescueOn = true
+	bRescueDone = false
+	iRescueThread = -1
+	kRescueVic = vic
+	kRescueAtt = att
+	sRescueWhere = WhereName()
+	fLastRescue = now
+	; calm only this pair
+	fRescueAgg = att.GetActorValue("Aggression")
+	att.StopCombat()
+	att.StopCombatAlarm()
+	bRescueFac = !att.IsInFaction(PlayerFaction)
+	If bRescueFac
+		att.AddToFaction(PlayerFaction)
+	EndIf
+	att.SetActorValue("Aggression", 0.0)
+	vic.StopCombat()
+	vic.RestoreActorValue("Health", vic.GetBaseActorValue("Health") * 0.5)
+	bRescueProt = false
+	ActorBase vb = vic.GetActorBase()
+	If vb && !vb.IsEssential() && !vb.IsProtected() && !vic.IsEssential()
+		vb.SetProtected(true)
+		bRescueProt = true
+	EndIf
+	Extra3Alias.ForceRefTo(att)
+	Utility.Wait(1.0)      ; one bounded wait: let the follower come out of bleedout
+	If !Alive(ep) || !bRescueOn || att.IsDead() || vic.IsDead()
+		RescueRelease(true)
+		return true
+	EndIf
+	Actor[] dom = new Actor[1]
+	dom[0] = att
+	int b = OThreadBuilder.Create(acts)
+	If b < 0
+		Log("rescue: OThreadBuilder.Create failed")
+		RescueRelease(true)
+		return false
+	EndIf
+	OThreadBuilder.SetDominantActors(b, dom)
+	OThreadBuilder.SetStartingAnimation(b, scene)
+	float mn = fMinDuration
+	float mx = fMaxDuration
+	If mx < mn
+		mx = mn
+	EndIf
+	OThreadBuilder.SetDuration(b, Utility.RandomFloat(mn, mx))
+	OThreadBuilder.UndressActors(b)
+	OThreadBuilder.NoPostDialogue(b)
+	OThreadBuilder.NoFurniture(b)
+	OThreadBuilder.NoPlayerControl(b)
+	OThreadBuilder.SetMetadataCSV(b, "odangerous,aggressive,follower_rescue")
+	If !Alive(ep) || !bRescueOn
+		OThreadBuilder.Cancel(b)
+		RescueRelease(true)
+		return true
+	EndIf
+	int t = OThreadBuilder.Start(b)
+	If t < 0
+		Log("rescue: thread did not start")
+		RescueRelease(true)
+		return false
+	EndIf
+	iRescueThread = t
+	If !Alive(ep) || !bRescueOn
+		RescueRelease(true)
+		return true
+	EndIf
+	Log("rescue: " + att.GetDisplayName() + " takes " + vic.GetDisplayName() + " at " + sRescueWhere + ", thread " + t + ", scene " + scene)
+	If bSkyrimNetStart && SNetOK()
+		SkyrimNetApi.DirectNarration(vic.GetDisplayName() + " has fallen near " + sRescueWhere + ", and " + att.GetDisplayName() + " is taking them right there while the fight goes on.", att, vic)
+	EndIf
+	return true
+EndFunction
+
+; how: 1 = player hit / pulled the attacker away, 2 = attacker died, 0 = the scene ended on its own
+Function RescueOutcome(int how)
+	If !bRescueOn || bRescueDone
+		return
+	EndIf
+	bRescueDone = true
+	Actor att = kRescueAtt
+	Actor vic = kRescueVic
+	string w = sRescueWhere
+	RescueRelease(true)
+	If !bMaster || !SNetOK() || att == None || vic == None
+		return
+	EndIf
+	string pn = PlayerRef.GetDisplayName()
+	string vn = vic.GetDisplayName()
+	string an = att.GetDisplayName()
+	string n
+	string m
+	If how == 1
+		n = pn + " pulls " + vn + " away from " + an + "."
+		m = pn + " pulled " + vn + " away from " + an + ", who had started forcing themselves on " + vn + " in the middle of a fight near " + w + "."
+	ElseIf how == 2
+		n = an + " falls, and " + vn + " is free."
+		m = an + " was killed in the middle of a fight near " + w + " while forcing themselves on " + vn + ", and " + vn + " got away."
+	Else
+		n = an + " leaves " + vn + " on the ground and turns back to the fight."
+		m = an + " forced themselves on " + vn + " in the middle of a fight near " + w + ", and " + pn + " did not get there in time."
+	EndIf
+	If bSkyrimNetStart
+		SkyrimNetApi.DirectNarration(n, att, vic)
+	EndIf
+	If bSkyrimNetLog
+		SkyrimNetApi.RegisterPersistentEvent(m, att, vic)
+	EndIf
+EndFunction
+
+; stop the side scene and give both actors back (also used by panic, master off and game load)
+Function RescueRelease(bool fight)
+	int t = iRescueThread
+	iRescueThread = -1
+	Actor att = kRescueAtt
+	Actor vic = kRescueVic
+	kRescueAtt = None
+	kRescueVic = None
+	bRescueOn = false
+	If t >= 0 && OThread.IsRunning(t)
+		OThread.Stop(t)       ; OStim redresses the actors it undressed
+	EndIf
+	If att && Extra3Alias.GetReference() == att
+		Extra3Alias.Clear()
+	EndIf
+	If att
+		If bRescueFac
+			att.RemoveFromFaction(PlayerFaction)
+		EndIf
+		If !att.IsDead()
+			att.SetActorValue("Aggression", fRescueAgg)
+			att.EvaluatePackage()
+			If fight && bMaster && att.IsHostileToActor(PlayerRef)
+				att.StartCombat(PlayerRef)
+			EndIf
+		EndIf
+	EndIf
+	bRescueFac = false
+	If vic
+		If bRescueProt && vic.GetActorBase()
+			vic.GetActorBase().SetProtected(false)
+		EndIf
+		If !vic.IsDead()
+			vic.RestoreActorValue("Health", vic.GetBaseActorValue("Health") * 0.5)
+			vic.EvaluatePackage()
+		EndIf
+	EndIf
+	bRescueProt = false
+EndFunction
 
 ; ======================= protect list helper (MCM) =======================
 bool Function ToggleProtected(Actor a)

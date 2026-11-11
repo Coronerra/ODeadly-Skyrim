@@ -6,7 +6,7 @@ Skyrim SE / AE · ESL-flagged plugin · Adults only
 
 **[Download v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2)** (latest published release) · [Changelog](CHANGELOG.md) · [Earlier v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
-Version 0.3 (`ODeadly_Skyrim_0.3.zip`) is the new build: SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged when you have them. See [New in 0.3](#new-in-03-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged) and the [changelog](CHANGELOG.md).
+Version 0.3 (`ODeadly_Skyrim_0.3.zip`) is the new build: a mid-battle follower rescue module, and SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged when you have them. See [New in 0.3](#new-in-03-follower-rescue-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged) and the [changelog](CHANGELOG.md).
 
 This repository is the full public source and notes: Papyrus scripts, the plugin, the SkyrimNet decision pack, the compile and plugin-builder tools, the [changelog](CHANGELOG.md), and hook-level details in **[AI_CONTEXT.md](AI_CONTEXT.md)** (start there if you are an AI assistant or a modder extending this). License: [MIT for coronerra's work](LICENSE).
 
@@ -34,7 +34,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [How the engine works](#how-the-engine-works)
 - [Modules and defaults](#modules-and-defaults)
 - [New in 0.2](#new-in-02-mcm-page-more-encounters-inn-rooms-on-jail--inns)
-- [New in 0.3](#new-in-03-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged)
+- [New in 0.3](#new-in-03-follower-rescue-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged)
 - [MCM pages](#mcm-pages)
 - [Test checklist](#test-checklist)
 - [Known limits](#known-limits)
@@ -147,6 +147,7 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Inns: drunk patrons take the player | OFF | |
 | Inns: spiked drinks | OFF | Player OFF, followers ON. |
 | Defeat | OFF | Player OFF, followers ON. |
+| Follower rescue (0.3) | OFF | 50% when a follower goes down mid-fight. Downed follower: Both (or Female / Male). |
 | Trespass | OFF | Player OFF, followers ON. |
 | Travel & roads | OFF | Robbery; may turn into a scene. Player OFF, followers ON. |
 | Creatures (OCreatures) | OFF, locked without OCreatures | Player OFF even when available. |
@@ -203,6 +204,7 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 
 - Event-based: when you or a follower enter bleedout. 50% chance the winner takes them. Every hostile nearby calms down until you change location.
 - The player only bleeds out if essential. "Keep the player alive for defeat" (OFF) makes you essential while Defeat is on; if no defeat scene happens, you die the normal way.
+- Follower rescue (0.3, below) is a separate option: when it is on and starts, the fight goes on instead. When it is off, or does not start, this module works exactly as before.
 - With ODefeat Reforged installed (0.3), the player part of this module stands aside, so the two mods never both grab you. Your settings are kept; downed followers are still handled here.
 
 ### Trespass
@@ -262,11 +264,26 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 - The very last option in the MCM. 5% after your climax: twenty rabbits appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 
-## New in 0.3 (SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged)
+## New in 0.3 (follower rescue, SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged)
+
+### Follower rescue (mid-battle)
+
+MCM > Danger > "Follower rescue (mid-battle)". **OFF by default**, behind the master switch and the panic key, adults only.
+
+- When a follower goes down (bleedout) in a fight while you are still standing, there is a chance (50% by default) that one nearby enemy starts taking them right there. Only that enemy and that follower stop fighting; the rest of the fight goes on around you.
+- "Downed follower": Both (default), Female or Male. This only applies to this option; the victim gender on the General page is not changed.
+- Rescue them: hit that enemy (or kill them). The scene stops, your follower gets back up with some health, and the enemy goes back to fighting you.
+- If the scene ends before you get there, both are released the same way and the enemy turns back to the fight.
+- Protected followers (Protected followers page) are never picked. Creatures only take part through the Creatures module, guards only with "guards can be attackers", named NPCs as attackers only with the named-NPC option.
+- At most one rescue at a time and one per game hour. While one runs, another follower who goes down just bleeds out as usual, and O'Deadly's other encounters wait.
+- It does not need the Defeat module. With Defeat on, a downed follower goes to the rescue first; if the rescue does not start (chance, no enemy with a matching scene), Defeat works as before and ends the fight.
+- SkyrimNet: narration when it starts; a memory of whether you pulled them away or did not get there in time.
+
+### SkyrimNet listeners
 
 Two listeners, not new encounter modules: O'Deadly does not start, stop or change anything in those mods. It listens to their public mod events and tells SkyrimNet what happened, using your name and the place. Each has a toggle on MCM > General > SkyrimNet (ON, locked when the mod is missing) and also follows "Narration when it starts" and "Memory afterwards". With the master switch off or after the panic key, nothing is sent. Adults only, as everywhere in this mod.
 
-### OStim Kidnapped Redux (Lirael)
+#### OStim Kidnapped Redux (Lirael)
 
 - Taken (its own ambush, or handed over by another mod): narration and a memory of being dragged off to the hideout, near where it happened.
 - Slipped the ambush: one line of narration.
@@ -274,7 +291,7 @@ Two listeners, not new encounter modules: O'Deadly does not start, stop or chang
 - While you are held, O'Deadly does not start its own encounters.
 - Kidnapped Redux only knows to leave its night rolls to ODangerousNights, so with both O'Deadly's night attacks and Kidnapped Redux on, either one can still happen at night.
 
-### ODefeat Reforged (Lirael)
+#### ODefeat Reforged (Lirael)
 
 - Defeated: narration that you are at the mercy of whoever won, by name when the scene shows who.
 - Escaped (you won the struggle), robbed, left where you fell, arrested by a guard, sold into slavery, or executed: narration, plus a memory (except for execution, which reloads your last save).
@@ -282,7 +299,7 @@ Two listeners, not new encounter modules: O'Deadly does not start, stop or chang
 
 ## MCM pages
 
-General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns (now with the shared room option) — Danger — Creatures — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
+General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns (now with the shared room option) — Danger (now with follower rescue) — Creatures — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
 
 ## Test checklist
 
@@ -293,7 +310,8 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 5. Turn the master back on and try other force buttons (jail needs a jail and a guard; cheating needs your spouse nearby; road robbery: wait 1h outdoors).
 6. 0.2 force buttons (turn the module on first): morning after (next sleep), bathing (next real wash), shared room (sleep in an inn with a follower), Dark Gift (next sleep), watched (next outdoor scene), climax fauna (next climax).
 7. 0.3, with OStim Kidnapped Redux or ODefeat Reforged installed: MCM > General shows them as installed. Use their own menus to force a kidnapping or get defeated, then check that SkyrimNet narrates it.
-8. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+8. Follower rescue: turn it on (Danger page) and set the chance to 100, then let a follower go down in a fight with humans. One enemy should start a scene with them while the others keep fighting; hit that enemy to stop it. Try the panic key during one too.
+9. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
 ## Known limits
 
@@ -305,6 +323,8 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - The watcher "comes closer" by walking toward the scene; what they say is up to SkyrimNet.
 - With Sacrosanct installed, the Dark Gift turns you right away through Sacrosanct instead of the multi-day disease.
 - The fauna butterflies are vanilla critters; some may flutter off early.
+- Follower rescue needs an OStim scene for the pair that starts while combat is going on around them; how smoothly that plays depends on your OStim setup and animations. A stray hit from another enemy can still land on the follower during the scene (they are kept from dying if they were not already protected).
+- Followers are picked up for bleedout events when you change location (or load, or turn an option on), like the Defeat module; someone who joined you in the same area is covered after the next location change.
 - OStim Kidnapped Redux does not say who the kidnappers are or whether followers were taken, so its SkyrimNet text names you and the place only.
 - ODefeat Reforged's escape is read from its scene tag when the scene ends; third-party ODefeat outcomes other than slavery are not narrated.
 - Creature probe spawns a hidden actor for a moment when the Creatures module is enabled and on load; if a type shows "No scenes found" wrongly, stand next to a follower and press Re-check.

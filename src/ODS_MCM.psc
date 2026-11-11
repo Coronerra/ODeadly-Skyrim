@@ -48,12 +48,14 @@ int[] oFollower
 Actor[] kFollower
 string sNewPlaceName = "Rest spot"
 string[] genderOpts
+string[] rescueGenderOpts
+int oRescueGender
 string[] msgOpts
 string[] catOpts
 string[] jailOpts
 
 int Function GetVersion()
-	return 3
+	return 4
 EndFunction
 
 Event OnVersionUpdate(int a_version)
@@ -83,6 +85,10 @@ Function SetupPages()
 	genderOpts[0] = "Any"
 	genderOpts[1] = "Female only"
 	genderOpts[2] = "Male only"
+	rescueGenderOpts = new string[3]
+	rescueGenderOpts[0] = "Both"
+	rescueGenderOpts[1] = "Female"
+	rescueGenderOpts[2] = "Male"
 	msgOpts = new string[3]
 	msgOpts[0] = "Message box"
 	msgOpts[1] = "Notification"
@@ -154,6 +160,8 @@ bool Function GetB(string k)
 		return Main.bRumors
 	ElseIf k == "okrsn"
 		return Main.bOKRSkyrimNet
+	ElseIf k == "rescue"
+		return Main.bRescue
 	ElseIf k == "odefsn"
 		return Main.bODefSkyrimNet
 	ElseIf k == "bio"
@@ -309,6 +317,8 @@ Function SetB(string k, bool v)
 		Main.bRumors = v
 	ElseIf k == "okrsn"
 		Main.bOKRSkyrimNet = v
+	ElseIf k == "rescue"
+		Main.bRescue = v
 	ElseIf k == "odefsn"
 		Main.bODefSkyrimNet = v
 	ElseIf k == "bio"
@@ -468,6 +478,8 @@ float Function GetF(string k)
 		return Main.fSpikedChance
 	ElseIf k == "defeatch"
 		return Main.fDefeatChance
+	ElseIf k == "rescuech"
+		return Main.fRescueChance
 	ElseIf k == "trespassch"
 		return Main.fTrespassChance
 	ElseIf k == "roadch"
@@ -553,6 +565,8 @@ Function SetF(string k, float v)
 		Main.fSpikedChance = v
 	ElseIf k == "defeatch"
 		Main.fDefeatChance = v
+	ElseIf k == "rescuech"
+		Main.fRescueChance = v
 	ElseIf k == "trespassch"
 		Main.fTrespassChance = v
 	ElseIf k == "roadch"
@@ -676,7 +690,7 @@ string Function FmtOf(string k)
 		return "x{1}"
 	ElseIf k == "ovratk" || k == "ovrcht"
 		return "{1}"
-	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach"
+	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach"
 		return "{0}%"
 	EndIf
 	return "{1}%"
@@ -740,7 +754,7 @@ Function SliderSpec(string k)
 	ElseIf k == "ovratk" || k == "ovrcht"
 		mn = -1.0
 		df = -1.0
-	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "robscene" || k == "blackmailch"
+	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch"
 		mx = 100.0
 		st = 5.0
 		If k == "beast"
@@ -864,6 +878,7 @@ Function ResetIds()
 	oPanicKey = -100
 	oMsg = -100
 	oGender = -100
+	oRescueGender = -100
 	oRecheck = -100
 	oForceAttack = -100
 	oForceCreature = -100
@@ -899,7 +914,7 @@ EndFunction
 ; ---------------- pages ----------------
 Event OnPageReset(string page)
 	ResetIds()
-	If genderOpts == None || jailOpts == None
+	If genderOpts == None || jailOpts == None || rescueGenderOpts == None
 		SetupPages()
 	EndIf
 	Main.InitArrays()
@@ -1078,6 +1093,10 @@ Function PageDanger()
 	If Main.ODefeatOK()
 		AddTextOption("  Player: left to ODefeat Reforged", "", OPTION_FLAG_DISABLED)
 	EndIf
+	AddHeaderOption("Follower rescue (mid-battle)")
+	AddT("Enable follower rescue", "rescue")
+	AddS("Chance when a follower falls", "rescuech", Flag(Main.bRescue))
+	oRescueGender = AddMenuOption("Downed follower", rescueGenderOpts[Main.iRescueGender], Flag(Main.bRescue))
 	AddT("Downed followers can be taken", "defeatfol", f)
 	AddHeaderOption("Trespass")
 	AddT("Enable trespass", "trespass")
@@ -1340,7 +1359,7 @@ Event OnOptionSelect(int o)
 	If k != ""
 		SetB(k, !GetB(k))
 		SetToggleOptionValue(o, GetB(k))
-		If k == "defeat" || k == "defeatplayer" || k == "essential" || k == "defeatfol"
+		If k == "defeat" || k == "defeatplayer" || k == "essential" || k == "defeatfol" || k == "rescue"
 			Main.UpdateEssential()
 			Main.FillFollowerAliases()
 		EndIf
@@ -1477,6 +1496,10 @@ Event OnOptionMenuOpen(int o)
 		SetMenuDialogOptions(genderOpts)
 		SetMenuDialogStartIndex(Main.iVictimGender)
 		SetMenuDialogDefaultIndex(0)
+	ElseIf o == oRescueGender
+		SetMenuDialogOptions(rescueGenderOpts)
+		SetMenuDialogStartIndex(Main.iRescueGender)
+		SetMenuDialogDefaultIndex(0)
 	ElseIf o == oMsg
 		SetMenuDialogOptions(msgOpts)
 		SetMenuDialogStartIndex(Main.iMsgStyle)
@@ -1512,6 +1535,9 @@ Event OnOptionMenuAccept(int o, int i)
 	If o == oGender
 		Main.iVictimGender = i
 		SetMenuOptionValue(o, genderOpts[i])
+	ElseIf o == oRescueGender
+		Main.iRescueGender = i
+		SetMenuOptionValue(o, rescueGenderOpts[i])
 	ElseIf o == oMsg
 		Main.iMsgStyle = i
 		SetMenuOptionValue(o, msgOpts[i])
@@ -1589,6 +1615,10 @@ string Function Hint(string k)
 		return "SkyrimNet: remember what happened so characters can bring it up later."
 	ElseIf k == "rumors"
 		return "SkyrimNet: short-lived rumours about what happened, where it happened."
+	ElseIf k == "rescue"
+		return "OFF by default. When a follower goes down in a fight while you are still standing, one nearby enemy may start taking them right there. The rest of the fight goes on. Hit that enemy to pull your follower away. Adults only; protected followers are never picked. Works without the Defeat module; when it does not start, Defeat (if on) works as before."
+	ElseIf k == "rescuech"
+		return "Chance when a matching follower goes down. At most one rescue per game hour."
 	ElseIf k == "okrsn"
 		return "Only does anything when Lirael's OStim Kidnapped Redux is installed: tells SkyrimNet when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly does not run the kidnapping. Uses the narration / memory settings above."
 	ElseIf k == "odefsn"
@@ -1679,6 +1709,8 @@ Event OnOptionHighlight(int o)
 		SetInfoText("Tag this location as a jail / barracks (for modded or custom cells), or exclude it.")
 	ElseIf o == oRecheck
 		SetInfoText("Probe OStim again for each creature type (stand near a follower for best results).")
+	ElseIf o == oRescueGender
+		SetInfoText("Which downed followers this module can pick: Both (default), Female or Male. Only for follower rescue; the victim gender on the General page is not changed.")
 	Else
 		string k = KeyOfT(o)
 		If k == ""
