@@ -1,5 +1,5 @@
 Scriptname ODS_Main extends Quest
-{O'Deadly Skyrim (A SkyrimNet environmental mod) v0.2 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
+{O'Deadly Skyrim (A SkyrimNet environmental mod) v0.3 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
 
 ; ======================= properties (filled in ODeadlySkyrim.esp) =======================
 Actor Property PlayerRef Auto
@@ -222,6 +222,10 @@ int Property iFaunaRabbits = 20 Auto Hidden
 bool Property bForceFauna = false Auto Hidden       ; debug: next climax
 bool Property bForceWatch = false Auto Hidden       ; debug: next outdoor scene
 
+; ======================= settings: 0.3 (SkyrimNet bridges, only active when the other mod is installed) =======================
+bool Property bOKRSkyrimNet = true Auto Hidden      ; OStim Kidnapped Redux events -> SkyrimNet
+bool Property bODefSkyrimNet = true Auto Hidden     ; ODefeat Reforged events -> SkyrimNet
+
 ; ======================= runtime =======================
 bool Property bBusy = false Auto Hidden
 int iEpoch = 0
@@ -293,6 +297,13 @@ Actor kWatchSpawn
 float fLastFauna = -10.0
 bool bFaunaRunning = false
 ObjectReference[] kFauna    ; [48]
+; 0.3 runtime (listeners only)
+float fOKRHeldUntil = 0.0   ; game time; O'Deadly holds its own encounters while Kidnapped Redux has the player
+string sOKRWhere = ""       ; where the player was taken
+float fODefUntil = 0.0      ; game time; an ODefeat Reforged defeat of the player is in progress
+bool bODefAwait = false     ; its scene ended without an escape: an outcome event is due
+string sODefWhere = ""
+string sODefBy = ""         ; display name of the winner, from the OStim scene (may be empty)
 
 string Property MODNAME = "O'Deadly Skyrim" AutoReadOnly
 
@@ -369,6 +380,19 @@ Function Register()
 	RegisterForModEvent("ostim_actor_orgasm", "OnOStimOrgasm")
 	RegisterForModEvent("BiS_WashActorFinish", "OnBiSWashFinish")
 	RegisterForModEvent("BiS_BatheEvent_" + PlayerRef.GetFormID(), "OnBiSBathePlayer")
+	If OKROK()
+		RegisterForModEvent("OKidnapped_Taken", "OnOKRTaken")
+		RegisterForModEvent("OKidnapped_Dodged", "OnOKRDodged")
+		RegisterForModEvent("OKidnapped_End", "OnOKREnd")
+	EndIf
+	If ODefeatOK()
+		RegisterForModEvent("ODefeatAnimStart_odefeat", "OnODefStart")
+		RegisterForModEvent("oDefeat_robberyEvent", "OnODefRobbery")
+		RegisterForModEvent("oDefeat_safeWakeupEvent", "OnODefSafeWakeup")
+		RegisterForModEvent("oDefeat_killEvent", "OnODefKill")
+		RegisterForModEvent("oDefeat_arrestEvent", "OnODefArrest")
+		RegisterForModEvent("SSLV Entry", "OnODefSlavery")
+	EndIf
 	RegisterPanicKey()
 EndFunction
 
@@ -487,6 +511,15 @@ EndFunction
 
 bool Function JCOK()
 	return SKSE.GetPluginVersion("JContainers64") > 0
+EndFunction
+
+; ---- 0.3 soft detection (never masters) ----
+bool Function OKROK()
+	return ModLoaded("OStim Kidnapped Redux.esp")
+EndFunction
+
+bool Function ODefeatOK()
+	return ModLoaded("ODefeat.esp")
 EndFunction
 
 ; mod is on and able to run
@@ -844,6 +877,10 @@ bool Function OtherBusy(bool allowCombat)
 		return true
 	EndIf
 	If (Utility.GetCurrentGameTime() - fLastODNAttack) < 0.5
+		return true
+	EndIf
+	float now = Utility.GetCurrentGameTime()
+	If now < fOKRHeldUntil || now < fODefUntil      ; 0.3: Kidnapped Redux / ODefeat Reforged has the player
 		return true
 	EndIf
 	return false
@@ -2747,7 +2784,7 @@ Function OnActorBleedout(Actor a)
 		return
 	EndIf
 	bool forced = iForceMode == K_DEFEAT
-	If a == PlayerRef && !bDefeatPlayer
+	If a == PlayerRef && (!bDefeatPlayer || ODefeatOK())   ; 0.3: ODefeat Reforged handles a downed player
 		DefeatFailed(a)
 		return
 	EndIf
@@ -2862,7 +2899,7 @@ bool Function StageDefeat(Actor vic, int ep)
 EndFunction
 
 Function UpdateEssential()
-	If bMaster && bDefeatEnabled && bDefeatPlayer && bDefeatEssential
+	If bMaster && bDefeatEnabled && bDefeatPlayer && bDefeatEssential && !ODefeatOK()
 		EssentialAlias.ForceRefTo(PlayerRef)
 	ElseIf EssentialAlias.GetReference()
 		EssentialAlias.Clear()
@@ -3204,6 +3241,9 @@ EndFunction
 
 ; ======================= OStim events =======================
 Event OnOStimThreadEnd(string eventName, string strArgs, float numArg, Form sender)
+	If fODefUntil > 0.0
+		ODefSceneEnded(strArgs)
+	EndIf
 	int id = numArg as int
 	If id < 0 || (id != iThread && id != iThread2)
 		return
@@ -3728,7 +3768,7 @@ Function ResolveSoft()
 		AddBathFx(kBisFx2)
 	EndIf
 	UpdateWatchers()
-	Log("soft: iActions " + IActionsOK() + ", Dirt and Blood " + DnBOK() + " (list " + kDnBList + "), Bathing in Skyrim " + BiSOK() + ", Blood and OStim " + BaOOK() + ", Sacrosanct " + SacrosanctOK())
+	Log("soft: iActions " + IActionsOK() + ", Dirt and Blood " + DnBOK() + " (list " + kDnBList + "), Bathing in Skyrim " + BiSOK() + ", Blood and OStim " + BaOOK() + ", Sacrosanct " + SacrosanctOK() + ", OStim Kidnapped Redux " + OKROK() + ", ODefeat Reforged " + ODefeatOK())
 EndFunction
 
 Function AddDlcDrink(int id, string plugin)
@@ -4788,6 +4828,242 @@ Function FaunaBurst(int id)
 	EndIf
 	bFaunaRunning = false
 EndFunction
+
+; ======================= 0.3: SKYRIMNET BRIDGES (listeners only) =======================
+; Lirael's OStim Kidnapped Redux (an OStim conversion of vinfamy's SexLab Kidnapped Redux) and
+; Lirael's ODefeat Reforged. O'Deadly never starts, stops or changes their kidnappings or defeats:
+; it listens to their public mod events, tells SkyrimNet what happened, and holds its own
+; encounters while one of them has the player. Nothing here runs unless the plugin is loaded.
+; Master switch off / panic: no SkyrimNet text. Adults only: a child is never named.
+
+; ---------- OStim Kidnapped Redux ----------
+; The events carry no actors, so the text names the player and the place only.
+; OKidnapped_Refused only answers OKidnapped_Take, which O'Deadly never sends: not listened to.
+bool Function OKRTalk()
+	return bMaster && bOKRSkyrimNet && SNetOK()
+EndFunction
+
+; strArg "" / numArg 1 = another mod handed the player over (OKidnapped_Take), 0 = its own ambush
+Event OnOKRTaken(string eventName, string strArg, float numArg, Form sender)
+	sOKRWhere = WhereName()                              ; still at the ambush spot: the player is moved afterwards
+	fOKRHeldUntil = Utility.GetCurrentGameTime() + 1.0   ; cleared by OKidnapped_End, lapses after a game day
+	bool requested = numArg >= 1.0
+	Log("Kidnapped Redux: taken near " + sOKRWhere + " (requested " + requested + ")")
+	If !OKRTalk()
+		return
+	EndIf
+	string pn = PlayerRef.GetDisplayName()
+	If bSkyrimNetStart
+		If requested
+			SkyrimNetApi.DirectNarration("Already beaten and helpless near " + sOKRWhere + ", " + pn + " is handed over to a gang of kidnappers, who drag them off to their hideout.", None, None)
+		Else
+			SkyrimNetApi.DirectNarration("Kidnappers jump " + pn + " near " + sOKRWhere + ", knock them down and drag them off to their hideout.", None, None)
+		EndIf
+	EndIf
+	If bSkyrimNetLog
+		If requested
+			SkyrimNetApi.RegisterPersistentEvent(pn + " was handed over to kidnappers near " + sOKRWhere + " and dragged off to their hideout.", None, PlayerRef)
+		Else
+			SkyrimNetApi.RegisterPersistentEvent("Kidnappers ambushed " + pn + " near " + sOKRWhere + " and dragged them off to their hideout.", None, PlayerRef)
+		EndIf
+	EndIf
+EndEvent
+
+Event OnOKRDodged(string eventName, string strArg, float numArg, Form sender)
+	string w = WhereName()
+	Log("Kidnapped Redux: dodged near " + w)
+	If OKRTalk() && bSkyrimNetStart
+		string pn = PlayerRef.GetDisplayName()
+		SkyrimNetApi.DirectNarration("Kidnappers try to jump " + pn + " near " + w + ", but " + pn + " slips the ambush.", None, None)
+	EndIf
+EndEvent
+
+; strArg "escaped", "released" or "slavery"
+Event OnOKREnd(string eventName, string strArg, float numArg, Form sender)
+	fOKRHeldUntil = 0.0
+	string w = sOKRWhere
+	sOKRWhere = ""
+	Log("Kidnapped Redux: end (" + strArg + ")")
+	If !OKRTalk() || (strArg != "escaped" && strArg != "released" && strArg != "slavery")
+		return
+	EndIf
+	string pn = PlayerRef.GetDisplayName()
+	string who = "The kidnappers who took " + pn
+	If w != ""
+		who += " near " + w
+	EndIf
+	string n
+	string m
+	If strArg == "escaped"
+		n = pn + " breaks free and gets out of the kidnappers' hideout."
+		m = who + " held them captive in their hideout and had their way with them, but " + pn + " escaped."
+	ElseIf strArg == "released"
+		n = pn + " comes to, exhausted, after the kidnappers are finished with them and let them go."
+		m = who + " had their way with them in their hideout until " + pn + " passed out, then let them go. " + pn + " woke up exhausted."
+	Else
+		n = "After " + pn + " passes out in their hideout, the kidnappers sell them on into slavery."
+		m = who + " had their way with them in their hideout until " + pn + " passed out, then sold them into slavery."
+	EndIf
+	If bSkyrimNetStart
+		SkyrimNetApi.DirectNarration(n, None, None)
+	EndIf
+	If bSkyrimNetLog
+		SkyrimNetApi.RegisterPersistentEvent(m, None, PlayerRef)
+	EndIf
+EndEvent
+
+; ---------- ODefeat Reforged ----------
+; Its defeat scenes carry the OStim metadata "odefeat" + the victim's FormID, and it rebroadcasts
+; ostim_start as "ODefeatAnimStart_" + each token. An escape tags the scene "odefeat_escaped"
+; before stopping it; otherwise one outcome event follows the scene (robbery, safe wakeup, kill,
+; arrest, or a third-party one such as "SSLV Entry"). Only OStim's own OJson is used to read the
+; scene: no ODefeat script types.
+bool Function ODefTalk()
+	return bMaster && bODefSkyrimNet && SNetOK()
+EndFunction
+
+bool Function ODefPlayerScene(string json)
+	string[] meta = OJson.GetMetadata(json)
+	return meta && meta.Find("odefeat") >= 0 && meta.Find(PlayerRef.GetFormID() as string) >= 0
+EndFunction
+
+; "<winner> beat <player> near <place>" opener; falls back to "Someone"
+string Function ODefWho()
+	string w = sODefWhere
+	If w == ""
+		w = WhereName()
+	EndIf
+	string by = sODefBy
+	If by == ""
+		by = "Someone"
+	EndIf
+	return by + " beat " + PlayerRef.GetDisplayName() + " near " + w
+EndFunction
+
+Event OnODefStart(string eventName, string strArg, float numArg, Form sender)
+	If !ODefPlayerScene(strArg)
+		return      ; an NPC's defeat scene
+	EndIf
+	fODefUntil = Utility.GetCurrentGameTime() + 0.25     ; cleared by the outcome, lapses after 6 game hours
+	bODefAwait = false
+	sODefWhere = WhereName()
+	sODefBy = ""
+	Actor[] acts = OJson.GetActors(strArg)
+	int i = 0
+	While acts && i < acts.Length && sODefBy == ""
+		If acts[i] && acts[i] != PlayerRef && !IsMinor(acts[i])
+			sODefBy = acts[i].GetDisplayName()
+		EndIf
+		i += 1
+	EndWhile
+	Log("ODefeat: player defeated near " + sODefWhere + " by " + sODefBy)
+	If ODefTalk() && bSkyrimNetStart
+		string pn = PlayerRef.GetDisplayName()
+		If sODefBy != ""
+			SkyrimNetApi.DirectNarration(sODefBy + " has beaten " + pn + " near " + sODefWhere + ", and " + pn + " is at their mercy.", None, None)
+		Else
+			SkyrimNetApi.DirectNarration(pn + " has been beaten near " + sODefWhere + " and is at the mercy of whoever won the fight.", None, None)
+		EndIf
+	EndIf
+EndEvent
+
+; from OnOStimThreadEnd while a player defeat is in progress
+Function ODefSceneEnded(string json)
+	If !ODefPlayerScene(json)
+		return
+	EndIf
+	string[] meta = OJson.GetMetadata(json)
+	If meta.Find("odefeat_escaped") < 0
+		bODefAwait = true       ; an outcome event follows
+		return
+	EndIf
+	Log("ODefeat: player escaped")
+	string pn = PlayerRef.GetDisplayName()
+	string m = ODefWho() + " and forced themselves on them, but " + pn + " broke free and escaped."
+	ODefClear()
+	If ODefTalk()
+		If bSkyrimNetStart
+			SkyrimNetApi.DirectNarration(pn + " breaks free and escapes.", None, None)
+		EndIf
+		If bSkyrimNetLog
+			SkyrimNetApi.RegisterPersistentEvent(m, None, PlayerRef)
+		EndIf
+	EndIf
+EndFunction
+
+Function ODefClear()
+	fODefUntil = 0.0
+	bODefAwait = false
+	sODefWhere = ""
+	sODefBy = ""
+EndFunction
+
+Function ODefSay(string n, string m)
+	ODefClear()
+	If !ODefTalk()
+		return
+	EndIf
+	If bSkyrimNetStart && n != ""
+		SkyrimNetApi.DirectNarration(n, None, None)
+	EndIf
+	If bSkyrimNetLog && m != ""
+		SkyrimNetApi.RegisterPersistentEvent(m, None, PlayerRef)
+	EndIf
+EndFunction
+
+Event OnODefRobbery(string eventName, string strArg, float numArg, Form sender)
+	Log("ODefeat: robbery")
+	string pn = PlayerRef.GetDisplayName()
+	string keeper = "Whoever beat them"
+	If sODefBy != ""
+		keeper = sODefBy
+	EndIf
+	ODefSay(pn + " comes to not far from where they fell, beaten and missing some of their valuables. " + keeper + " may still have them.", ODefWho() + ", had their way with them and robbed them of some valuables.")
+EndEvent
+
+Event OnODefSafeWakeup(string eventName, string strArg, float numArg, Form sender)
+	Log("ODefeat: safe wakeup")
+	string pn = PlayerRef.GetDisplayName()
+	ODefSay(pn + " comes to not far from where they fell, beaten and left behind.", ODefWho() + ", had their way with them and left them there.")
+EndEvent
+
+Event OnODefArrest(string eventName, string strArg, float numArg, Form sender)
+	Log("ODefeat: arrest")
+	string pn = PlayerRef.GetDisplayName()
+	string by = "a guard"
+	If sODefBy != ""
+		by = sODefBy
+	EndIf
+	string w = sODefWhere
+	If w == ""
+		w = WhereName()
+	EndIf
+	string m = by + " beat " + pn + " near " + w + ", had their way with them and had them hauled off to jail."
+	ODefSay("Beaten by " + by + " near " + w + ", " + pn + " is hauled off to jail.", m)
+EndEvent
+
+; the last save is reloaded right after, so a short narration only
+Event OnODefKill(string eventName, string strArg, float numArg, Form sender)
+	Log("ODefeat: kill")
+	string pn = PlayerRef.GetDisplayName()
+	string by = "The winner"
+	If sODefBy != ""
+		by = sODefBy
+	EndIf
+	ODefSay(by + " finishes " + pn + " off.", "")
+EndEvent
+
+; "SSLV Entry" is shared by several mods: only ours if a player defeat scene just ended without
+; an escape, and Kidnapped Redux is not the one holding the player (it sends its own end event)
+Event OnODefSlavery(string eventName, string strArg, float numArg, Form sender)
+	float now = Utility.GetCurrentGameTime()
+	If !bODefAwait || now >= fODefUntil || now < fOKRHeldUntil
+		return
+	EndIf
+	Log("ODefeat: sold into slavery")
+	string pn = PlayerRef.GetDisplayName()
+	ODefSay("After the defeat, " + pn + " is sold on into slavery.", ODefWho() + ", had their way with them and sold them into slavery.")
+EndEvent
 
 ; ======================= protect list helper (MCM) =======================
 bool Function ToggleProtected(Actor a)

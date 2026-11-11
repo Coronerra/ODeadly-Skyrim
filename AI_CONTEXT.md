@@ -13,8 +13,8 @@ It is inspired by ODangerousNights. No ODN files are used; this is not an ODN pa
 - Adults only. Children are refused for every role. There is no toggle.
 - The master switch defaults to OFF. With it off, nothing in the mod can fire.
 - The panic key (unbound by default) or turning the master off aborts scenes, deletes spawns, returns stolen gold, clears calming / essential flags, purges pending SkyrimNet dialogue, cancels timers, and leaves the switch OFF. In 0.2 it also cancels pending morning-after and bathing rolls, removes a spawned watcher and the easter-egg rabbits / butterflies, and switches the drink / wash listeners off.
-- Every module is its own MCM toggle. Every 0.2 module defaults to OFF.
-- Scenarios are based on the standard Skyrim environment. Optional mods (SkyrimNet, OCreatures, OCum, ZaZ, OStimNet, ODN, and in 0.2 iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct, JContainers) are soft-detected at runtime and are never plugin masters. Code that needs another mod's script types sits in small interface scripts (`ODS_DnB`, `ODS_IActions`, `ODS_Vamp`) whose global functions are only called after the plugin / SKSE plugin is confirmed loaded. Compile-only stubs for those types live in `tools/stubs/` and are never shipped.
+- Every module is its own MCM toggle. Every 0.2 module defaults to OFF. The 0.3 SkyrimNet bridges default ON but only do anything when their mod is installed, and send nothing with the master off.
+- Scenarios are based on the standard Skyrim environment. Optional mods (SkyrimNet, OCreatures, OCum, ZaZ, OStimNet, ODN, and in 0.2 iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct, JContainers; in 0.3 OStim Kidnapped Redux and ODefeat Reforged) are soft-detected at runtime and are never plugin masters. Code that needs another mod's script types sits in small interface scripts (`ODS_DnB`, `ODS_IActions`, `ODS_Vamp`) whose global functions are only called after the plugin / SKSE plugin is confirmed loaded. Compile-only stubs for those types live in `tools/stubs/` and are never shipped.
 
 ## 3. Plugin and files
 
@@ -47,6 +47,17 @@ Defaults: everything off except the night-attack module inside the master switch
 | Dark Gift | `K_DARKGIFT` 15 | Hourly sleep roll. Vampire nearby first, else `ODS_PoolVampire`. Blood and OStim: one of its 2-actor feeding scenes (ordered by sex). Aftermath: `DiseaseResist >= 100` or already a vampire = nothing; Sacrosanct loaded = `PlayerVampireQuestScript.VampireChange` on vanilla `PlayerVampireQuest` (0x0EAFD5), which Sacrosanct overrides; otherwise vanilla Sanguinare Vampiris (0x0B8780). Own toggle for the infection. |
 | Climax fauna (easter egg) | — | `ostim_actor_orgasm` with the player in the thread, 1 hour cooldown. Hares (`ODS_PoolFauna`) in a ring with Aggression 0; butterflies (`ODS_PoolButterfly`) moved with `TranslateTo` for ~20 s then deleted; after the thread ends the hares get Aggression 2 and `StartCombat`, all deleted 60 s later. Last option in the MCM. |
 
+### 0.3 SkyrimNet bridges (listeners only; `ODS_Main`, no new records)
+
+Registered in `Register()` (init, game load, master on) only when the plugin is loaded (`ModLoaded`, regular or light). Text goes out with `SkyrimNetApi.DirectNarration` (gated by "Narration when it starts") and `RegisterPersistentEvent` (gated by "Memory afterwards"), only with the master on, the bridge toggle on, and SkyrimNet loaded. Neither mod is started, stopped or changed. While one of them has the player, `OtherBusy()` is true, so O'Deadly does not stage its own encounters (cleared by the end event; lapses after 1 game day / 6 game hours).
+
+| Mod (plugin) | Toggle | Events listened to |
+|---|---|---|
+| OStim Kidnapped Redux (`OStim Kidnapped Redux.esp`) | `bOKRSkyrimNet` | `OKidnapped_Taken` (numArg 1 = requested via `OKidnapped_Take`, 0 = own ambush; place is read here, before the player is moved), `OKidnapped_Dodged`, `OKidnapped_End` (strArg `escaped` / `released` / `slavery`). `OKidnapped_Refused` is ignored (O'Deadly never sends `OKidnapped_Take`). No actors are passed. |
+| ODefeat Reforged (`ODefeat.esp`) | `bODefSkyrimNet` | `ODefeatAnimStart_odefeat` (rebroadcast of `ostim_start`; player scene = OStim metadata contains `odefeat` and the player's FormID; winner = first other adult in `OJson.GetActors`), `ostim_thread_end` with metadata `odefeat_escaped` (escape), outcomes `oDefeat_robberyEvent`, `oDefeat_safeWakeupEvent`, `oDefeat_killEvent` (narration only), `oDefeat_arrestEvent`, and `SSLV Entry` only while a player defeat scene has just ended without an escape and Kidnapped Redux is not holding the player. |
+
+With `ODefeat.esp` loaded, `OnActorBleedout` sends the player to `DefeatFailed` and `UpdateEssential` does not make the player essential; follower defeat is unchanged. Stored settings are not changed. Only OStim's `OJson` is used to read scene metadata: no ODefeat or Kidnapped Redux script types, no stubs.
+
 Scene engine additions: a module can preselect a scene and furniture (`sPreScene`, `kFurn`); `StartThread` then uses `OThreadBuilder.SetFurniture` instead of `NoFurniture`. Spawned or hostile participants are calmed for non-forced scenes too and their aggression is restored afterwards.
 
 ## 6. Known limits
@@ -55,7 +66,9 @@ Scene engine additions: a module can preselect a scene and furniture (`sPreScene
 - Pickpocket and brawl escalation are shown as locked in the MCM, not built.
 - A jail or barracks that shares a location with its town is only caught by sleeping or waiting there.
 - ZaZ only changes preferred scenes plus narration. No ZaZ functions are called.
-- Defeat of the player needs the optional "keep the player alive" setting, or they die normally.
+- Defeat of the player needs the optional "keep the player alive" setting, or they die normally. With ODefeat Reforged installed, player defeat is left to it.
+- OStim Kidnapped Redux's events carry no actors, so kidnappers and taken followers are not named. Its night-roll handoff only knows ODangerousNights, so O'Deadly night attacks and its kidnappings can both happen at night.
+- ODefeat Reforged third-party outcomes other than `SSLV Entry` are not narrated.
 - iActions drunk tiers assume its default 2 points per level.
 - Bathing in Skyrim's start event exists only for the player; followers are caught through its bathing effect.
 - With Sacrosanct the Dark Gift turns the player at once (via `VampireChange`) rather than through the disease stage.
@@ -76,4 +89,4 @@ python3 tools/verify.py build/ODeadlySkyrim.esp
 
 ## 8. Credit and publishing
 
-Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The current player build is [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2). Do not treat a Nexus listing as authorized unless the author says so.
+Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2); 0.3 is the next build (`ODeadly_Skyrim_0.3.zip`). Do not treat a Nexus listing as authorized unless the author says so.

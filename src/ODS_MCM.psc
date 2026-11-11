@@ -1,5 +1,5 @@
 Scriptname ODS_MCM extends SKI_ConfigBase
-{O'Deadly Skyrim v0.2 MCM (SkyUI). By That Guy (Coronerra).}
+{O'Deadly Skyrim v0.3 MCM (SkyUI). By That Guy (Coronerra).}
 
 ODS_Main Property Main Auto
 
@@ -53,12 +53,12 @@ string[] catOpts
 string[] jailOpts
 
 int Function GetVersion()
-	return 2
+	return 3
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3 rebuilds them for the new options
 	EndIf
 EndEvent
 
@@ -152,6 +152,10 @@ bool Function GetB(string k)
 		return Main.bSkyrimNetLog
 	ElseIf k == "rumors"
 		return Main.bRumors
+	ElseIf k == "okrsn"
+		return Main.bOKRSkyrimNet
+	ElseIf k == "odefsn"
+		return Main.bODefSkyrimNet
 	ElseIf k == "bio"
 		return Main.bBioCheck
 	ElseIf k == "drunkmod"
@@ -303,6 +307,10 @@ Function SetB(string k, bool v)
 		Main.bSkyrimNetLog = v
 	ElseIf k == "rumors"
 		Main.bRumors = v
+	ElseIf k == "okrsn"
+		Main.bOKRSkyrimNet = v
+	ElseIf k == "odefsn"
+		Main.bODefSkyrimNet = v
 	ElseIf k == "bio"
 		Main.bBioCheck = v
 	ElseIf k == "drunkmod"
@@ -938,6 +946,8 @@ Function PageGeneral()
 	AddTextOption("OCum", YesNo(Main.OCumOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("ZaZ Animation Pack", YesNo(Main.ZaZOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("ODangerousNights", YesNo(Main.ODNLoaded()), OPTION_FLAG_DISABLED)
+	AddTextOption("OStim Kidnapped Redux", YesNo(Main.OKROK()), OPTION_FLAG_DISABLED)
+	AddTextOption("ODefeat Reforged", YesNo(Main.ODefeatOK()), OPTION_FLAG_DISABLED)
 	AddHeaderOption("Victims")
 	oGender = AddMenuOption("Victim gender", genderOpts[Main.iVictimGender])
 	AddS("Victim search range", "range")
@@ -957,6 +967,8 @@ Function PageGeneral()
 	AddT("Narration when it starts", "snstart")
 	AddT("Memory afterwards", "snlog")
 	AddT("Rumours", "rumors")
+	AddT("Kidnapped Redux events", "okrsn", Flag(Main.OKROK()))
+	AddT("ODefeat Reforged events", "odefsn", Flag(Main.ODefeatOK()))
 	AddT("Ask SkyrimNet if the NPC would", "bio", Flag(Main.SNetOK()))
 	AddS("SkyrimNet answer timeout", "biotimeout", Flag(Main.SNetOK() && Main.bBioCheck))
 	AddHeaderOption("Modifiers")
@@ -1061,8 +1073,11 @@ Function PageDanger()
 	AddT("Enable defeat", "defeat")
 	int f = Flag(Main.bDefeatEnabled)
 	AddS("Chance when downed", "defeatch", f)
-	AddT("Player can be taken", "defeatplayer", f)
-	AddT("Keep the player alive for defeat", "essential", Flag(Main.bDefeatEnabled && Main.bDefeatPlayer))
+	AddT("Player can be taken", "defeatplayer", Flag(Main.bDefeatEnabled && !Main.ODefeatOK()))
+	AddT("Keep the player alive for defeat", "essential", Flag(Main.bDefeatEnabled && Main.bDefeatPlayer && !Main.ODefeatOK()))
+	If Main.ODefeatOK()
+		AddTextOption("  Player: left to ODefeat Reforged", "", OPTION_FLAG_DISABLED)
+	EndIf
 	AddT("Downed followers can be taken", "defeatfol", f)
 	AddHeaderOption("Trespass")
 	AddT("Enable trespass", "trespass")
@@ -1574,6 +1589,15 @@ string Function Hint(string k)
 		return "SkyrimNet: remember what happened so characters can bring it up later."
 	ElseIf k == "rumors"
 		return "SkyrimNet: short-lived rumours about what happened, where it happened."
+	ElseIf k == "okrsn"
+		return "Only does anything when Lirael's OStim Kidnapped Redux is installed: tells SkyrimNet when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly does not run the kidnapping. Uses the narration / memory settings above."
+	ElseIf k == "odefsn"
+		return "Only does anything when Lirael's ODefeat Reforged is installed: tells SkyrimNet when you are defeated and what happened afterwards (escape, robbery, waking up, arrest, being sold, execution). O'Deadly does not run the defeat. Uses the narration / memory settings above."
+	ElseIf k == "defeatplayer"
+		If Main.ODefeatOK()
+			return "ODefeat Reforged is installed: a downed player is left to it, so the two mods never both grab you. Your setting is kept for when it is not installed. Followers still use this page."
+		EndIf
+		return "The winner may take you when you are downed. Needs 'Keep the player alive for defeat' unless you are essential anyway."
 	ElseIf k == "drunkmod"
 		return "If you are drunk or on skooma (detected from active effects), inn, trespass, betrayal and night-attack chances are multiplied. No effect when those modules are off."
 	ElseIf k == "cheat"

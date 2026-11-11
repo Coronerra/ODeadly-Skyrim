@@ -1,10 +1,12 @@
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.2**
+**v0.3**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2)** · [Changelog](CHANGELOG.md) · [Earlier v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2)** (latest published release) · [Changelog](CHANGELOG.md) · [Earlier v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+
+Version 0.3 (`ODeadly_Skyrim_0.3.zip`) is the new build: SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged when you have them. See [New in 0.3](#new-in-03-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged) and the [changelog](CHANGELOG.md).
 
 This repository is the full public source and notes: Papyrus scripts, the plugin, the SkyrimNet decision pack, the compile and plugin-builder tools, the [changelog](CHANGELOG.md), and hook-level details in **[AI_CONTEXT.md](AI_CONTEXT.md)** (start there if you are an AI assistant or a modder extending this). License: [MIT for coronerra's work](LICENSE).
 
@@ -14,7 +16,7 @@ I really don't care for most of the features of this mod, but I realized I have 
 
 The original idea came when I saw the description of ODangerous Nights. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
 
-Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, but none of them is required.
+Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, and 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, but none of them is required.
 
 If there are any other scenarios you want added that can work without additional mod requirements, I can.
 
@@ -32,6 +34,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [How the engine works](#how-the-engine-works)
 - [Modules and defaults](#modules-and-defaults)
 - [New in 0.2](#new-in-02-mcm-page-more-encounters-inn-rooms-on-jail--inns)
+- [New in 0.3](#new-in-03-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged)
 - [MCM pages](#mcm-pages)
 - [Test checklist](#test-checklist)
 - [Known limits](#known-limits)
@@ -97,6 +100,8 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **Blood and OStim** (0.2): the Dark Gift becomes a feeding scene.
 - **Sacrosanct** (0.2): the Dark Gift turns you through Sacrosanct's own vampirism.
 - **JContainers**: only used to read iActions' `extra_alcohol.json` directly.
+- **OStim Kidnapped Redux** (0.3, Lirael's OStim conversion of vinfamy's SexLab Kidnapped Redux): SkyrimNet hears when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly holds its own encounters while you are held.
+- **ODefeat Reforged** (0.3, by Lirael): SkyrimNet hears when you are defeated and what happens next. A downed player is left to ODefeat Reforged; O'Deadly's Defeat module keeps handling followers.
 
 None of these mods' files are included, and none of them is a master of this plugin.
 
@@ -198,6 +203,7 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 
 - Event-based: when you or a follower enter bleedout. 50% chance the winner takes them. Every hostile nearby calms down until you change location.
 - The player only bleeds out if essential. "Keep the player alive for defeat" (OFF) makes you essential while Defeat is on; if no defeat scene happens, you die the normal way.
+- With ODefeat Reforged installed (0.3), the player part of this module stands aside, so the two mods never both grab you. Your settings are kept; downed followers are still handled here.
 
 ### Trespass
 
@@ -256,6 +262,24 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 - The very last option in the MCM. 5% after your climax: twenty rabbits appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 
+## New in 0.3 (SkyrimNet messages for OStim Kidnapped Redux and ODefeat Reforged)
+
+Two listeners, not new encounter modules: O'Deadly does not start, stop or change anything in those mods. It listens to their public mod events and tells SkyrimNet what happened, using your name and the place. Each has a toggle on MCM > General > SkyrimNet (ON, locked when the mod is missing) and also follows "Narration when it starts" and "Memory afterwards". With the master switch off or after the panic key, nothing is sent. Adults only, as everywhere in this mod.
+
+### OStim Kidnapped Redux (Lirael)
+
+- Taken (its own ambush, or handed over by another mod): narration and a memory of being dragged off to the hideout, near where it happened.
+- Slipped the ambush: one line of narration.
+- Escaped, let go exhausted, or sold into slavery: narration and a memory of how it ended.
+- While you are held, O'Deadly does not start its own encounters.
+- Kidnapped Redux only knows to leave its night rolls to ODangerousNights, so with both O'Deadly's night attacks and Kidnapped Redux on, either one can still happen at night.
+
+### ODefeat Reforged (Lirael)
+
+- Defeated: narration that you are at the mercy of whoever won, by name when the scene shows who.
+- Escaped (you won the struggle), robbed, left where you fell, arrested by a guard, sold into slavery, or executed: narration, plus a memory (except for execution, which reloads your last save).
+- A downed player is left to ODefeat Reforged; O'Deadly's Defeat module still handles your followers.
+
 ## MCM pages
 
 General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns (now with the shared room option) — Danger — Creatures — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
@@ -268,7 +292,8 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 4. Press the panic key during the scene: it must stop at once, spawns vanish, the mod switches off (MCM shows the master OFF).
 5. Turn the master back on and try other force buttons (jail needs a jail and a guard; cheating needs your spouse nearby; road robbery: wait 1h outdoors).
 6. 0.2 force buttons (turn the module on first): morning after (next sleep), bathing (next real wash), shared room (sleep in an inn with a follower), Dark Gift (next sleep), watched (next outdoor scene), climax fauna (next climax).
-7. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+7. 0.3, with OStim Kidnapped Redux or ODefeat Reforged installed: MCM > General shows them as installed. Use their own menus to force a kidnapping or get defeated, then check that SkyrimNet narrates it.
+8. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
 ## Known limits
 
@@ -280,6 +305,8 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - The watcher "comes closer" by walking toward the scene; what they say is up to SkyrimNet.
 - With Sacrosanct installed, the Dark Gift turns you right away through Sacrosanct instead of the multi-day disease.
 - The fauna butterflies are vanilla critters; some may flutter off early.
+- OStim Kidnapped Redux does not say who the kidnappers are or whether followers were taken, so its SkyrimNet text names you and the place only.
+- ODefeat Reforged's escape is read from its scene tag when the scene ends; third-party ODefeat outcomes other than slavery are not narrated.
 - Creature probe spawns a hidden actor for a moment when the Creatures module is enabled and on load; if a type shows "No scenes found" wrongly, stand next to a follower and press Re-check.
 
 ## Repository contents
@@ -291,7 +318,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable `ODeadly_Skyrim_0.2.zip` is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest published there: `ODeadly_Skyrim_0.2.zip`; 0.3 is `ODeadly_Skyrim_0.3.zip`)
 
 ## Credits
 
@@ -299,6 +326,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Design inspired by ODangerousNights. No ODN files are used; this is not an ODN patch.
 - Built on OStim Standalone, SkyUI, powerofthree's Papyrus Extender and SkyrimNet APIs (none of their files are included).
 - Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
+- Optional 0.3 listeners for Lirael's OStim Kidnapped Redux (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's ODefeat Reforged use only their documented / public mod events. Thanks to Lirael and vinfamy; none of their files are included and neither is a master.
 
 ## Other work
 
