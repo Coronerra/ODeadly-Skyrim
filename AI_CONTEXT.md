@@ -89,6 +89,13 @@ With `SexLabDefeat.esp` loaded, `OnActorBleedout` sends the player to `DefeatFai
 
 Both plugins loaded: `BothDefeatsWarn()` (from `OnInit` and from `ODS_PlayerAlias.OnUpdate`, a single update 8 s after each load) shows `Debug.Notification` every load and `Debug.MessageBox` once per save (`bBothDefeatsWarned`), even with the master off (plain text only). Exact box text: "O'Deadly Skyrim: Both ODefeat Reforged and Baka Defeat (OStim Edition) were detected. For stability use only one, preferably Baka Defeat since it does more." MCM Installed mods shows the same advice. `OnODefStart` is skipped while `fBakaUntil` is running, and a Baka player-victim start clears an ODefeat defeat in progress, so one defeat is narrated once (Baka preferred). MCM `GetVersion` 6.
 
+### 0.6 startup fix (`ODS_Main`, `ODS_MCM`; no new records)
+
+- The protected-NPC list property is `ProtectedForms` (`IsProtected`, `ToggleProtected`, MCM `PageProtected`). The 0.5 property was dropped and is never read; on update that list starts empty.
+- `InitArrays` creates the runtime arrays first (`kAtt`, `kVic`, `kSpawned`, `fOldAgg`, `fOldConf`, `bAddedFac`, `kPacified`, `fPacAgg`, `bCalmed`, `bCrType`, `iCrStatus`, `fDrinkTimes`, `kFauna`, `kBathFx`, the `iBaka*` / `kBaka*` caches), then the settings arrays (`ProtectedForms`, `OvrLoc`, `OvrAtk`, `OvrCheat`, `OvrJail`, `PlaceNames`, `PlaceCats`), each checked on its own, then `MigrateFaunaMode()`.
+- Never write `arr == None`, `arr != None` or `arr = None` for an array: Caprica compiles the `None` literal to a cast into an array-typed temp, which the Skyrim VM rejects ("Cannot cast from None to Form[]"). Test with `If !arr`, build through a local (`Form[] t = new Form[64]` then `arr = t`), and clear with a never-assigned script variable of the same type (`kNoActors`, `kNoForms`, MCM `oNoInts`).
+- Scene actor lists come from `NewActorArray(n)` (literal `new Actor[1..8]`, exact length); `OActorUtil.CreateArray` is not used. `OActorUtil.Sort`, `ToArray` and `GetActorsInRangeV2` still are. MCM `GetVersion` 7. SkyrimNet pack 0.6.0.
+
 Scene engine additions: a module can preselect a scene and furniture (`sPreScene`, `kFurn`); `StartThread` then uses `OThreadBuilder.SetFurniture` instead of `NoFurniture`. Spawned or hostile participants are calmed for non-forced scenes too and their aggression is restored afterwards.
 
 ## 6. Known limits
@@ -122,4 +129,4 @@ python3 tools/verify.py build/ODeadlySkyrim.esp
 
 ## 8. Credit and publishing
 
-Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.
+Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.

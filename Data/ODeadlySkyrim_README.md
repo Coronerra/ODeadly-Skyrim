@@ -2,13 +2,15 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.5**
+**v0.6**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5)** · [Changelog](CHANGELOG.md) · [Earlier v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6)** · [Changelog](CHANGELOG.md) · [Earlier v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
-Version 0.5 (`ODeadly_Skyrim_0.5.zip`) adds support for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288): O'Deadly detects it, leaves a downed player to it, and tells SkyrimNet what happens. If both Baka Defeat and ODefeat Reforged are installed you get an on-screen warning: use only one, preferably Baka Defeat. See [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support) and the [changelog](CHANGELOG.md).
+Version 0.6 (`ODeadly_Skyrim_0.6.zip`) is a bug fix: on some setups no scenes ever started, because the main script stopped during its first startup. Updating from 0.5 keeps your settings except the protected-NPC list, which must be set again. See [New in 0.6](#new-in-06-bug-fix-scenes-never-started).
+
+Version 0.5 added support for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288): O'Deadly detects it, leaves a downed player to it, and tells SkyrimNet what happens. If both Baka Defeat and ODefeat Reforged are installed you get an on-screen warning: use only one, preferably Baka Defeat. See [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support) and the [changelog](CHANGELOG.md).
 
 Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues) with your Papyrus log.
 
@@ -41,6 +43,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.3](#new-in-03-follower-rescue-skyrimnet-messages-for-ostim-kidnapped-redux-and-odefeat-reforged)
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
+- [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
 - [MCM pages](#mcm-pages)
 - [Test checklist](#test-checklist)
 - [Known limits](#known-limits)
@@ -274,6 +277,12 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
 
+## New in 0.6 (bug fix: scenes never started)
+
+- **Fixed:** on first load the main script could stop at its first startup step (Papyrus log: "Cannot cast from None to Form[]" in `ODS_Main.InitArrays`). After that no encounter could start ("Cannot access an element of a None array", "Mismatched types assigning to variable named acts", "trespass: no resident with a scene").
+- The protected-NPC list is stored under a new name, startup creates the lists scenes need before the MCM lists, and scene actor lists no longer depend on OStim's `OActorUtil.CreateArray`. Scene choice, defaults and every safety rule are unchanged.
+- Updating from 0.5: overwrite the old files; settings carry over, except the protected-NPC list (MCM > Protected followers), which must be set again.
+
 ## New in 0.5 (Baka Defeat – OStim Edition support)
 
 A new SkyrimNet listener for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288) (plugin `SexLabDefeat.esp`; OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo, Baka Edition by BakaFactory). Like the 0.3 listeners, O'Deadly does not start, stop or change anything in Baka Defeat: it listens to Baka's own mod events and tells SkyrimNet what happened. Toggle: MCM > General > SkyrimNet > "Baka Defeat events" (ON, locked when the mod is missing). It also follows "Narration when it starts" and "Memory afterwards". With the master switch off or after the panic key, nothing is sent. Adults only: a scene with a child in it is never narrated.
@@ -372,7 +381,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.5.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.6.zip`)
 
 ## Credits
 

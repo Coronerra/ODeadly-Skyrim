@@ -46,6 +46,7 @@ int oPlaceApplyRadius
 int oPlaceDelete
 int oSerana
 int[] oFollower
+int[] oNoInts     ; 0.6: never assigned (stays None); clears oFollower without a None literal
 Actor[] kFollower
 string sNewPlaceName = "Rest spot"
 string[] genderOpts
@@ -57,12 +58,12 @@ string[] jailOpts
 string[] faunaOpts
 
 int Function GetVersion()
-	return 6
+	return 7
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4/0.5 rebuild them for new options
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4/0.5/0.6 rebuild them
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -109,7 +110,7 @@ Function SetupPages()
 EndFunction
 
 Function RefreshFaunaOpts()
-	If faunaOpts == None || faunaOpts.Length < 3
+	If !faunaOpts || faunaOpts.Length < 3
 		return
 	EndIf
 	If Main.KillerBunnyOK()
@@ -933,13 +934,13 @@ Function ResetIds()
 	oPlaceApplyRadius = -100
 	oPlaceDelete = -100
 	oSerana = -100
-	oFollower = None
+	oFollower = oNoInts
 EndFunction
 
 ; ---------------- pages ----------------
 Event OnPageReset(string page)
 	ResetIds()
-	If genderOpts == None || jailOpts == None || rescueGenderOpts == None || faunaOpts == None
+	If !genderOpts || !jailOpts || !rescueGenderOpts || !faunaOpts
 		SetupPages()
 	EndIf
 	Main.InitArrays()
@@ -1288,7 +1289,7 @@ Function PageProtected()
 		Actor a = near[i]
 		If a && Main.IsFollowerActor(a)
 			kFollower[c] = a
-			bool prot = Main.Protected && Main.Protected.Find(a.GetActorBase()) >= 0
+			bool prot = Main.ProtectedForms && Main.ProtectedForms.Find(a.GetActorBase()) >= 0
 			oFollower[c] = AddToggleOption(a.GetDisplayName(), prot)
 			c += 1
 		EndIf
@@ -1558,7 +1559,7 @@ Event OnOptionMenuOpen(int o)
 		SetMenuDialogStartIndex(Main.GetJailOverride())
 		SetMenuDialogDefaultIndex(0)
 	ElseIf o == oPlaceCat
-		If catOpts == None || catOpts.Length != 10
+		If !catOpts || catOpts.Length != 10
 			catOpts = new string[10]
 			int c = 0
 			While c < 9

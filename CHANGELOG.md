@@ -2,6 +2,19 @@
 
 By That Guy (Coronerra).
 
+## 0.6
+
+Bug fix: scenes never started.
+
+- **Fixed: no scenes at all.** On first load the main script stopped at its very first startup step (`InitArrays`, the check of the protected-NPC list), with "Cannot cast from None to Form[]" and "Cannot create an array into a non-array variable" in the Papyrus log. The lists that hold attackers and victims were never created, so every encounter failed after that ("Cannot access an element of a None array" in `ClearStage` / `AddVictim`, "Mismatched types assigning to variable named acts" in `SceneForSet`), and trespass logged "no resident with a scene".
+- The protected-NPC list (MCM > Protected followers) is stored under a new name, `ProtectedForms`. The old list is no longer read at all.
+- Startup now creates the lists scenes need first (attackers, victims, spawns, calming), then the MCM lists, so a problem with a settings list can no longer stop scenes. Lists are no longer compared to or cleared with a bare `None` anywhere in the scripts or the MCM; that compiled check is what the game refused.
+- Scene actor lists are now plain Papyrus arrays of exactly the right size instead of OStim's `OActorUtil.CreateArray`, so OStim always gets one entry per actor with no empty slots. How scenes are chosen is unchanged.
+- Nothing else changes: same plugin, same records and FormIDs (only its description now reads v0.6), still only `Skyrim.esm` as master. The MCM rebuilds its pages (`GetVersion` 7). SkyrimNet pack version 0.6.0.
+- Thanks to the player who sent the Papyrus log. Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues) with your Papyrus log (`[ODeadlySkyrim]` lines).
+
+Updating from 0.5: overwrite the old files; settings carry over, except the protected-NPC list, which must be set again (MCM > Protected followers). A save where scenes never started picks up the fix on the next load.
+
 ## 0.5
 
 - **[Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288)** support (plugin `SexLabDefeat.esp`; OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo, Baka Edition by BakaFactory). Soft-detected: no new masters (the plugin still needs only `Skyrim.esm`), no new records, and none of its files are included. O'Deadly does not run, start or stop anything in it.

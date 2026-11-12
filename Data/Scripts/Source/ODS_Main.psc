@@ -126,7 +126,7 @@ int[] Property PlaceCats Auto Hidden
 int iPlaceAPI = -1
 int iDecisionAPI = -1
 
-Form[] Property Protected Auto Hidden
+Form[] Property ProtectedForms Auto Hidden          ; 0.6: renamed property; the protected-NPC list resets once on update
 Form[] Property OvrLoc Auto Hidden
 float[] Property OvrAtk Auto Hidden
 float[] Property OvrCheat Auto Hidden
@@ -244,6 +244,8 @@ Actor[] kAtt            ; staged attackers [4], kAtt[0] = lead
 int nAtt = 0
 Actor[] kVic            ; staged victims [2]
 int nVic = 0
+Actor[] kNoActors       ; 0.6: never assigned (stays None); used to clear actor arrays without a None literal
+Form[] kNoForms         ; 0.6: same, for Form arrays
 Actor[] kSceneActs
 Actor[] kSceneActs2
 string sScene1 = ""
@@ -339,65 +341,121 @@ Event OnInit()
 	BothDefeatsWarn()
 EndEvent
 
+; 0.6: runtime (scene) arrays first, settings arrays after, so a problem with a settings
+; list can never leave scenes without their arrays. Arrays are tested with "If !arr" and built
+; through a local, never compared to or assigned from a None literal (see ClearStage).
 Function InitArrays()
-	If Protected == None
-		Protected = new Form[64]
+	; ---- runtime arrays the scene flow needs ----
+	If !kAtt
+		Actor[] tAtt = new Actor[4]
+		kAtt = tAtt
 	EndIf
-	If OvrLoc == None
-		OvrLoc = new Form[128]
-		OvrAtk = new float[128]
-		OvrCheat = new float[128]
+	If !kVic
+		Actor[] tVic = new Actor[2]
+		kVic = tVic
 	EndIf
-	If OvrJail == None
-		OvrJail = new int[128]
+	If !kSpawned
+		Actor[] tSpawned = new Actor[8]
+		kSpawned = tSpawned
 	EndIf
-	If PlaceNames == None
-		PlaceNames = new string[64]
-		PlaceCats = new int[64]
+	If !fOldAgg
+		float[] tOldAgg = new float[4]
+		fOldAgg = tOldAgg
 	EndIf
-	If bCrType == None
-		bCrType = new bool[7]
+	If !fOldConf
+		float[] tOldConf = new float[4]
+		fOldConf = tOldConf
+	EndIf
+	If !bAddedFac
+		bool[] tAddedFac = new bool[4]
+		bAddedFac = tAddedFac
+	EndIf
+	If !kPacified
+		Actor[] tPacified = new Actor[8]
+		kPacified = tPacified
+	EndIf
+	If !fPacAgg
+		float[] tPacAgg = new float[8]
+		fPacAgg = tPacAgg
+	EndIf
+	If !bCalmed
+		bool[] tCalmed = new bool[4]
+		bCalmed = tCalmed
+	EndIf
+	If !bCrType
+		bool[] tCrType = new bool[7]
 		int i = 0
 		While i < 7
-			bCrType[i] = true
+			tCrType[i] = true
 			i += 1
 		EndWhile
+		bCrType = tCrType
 	EndIf
-	If iCrStatus == None
-		iCrStatus = new int[7]
+	If !iCrStatus
+		int[] tCrStatus = new int[7]
 		int j = 0
 		While j < 7
-			iCrStatus[j] = 3
+			tCrStatus[j] = 3
 			j += 1
 		EndWhile
+		iCrStatus = tCrStatus
 	EndIf
-	If kAtt == None
-		kAtt = new Actor[4]
-		kVic = new Actor[2]
-		kSpawned = new Actor[8]
-		fOldAgg = new float[4]
-		fOldConf = new float[4]
-		bAddedFac = new bool[4]
-		kPacified = new Actor[8]
-		fPacAgg = new float[8]
+	If !fDrinkTimes
+		float[] tDrink = new float[8]
+		fDrinkTimes = tDrink
 	EndIf
-	If bCalmed == None
-		bCalmed = new bool[4]
+	If !kFauna
+		ObjectReference[] tFauna = new ObjectReference[48]
+		kFauna = tFauna
 	EndIf
-	If fDrinkTimes == None
-		fDrinkTimes = new float[8]
+	If !kBathFx
+		MagicEffect[] tBathFx = new MagicEffect[8]
+		kBathFx = tBathFx
 	EndIf
-	If kFauna == None
-		kFauna = new ObjectReference[48]
+	If !iBakaTid
+		int[] tBakaTid = new int[8]
+		iBakaTid = tBakaTid
 	EndIf
-	If kBathFx == None
-		kBathFx = new MagicEffect[8]
+	If !iBakaKind
+		int[] tBakaKind = new int[8]
+		iBakaKind = tBakaKind
 	EndIf
-	If iBakaTid == None
-		iBakaTid = new int[8]
-		iBakaKind = new int[8]
-		kBakaVic = new Actor[8]
-		kBakaAgg = new Actor[8]
+	If !kBakaVic
+		Actor[] tBakaVic = new Actor[8]
+		kBakaVic = tBakaVic
+	EndIf
+	If !kBakaAgg
+		Actor[] tBakaAgg = new Actor[8]
+		kBakaAgg = tBakaAgg
+	EndIf
+	; ---- settings arrays (MCM) ----
+	If !ProtectedForms
+		Form[] tProt = new Form[64]
+		ProtectedForms = tProt
+	EndIf
+	If !OvrLoc
+		Form[] tOvrLoc = new Form[128]
+		OvrLoc = tOvrLoc
+	EndIf
+	If !OvrAtk
+		float[] tOvrAtk = new float[128]
+		OvrAtk = tOvrAtk
+	EndIf
+	If !OvrCheat
+		float[] tOvrCheat = new float[128]
+		OvrCheat = tOvrCheat
+	EndIf
+	If !OvrJail
+		int[] tOvrJail = new int[128]
+		OvrJail = tOvrJail
+	EndIf
+	If !PlaceNames
+		string[] tPlaceNames = new string[64]
+		PlaceNames = tPlaceNames
+	EndIf
+	If !PlaceCats
+		int[] tPlaceCats = new int[64]
+		PlaceCats = tPlaceCats
 	EndIf
 	MigrateFaunaMode()
 EndFunction
@@ -752,8 +810,8 @@ Function ClearStage()
 	kAttacker = None
 	kVictim = None
 	kVictim2 = None
-	kSceneActs = None
-	kSceneActs2 = None
+	kSceneActs = kNoActors
+	kSceneActs2 = kNoActors
 	sScene2 = ""
 	bPaired = false
 	iKind = 0
@@ -1579,8 +1637,8 @@ bool Function IsProtected(Actor a)
 			return true
 		EndIf
 	EndIf
-	If Protected
-		If Protected.Find(a as Form) >= 0 || Protected.Find(a.GetActorBase() as Form) >= 0
+	If ProtectedForms
+		If ProtectedForms.Find(a as Form) >= 0 || ProtectedForms.Find(a.GetActorBase() as Form) >= 0
 			return true
 		EndIf
 	EndIf
@@ -1860,10 +1918,31 @@ string Function TagSearch(Actor[] acts, bool forced)
 	return c
 EndFunction
 
+; 0.6: an Actor array of exactly n slots (1-8) built with plain Papyrus, so lists handed to
+; OStim have Length == actor count and no empty slots. Scene lists are at most 4 + 2 = 6.
+Actor[] Function NewActorArray(int n)
+	If n <= 1
+		return new Actor[1]
+	ElseIf n == 2
+		return new Actor[2]
+	ElseIf n == 3
+		return new Actor[3]
+	ElseIf n == 4
+		return new Actor[4]
+	ElseIf n == 5
+		return new Actor[5]
+	ElseIf n == 6
+		return new Actor[6]
+	ElseIf n == 7
+		return new Actor[7]
+	EndIf
+	return new Actor[8]
+EndFunction
+
 ; attackers first, then victims; tries the given order, then the reverse / OStim-sorted order. Sets outActs.
 string Function SceneForSet(Actor[] att, int na, Actor[] vic, int nv, bool forced, Actor[] outActs)
 	int total = na + nv
-	Actor[] acts = OActorUtil.CreateArray(total)
+	Actor[] acts = NewActorArray(total)
 	int i = 0
 	While i < na
 		acts[i] = att[i]
@@ -1889,7 +1968,7 @@ string Function SceneForSet(Actor[] att, int na, Actor[] vic, int nv, bool force
 			acts[1] = tmp
 			s = TagSearch(acts, forced)
 		Else
-			Actor[] dom = OActorUtil.CreateArray(na)
+			Actor[] dom = NewActorArray(na)
 			int k = 0
 			While k < na
 				dom[k] = att[k]
@@ -1929,7 +2008,7 @@ string Function BuildScene(bool forced)
 		string s = SceneForSet(kAtt, nAtt, kVic, nVic, forced, outA)
 		If s != ""
 			int total = nAtt + nVic
-			kSceneActs = OActorUtil.CreateArray(total)
+			kSceneActs = NewActorArray(total)
 			int i = 0
 			While i < total
 				kSceneActs[i] = outA[i]
@@ -3106,7 +3185,11 @@ int Function StartThread(Actor[] acts, Actor[] dom, string scene, string meta, i
 EndFunction
 
 Actor[] Function DomFor(Actor[] acts)
-	Actor[] dom = OActorUtil.CreateArray(nAtt)
+	Actor[] dom
+	If nAtt < 1
+		return dom      ; None: no dominant actors
+	EndIf
+	dom = NewActorArray(nAtt)
 	int i = 0
 	While i < nAtt
 		dom[i] = kAtt[i]
@@ -3182,7 +3265,7 @@ bool Function StartEncounter(bool forced, string meta, int ep)
 			iThread2 = StartThread(kSceneActs2, d2, sScene2, meta, ep)
 		EndIf
 	Else
-		Actor[] dom = None
+		Actor[] dom
 		If forced
 			dom = DomFor(kSceneActs)
 		EndIf
@@ -3857,7 +3940,7 @@ Function ResolveSoft()
 	InitArrays()
 	kIActAlc = None
 	kIActDrunk = None
-	kExtraAlc = None
+	kExtraAlc = kNoForms
 	If IActionsOK()
 		kIActAlc = Game.GetFormFromFile(0x00000006, "iActions.esp") as FormList
 		kIActDrunk = Game.GetFormFromFile(0x00000002, "iActions.esp") as Faction
@@ -3865,8 +3948,9 @@ Function ResolveSoft()
 			kExtraAlc = ODS_IActions.ExtraAlcohol()
 		EndIf
 	EndIf
-	If kExtraAlc == None
-		kExtraAlc = new Form[64]
+	If !kExtraAlc
+		Form[] tExtra = new Form[64]
+		kExtraAlc = tExtra
 	EndIf
 	AddDlcDrink(0x000207E5, "Dragonborn.esm")
 	AddDlcDrink(0x000207E6, "Dragonborn.esm")
@@ -4835,7 +4919,7 @@ Function AddFauna(ObjectReference r)
 EndFunction
 
 Function DeleteFauna()
-	If kFauna == None
+	If !kFauna
 		return
 	EndIf
 	int i = 0
@@ -5253,7 +5337,7 @@ Function BakaSay(string n, string m, Actor a1, Actor a2)
 EndFunction
 
 int Function BakaSlot(int tid)
-	If iBakaTid == None
+	If !iBakaTid || !iBakaKind
 		InitArrays()
 	EndIf
 	int i = 0
@@ -5659,14 +5743,17 @@ bool Function ToggleProtected(Actor a)
 	EndIf
 	InitArrays()
 	Form f = a.GetActorBase()
-	int i = Protected.Find(f)
-	If i >= 0
-		Protected[i] = None
+	If !ProtectedForms
 		return false
 	EndIf
-	i = Protected.Find(None)
+	int i = ProtectedForms.Find(f)
 	If i >= 0
-		Protected[i] = f
+		ProtectedForms[i] = None
+		return false
+	EndIf
+	i = ProtectedForms.Find(None)
+	If i >= 0
+		ProtectedForms[i] = f
 		return true
 	EndIf
 	return false
