@@ -2,13 +2,15 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.6**
+**v0.7**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6)** · [Changelog](CHANGELOG.md) · [Earlier v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7)** · [Changelog](CHANGELOG.md) · [Earlier v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
-Version 0.6 (`ODeadly_Skyrim_0.6.zip`) is a bug fix: on some setups no scenes ever started, because the main script stopped during its first startup. Updating from 0.5 keeps your settings except the protected-NPC list, which must be set again. See [New in 0.6](#new-in-06-bug-fix-scenes-never-started).
+Version 0.7 (`ODeadly_Skyrim_0.7.zip`) has two fixes. Sleep events now begin as you wake, after the sleep has finished, which makes O'Deadly work with NPC AI Position Fix (before, saving after a sleep event could crash). A bath scene now waits until the wash has really ended, so long bath animations (for example the Malignis Animations patch for Dirt and Blood) are no longer cut short. See [New in 0.7](#new-in-07-sleep-events-and-bath-timing).
+
+Version 0.6 was a bug fix: on some setups no scenes ever started, because the main script stopped during its first startup. Updating from 0.5 keeps your settings except the protected-NPC list, which must be set again. See [New in 0.6](#new-in-06-bug-fix-scenes-never-started).
 
 Version 0.5 added support for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288): O'Deadly detects it, leaves a downed player to it, and tells SkyrimNet what happens. If both Baka Defeat and ODefeat Reforged are installed you get an on-screen warning: use only one, preferably Baka Defeat. See [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support) and the [changelog](CHANGELOG.md).
 
@@ -44,6 +46,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
+- [New in 0.7](#new-in-07-sleep-events-and-bath-timing)
 - [MCM pages](#mcm-pages)
 - [Test checklist](#test-checklist)
 - [Known limits](#known-limits)
@@ -103,6 +106,7 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **OCum**: messier memories.
 - **ZaZ Animation Pack**: jail scenes prefer restraint scenes; made-to-watch narration.
 - **OStimNet / OStim Navigator**: better scene tags.
+- **NPC AI Position Fix**: works with it from 0.7. Sleep events begin as you wake, after the sleep has finished, so nothing is moved or spawned while that mod is tracking the rest. (0.6 and earlier could crash on the next save after a sleep event.)
 - **ODangerousNights**: not needed. This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223), but I never downloaded it, so I have no idea if they are compatible. This already does the same thing, and so much more.
 - **iActions** (0.2): its alcohol list (including its `extra_alcohol.json`) is used to count your drinks, and NPCs it marks as drunk, plastered or blacked out are preferred for the morning after. Without it, vanilla and DLC drinks are recognised.
 - **Dirt and Blood** or **Bathing in Skyrim** (0.2): needed for the Bathing module. Only a real wash counts, never swimming or rain. With both installed, one wash still gives one roll.
@@ -142,7 +146,7 @@ Every module goes through the same steps, one event at a time:
 7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not.
 8. Afterwards: spawned actors leave and are cleaned up, a mod event fires (`ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`), SkyrimNet stores a memory. There are no forgive / confront menus: SkyrimNet and you decide what happens next.
 
-No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers. The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most a minute).
+No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers. The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
 
 If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use SkyrimNet named places. A tagged place wins over vanilla keywords, so you can mark a rented inn room as a player home, or tag a custom cell as a jail or barracks. Untagged spots fall back to normal Skyrim location keywords and cell names.
 
@@ -180,6 +184,7 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 ### Night attacks
 
 - One roll per hour slept (1h+). Optional: waiting counts as sleeping.
+- 0.7: the event begins as you wake, once the sleep has finished and the Sleep/Wait menu has closed, not partway through the sleep.
 - 8 place categories with separate attack and cheating chances (all can be 0), per-place overrides, and SkyrimNet named places (beta 29+, switches itself off on older SkyrimNet).
 - Attackers: real nearby hostiles first, then a spawned bandit, or a creature if the Creatures module is on.
 - Guards: "Nearby guards prevent attacks" ON, guard range 3000, guards as attackers OFF, guards as victims OFF, guards as cheating partners ON. In a jail or barracks, guard blocking is skipped when guards may be attackers.
@@ -253,7 +258,7 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 ### Bathing
 
 - Needs **Dirt and Blood** or **Bathing in Skyrim** (either or both). Rolls once when a real wash starts, for you or a follower. Swimming and rain never count.
-- The scene starts after the wash is done, so the bath mod can finish its own animation first.
+- The scene starts after the wash is done (0.7: up to 150 seconds, however long the bath animation is), so the bath mod can finish its own animation and redress first. Nobody still in a bath is picked as the partner.
 - Who: someone already bathing with you, then your companions, then strangers who would (bio / character check), then an optional stranger.
 
 ### Inns full: shared room
@@ -276,6 +281,18 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
+
+## New in 0.7 (sleep events and bath timing)
+
+- **Fixed: crash on save with NPC AI Position Fix.** That mod tracks every NPC that is moved or loaded in while you sleep or wait, and repositions them when the rest ends. 0.6 woke you and spawned its sleep-event characters while the sleep was still running, so they ended up on that mod's list and were later removed, which could crash the game on the next save.
+- Sleep events now begin as you wake. The roll still happens when you lie down, with the same chances as before, but nothing is moved, spawned or started until the sleep has finished and the Sleep/Wait menu has closed, plus a one-second pause so other mods can finish their own after-rest work. The morning after already worked this way and now waits for the menu too. Wait events also pause a second after the menu closes.
+- If something else cuts your sleep short (another mod's event, an attack), the event rolled for that sleep is dropped.
+- Loading a save, the panic key or turning the master switch off clears any sleep event that has not started yet.
+- **Fixed:** a Bathing scene could start before a long bath had finished. Vanilla Dirt and Blood ends its wash about 25 seconds after the lather, but with [Malignis Animations - BiSR DnB Patch](https://www.nexusmods.com/skyrimspecialedition/mods/166293) a woman's bath runs about 65 seconds (58 s wash, about 6 s drying, then the redress). 0.6 stopped waiting after 60 seconds, so the scene could start while the bath mod was still drying and re-dressing her, and clothes or controls could come back in the middle of the scene.
+- One path now covers every bath mod and animation: O'Deadly waits until the actor has really left the bath (Dirt and Blood's bathing list, or Bathing in Skyrim's bathing effect / finish event), up to 150 seconds, then pauses 2.5 seconds so clothes and controls are restored, then stages the scene. If the actor is somehow still bathing after 150 seconds, no scene is started for that wash.
+- Someone who is still inside a running bath is never picked as the partner.
+- Nothing else changes: same plugin records and FormIDs (only its description now reads v0.7), same settings, defaults and master switch (OFF), and the same kill switch, panic key and adults-only rules. SkyrimNet pack version 0.7.0.
+- Updating from 0.6: overwrite the old files; settings carry over.
 
 ## New in 0.6 (bug fix: scenes never started)
 
@@ -381,7 +398,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.6.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.7.zip`)
 
 ## Credits
 

@@ -96,6 +96,14 @@ Both plugins loaded: `BothDefeatsWarn()` (from `OnInit` and from `ODS_PlayerAlia
 - Never write `arr == None`, `arr != None` or `arr = None` for an array: Caprica compiles the `None` literal to a cast into an array-typed temp, which the Skyrim VM rejects ("Cannot cast from None to Form[]"). Test with `If !arr`, build through a local (`Form[] t = new Form[64]` then `arr = t`), and clear with a never-assigned script variable of the same type (`kNoActors`, `kNoForms`, MCM `oNoInts`).
 - Scene actor lists come from `NewActorArray(n)` (literal `new Actor[1..8]`, exact length); `OActorUtil.CreateArray` is not used. `OActorUtil.Sort`, `ToArray` and `GetActorsInRangeV2` still are. MCM `GetVersion` 7. SkyrimNet pack 0.6.0.
 
+### 0.7 rest timing and bath timing (`ODS_Main` only; no new records)
+
+- Nothing is moved, spawned or staged while a sleep or wait is running or the Sleep/Wait Menu is open. Other mods track that window: NPC AI Position Fix sinks `TESMoveAttachDetachEvent` from sleep/wait start until the menu closes and repositions those actors on stop, so actors we spawned and later deleted there caused a crash on the next save.
+- `OnSleepStart` only rolls (`MorningCheck`, then `HandleRest` -> `RollKinds`) and stores `bRestPending` / `iRestKind` / `iRestEpoch` with `bBusy` held. `OnSleepStop(abInterrupted)` -> `RunPendingRest`, with `OnMenuClose` (when `bSleptThisMenu`) as a fallback; flags are cleared before any wait, so it runs once. If the sleep was interrupted, or `Alive(iRestEpoch)` fails, the event is dropped and `bBusy` freed. `RestSettle` = bounded `WaitMenuMode` loop until the menu closes (`REST_MENU_CAP` 10 s), then `Utility.Wait(REST_SETTLE)` 1 s, before `StageWithFade(kind, ep, true)`. Waits do `RestSettle` too. The morning after uses the same path.
+- `StageWithFade(fromRest)` waits up to 5 s for `GetSitState() == 0`, and only calls `PlayerRef.MoveTo(PlayerRef)` if the player is still in the bed.
+- Pending rest state is cleared by `OnGameLoaded`, `AbortAll`, and at the next `OnSleepStart` if stale.
+- Bath: `OnBathStart` waits while `StillBathing` up to `BATH_WAIT_CAP` 150 s (skips the scene if still bathing), then `BATH_SETTLE` 2.5 s; `BathPartnerOK` rejects anyone still bathing. SkyrimNet pack 0.7.0.
+
 Scene engine additions: a module can preselect a scene and furniture (`sPreScene`, `kFurn`); `StartThread` then uses `OThreadBuilder.SetFurniture` instead of `NoFurniture`. Spawned or hostile participants are calmed for non-forced scenes too and their aggression is restored afterwards.
 
 ## 6. Known limits
@@ -129,4 +137,4 @@ python3 tools/verify.py build/ODeadlySkyrim.esp
 
 ## 8. Credit and publishing
 
-Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.
+Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.

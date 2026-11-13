@@ -2,6 +2,22 @@
 
 By That Guy (Coronerra).
 
+## 0.7
+
+Sleep-event timing (NPC AI Position Fix compatibility) and bath-timing fix.
+
+- **Fixed: crash on save with NPC AI Position Fix after a sleep event.** NPC AI Position Fix records every actor moved or attached between sleep/wait start and the Sleep/Wait Menu closing, then repositions them on sleep/wait stop. 0.6 staged sleep events inside that window: `HandleRest` waited with `Utility.WaitMenuMode`, then `StageWithFade` called `PlayerRef.MoveTo(PlayerRef)` to interrupt the sleep and `PlaceAtMe`-spawned actors that were later disabled and deleted.
+- **Sleep events now begin as you wake.** `OnSleepStart` only rolls (same chances and priority order, morning-after check unchanged) and records the pending kind and run. `OnSleepStop` stages it (`RunPendingRest`), with `OnMenuClose` as a fallback. Before staging, `RestSettle` waits for the Sleep/Wait Menu to close (bounded, 10 s) and then 1 s more. The sleep is no longer interrupted.
+- The morning after (`OnSleepStop`) uses the same path, so it also waits for the menu to close. Wait events (`OnMenuClose`, already after the menu closed) pause 1 s too.
+- `StageWithFade` (from a rest) lets the player get out of bed on their own first (up to 5 s) and only uses `MoveTo` to stand them up if they are still in the bed. By then the rest is over.
+- If the sleep was interrupted by something else, the pending event is dropped and the module is freed. A load, the panic key, master off, or a stale pending event at the next sleep clears it too, so it can never block later events.
+- **Fixed: a Bathing scene could start before a long bath had finished.** Vanilla Dirt and Blood ends its wash about 25 seconds after the lather. With the [Malignis Animations - BiSR DnB Patch](https://www.nexusmods.com/skyrimspecialedition/mods/166293) a woman's bath runs about 65 seconds after the soap effect (58 s wash, about 6.4 s drying, then the redress). 0.6 gave up waiting after 60 seconds, so the scene could start while Dirt and Blood was still drying and re-dressing her; clothes could be re-equipped and player controls re-enabled in the middle of the scene.
+- One wait-until-done path covers both (no setting, no "Malignis" switch): `OnBathStart` waits while the actor is still bathing (Dirt and Blood's `Dirty_BathingActors`, or Bathing in Skyrim's bathing effect / `BiS_WashActorFinish`) for up to 150 seconds, then waits 2.5 seconds more so clothes and controls are restored, then stages. If the actor is still bathing at 150 seconds, no scene is started and the module is freed for the next wash.
+- `BathPartnerOK`: someone still inside a running bath is never picked as the partner.
+- Nothing else changes: same records and FormIDs (only the plugin description now reads v0.7), same defaults, master switch still OFF, MCM unchanged (`GetVersion` 7). SkyrimNet pack version 0.7.0. Three new script variables (`bRestPending`, `iRestKind`, `iRestEpoch`) start empty on an existing save.
+
+Updating from 0.6: overwrite the old files; settings carry over.
+
 ## 0.6
 
 Bug fix: scenes never started.

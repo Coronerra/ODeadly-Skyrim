@@ -47,6 +47,10 @@ int Property K_BETRAYAL = 10 AutoReadOnly  ; follower takes advantage
 int Property K_VAMPIRE = 11 AutoReadOnly   ; vampire seduction
 int Property K_MORNING = 12 AutoReadOnly  ; 0.2 morning after (drinking, then sleep)
 int Property K_BATH = 13 AutoReadOnly     ; 0.2 bathing (Dirt and Blood / Bathing in Skyrim)
+float Property BATH_WAIT_CAP = 150.0 AutoReadOnly   ; 0.7: longest wait for a bath to end (s)
+float Property BATH_SETTLE = 2.5 AutoReadOnly       ; 0.7: pause after the bath ends, before the scene (s)
+float Property REST_MENU_CAP = 10.0 AutoReadOnly    ; 0.7: longest wait for the Sleep/Wait Menu to close after a rest (s)
+float Property REST_SETTLE = 1.0 AutoReadOnly       ; 0.7: pause after the rest ends, before staging (s)
 int Property K_INNSHARE = 14 AutoReadOnly ; 0.2 inns full: one rented room for the whole party
 int Property K_DARKGIFT = 15 AutoReadOnly ; 0.2 Dark Gift: a vampire wakes the player
 int Property K_COUNT = 16 AutoReadOnly
@@ -287,6 +291,10 @@ int iDrinkIdx = 0
 bool bMorningArmed = false
 float fMorningArmedAt = 0.0
 bool bMorningPending = false
+; 0.7 (NPC AI Position Fix compat): a sleep event rolled at sleep start waits here until you wake
+bool bRestPending = false
+int iRestKind = 0
+int iRestEpoch = -1
 FormList kIActAlc           ; iActions_AlcoholList (soft)
 Faction kIActDrunk          ; iActions_DrunkFaction (soft)
 Form[] kExtraAlc            ; iActions extra_alcohol.json + DLC drinks
@@ -506,6 +514,10 @@ Function OnGameLoaded()
 	If bRescueOn
 		RescueRelease(false)
 	EndIf
+	; 0.7: a sleep event that never got to stage does not survive a load
+	bRestPending = false
+	iRestKind = 0
+	bMorningPending = false
 	If bBusy && iThread < 0 && iThread2 < 0 && bAftermathDone
 		bBusy = false
 	EndIf
@@ -772,6 +784,8 @@ Function AbortAll()
 	; 0.2 modules: nothing pending survives a panic
 	bMorningArmed = false
 	bMorningPending = false
+	bRestPending = false
+	iRestKind = 0
 	ClearDrinks()
 	bBathPending = false
 	bBathDone = true
@@ -2053,8 +2067,18 @@ Function ReleaseStaged()
 EndFunction
 
 ; ======================= rest hooks: sleep and wait =======================
+; 0.7: nothing is moved, spawned, or staged while the sleep or wait is running or the
+; Sleep/Wait Menu is open (other mods, e.g. NPC AI Position Fix, track every actor moved in
+; that window). Sleep start only rolls; the event stages after you wake and the menu closes.
 Event OnSleepStart(float afSleepStartTime, float afDesiredSleepEndTime)
 	bSleptThisMenu = true
+	If bRestPending || bMorningPending
+		; stale: the last sleep never reported its end; release it instead of blocking forever
+		bRestPending = false
+		bMorningPending = false
+		iRestKind = 0
+		bBusy = false
+	EndIf
 	If !Ready()
 		return
 	EndIf
@@ -2076,7 +2100,16 @@ Event OnMenuOpen(string menuName)
 EndEvent
 
 Event OnMenuClose(string menuName)
-	If menuName != "Sleep/Wait Menu" || bSleptThisMenu || !Ready()
+	If menuName != "Sleep/Wait Menu"
+		return
+	EndIf
+	If bSleptThisMenu
+		If bRestPending || bMorningPending
+			RunPendingRest(false)      ; 0.7: fallback if the sleep-stop event was missed
+		EndIf
+		return
+	EndIf
+	If !Ready()
 		return
 	EndIf
 	float hours = (Utility.GetCurrentGameTime() - fMenuOpenGT) * 24.0
@@ -2210,8 +2243,56 @@ Function HandleRest(float hours, bool isSleep)
 	EndIf
 	bBusy = true
 	If isSleep
-		Utility.WaitMenuMode(0.6 * iHitHour + 0.5)
+		; 0.7: do not interrupt the sleep; stage once you are awake and the menu has closed
+		iRestKind = kind
+		iRestEpoch = ep
+		bRestPending = true
+		Log("sleep event kind " + kind + " (rolled for hour " + iHitHour + ") waits until you wake")
+		return
 	EndIf
+	; wait: OnMenuClose already runs after the menu closed; give other mods a moment first
+	RestSettle()
+	StageWithFade(kind, ep, true)
+EndFunction
+
+; 0.7: bounded wait for the Sleep/Wait Menu to close, then a short settle so other mods
+; (e.g. NPC AI Position Fix) finish their after-rest update before anything moves or spawns
+Function RestSettle()
+	float waited = 0.0
+	While UI.IsMenuOpen("Sleep/Wait Menu") && waited < REST_MENU_CAP
+		Utility.WaitMenuMode(0.25)
+		waited += 0.25
+	EndWhile
+	Utility.Wait(REST_SETTLE)      ; counts only outside menus
+EndFunction
+
+; 0.7: run the event rolled at sleep start (or the morning after), after the sleep ended
+Function RunPendingRest(bool interrupted)
+	bool morning = bMorningPending
+	bool rest = bRestPending
+	int kind = iRestKind
+	int ep = iRestEpoch
+	bMorningPending = false
+	bRestPending = false
+	iRestKind = 0
+	If !morning && !rest
+		return
+	EndIf
+	If morning
+		ep = iEpoch
+		kind = K_MORNING
+	EndIf
+	If interrupted || !Ready() || !Alive(ep) || kind == 0
+		If interrupted
+			Log("sleep was interrupted: event kind " + kind + " dropped")
+		EndIf
+		If Alive(ep) || !bMaster
+			bBusy = false
+		EndIf
+		kPendingSpouse = None
+		return
+	EndIf
+	RestSettle()
 	StageWithFade(kind, ep, true)
 EndFunction
 
@@ -2223,12 +2304,21 @@ Function StageWithFade(int kind, int ep, bool fromRest)
 	EndIf
 	FadeToBlackHoldIMod.Apply()
 	If fromRest
-		PlayerRef.MoveTo(PlayerRef)
+		; 0.7: runs only after the rest has ended and the menu has closed. Let the player get
+		; out of bed on their own first; only nudge them to stand if they are still in it.
 		int n = 0
 		While PlayerRef.GetSitState() != 0 && n < 20
 			Utility.Wait(0.25)
 			n += 1
 		EndWhile
+		If PlayerRef.GetSitState() != 0
+			PlayerRef.MoveTo(PlayerRef)
+			n = 0
+			While PlayerRef.GetSitState() != 0 && n < 20
+				Utility.Wait(0.25)
+				n += 1
+			EndWhile
+		EndIf
 	EndIf
 	Utility.Wait(0.5)
 	If !Alive(ep) || OtherBusy(kind == K_DEFEAT)
@@ -4197,16 +4287,12 @@ bool Function MorningCheck()
 	return true
 EndFunction
 
+; 0.7: the sleep event (or the morning after) stages here, after the menu has closed
 Event OnSleepStop(bool abInterrupted)
-	If !bMorningPending
+	If !bMorningPending && !bRestPending
 		return
 	EndIf
-	bMorningPending = false
-	If !Ready()
-		bBusy = false
-		return
-	EndIf
-	StageWithFade(K_MORNING, iEpoch, true)
+	RunPendingRest(abInterrupted)
 EndEvent
 
 ; 3 = plastered / blackout (iActions), 2 = drunk, 1 = sober
@@ -4428,9 +4514,13 @@ Function OnBathStart(Actor a, int src)
 	kBathCo = FindCoBather(a)
 	Log("bath: roll hit for " + a.GetDisplayName() + " (source " + src + "), waiting for the wash to finish")
 	; let the bath mod finish its own animation / redress before the scene
+	; 0.7: wait until the wash has really ended, however long the bath animation is. Vanilla
+	; Dirt and Blood ends about 25 s after the lather; with the Malignis Animations patch a
+	; woman's bath runs about 65 s (58 s wash + ~6.4 s dry, then the redress). One path covers
+	; both: wait while the actor is still bathing, up to BATH_WAIT_CAP seconds.
 	Utility.Wait(2.0)
 	float waited = 0.0
-	While Alive(ep) && !bBathDone && waited < 60.0 && StillBathing(a)
+	While Alive(ep) && !bBathDone && waited < BATH_WAIT_CAP && StillBathing(a)
 		Utility.Wait(1.5)
 		waited += 1.5
 	EndWhile
@@ -4438,16 +4528,27 @@ Function OnBathStart(Actor a, int src)
 	If !Alive(ep)
 		return
 	EndIf
+	If !bBathDone && StillBathing(a)
+		; 0.7: still in the bath at the cap: never start a scene over a running bath
+		Log("bath: " + a.GetDisplayName() + " still bathing after " + (waited as int) + " s, scene skipped")
+		kBathSubject = None
+		kBathCo = None
+		bBusy = false
+		return
+	EndIf
 	If kBathCo == None
 		kBathCo = FindCoBather(a)
 	EndIf
-	Utility.Wait(1.0)
+	Utility.Wait(BATH_SETTLE)      ; 0.7: let the bath mod re-equip clothes and give back controls
 	StageWithFade(K_BATH, ep, false)
 EndFunction
 
 bool Function BathPartnerOK(Actor p, Actor vic)
 	If p == None || p == vic || p.IsDead() || p.IsDisabled() || IsMinor(p) || OActor.IsInOStim(p) || IsStaged(p)
 		return false
+	EndIf
+	If StillBathing(p)
+		return false      ; 0.7: never pull someone out of a bath that is still running
 	EndIf
 	If p == PlayerRef
 		return bBathPlayer
