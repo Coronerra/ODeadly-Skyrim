@@ -2,6 +2,17 @@
 
 By That Guy (Coronerra).
 
+## 0.8
+
+Scene actors leave furniture and sleep first.
+
+- **Fixed: an NPC could stay in their sleeping or sitting pose during a scene.** Reported for a sleep attack: the partner lying in the bed next to the player stayed in her bed pose while the attackers' OStim animations played. `StageWithFade` only got the player out of bed.
+- New `LeaveFurniture(acts)`, called in `StartThread` before `OThreadBuilder.Create` (every module, both threads when a scene is split in two, the morning after and other bed scenes) and before the follower-rescue thread. Every scene actor except the player with `GetSitState() != 0` or `GetSleepState() != 0` gets `MoveTo(self)` and `EvaluatePackage()`. Then a bounded wait (up to 4 s) for `GetSitState() == 0`, and one more nudge for anyone still stuck. With a bed scene (`kFurn`), the actors leave their current furniture first and OStim then places them on the bed.
+- Unchanged on purpose: activating (E) a victim during a scene is still an intervention that ends the scene. README (new "Playing the hero" section, plus a note at the top) and release notes now say so, and point to SkyrimNet's talk / voice input for talking to someone without interrupting.
+- Same records and FormIDs (plugin description now v0.8), no new script variables, MCM unchanged (`GetVersion` 7). SkyrimNet pack version 0.8.0.
+
+Updating from 0.7: overwrite the old files; settings carry over.
+
 ## 0.7
 
 Sleep-event timing (NPC AI Position Fix compatibility) and bath-timing fix.

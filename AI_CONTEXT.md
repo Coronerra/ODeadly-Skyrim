@@ -104,6 +104,10 @@ Both plugins loaded: `BothDefeatsWarn()` (from `OnInit` and from `ODS_PlayerAlia
 - Pending rest state is cleared by `OnGameLoaded`, `AbortAll`, and at the next `OnSleepStart` if stale.
 - Bath: `OnBathStart` waits while `StillBathing` up to `BATH_WAIT_CAP` 150 s (skips the scene if still bathing), then `BATH_SETTLE` 2.5 s; `BathPartnerOK` rejects anyone still bathing. SkyrimNet pack 0.7.0.
 
+### 0.8 scene actors leave furniture (`ODS_Main` only; no new records)
+
+- `LeaveFurniture(acts)` runs in `StartThread` (and before the rescue thread) before `OThreadBuilder.Create`: non-player actors with `GetSitState() != 0` or `GetSleepState() != 0` get `MoveTo(self)` + `EvaluatePackage()`, a bounded wait (16 x 0.25 s) for `GetSitState() == 0`, then one more nudge. Runs for bed scenes (`kFurn`) too; OStim seats them on the bed. Activating a victim (intervention) is unchanged. SkyrimNet pack 0.8.0.
+
 Scene engine additions: a module can preselect a scene and furniture (`sPreScene`, `kFurn`); `StartThread` then uses `OThreadBuilder.SetFurniture` instead of `NoFurniture`. Spawned or hostile participants are calmed for non-forced scenes too and their aggression is restored afterwards.
 
 ## 6. Known limits
@@ -137,4 +141,4 @@ python3 tools/verify.py build/ODeadlySkyrim.esp
 
 ## 8. Credit and publishing
 
-Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.
+Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.

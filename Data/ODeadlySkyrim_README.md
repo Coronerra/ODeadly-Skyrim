@@ -2,13 +2,17 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.7**
+**v0.8**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7)** · [Changelog](CHANGELOG.md) · [Earlier v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8)** · [Changelog](CHANGELOG.md) · [Earlier v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
-Version 0.7 (`ODeadly_Skyrim_0.7.zip`) has two fixes. Sleep events now begin as you wake, after the sleep has finished, which makes O'Deadly work with NPC AI Position Fix (before, saving after a sleep event could crash). A bath scene now waits until the wash has really ended, so long bath animations (for example the Malignis Animations patch for Dirt and Blood) are no longer cut short. See [New in 0.7](#new-in-07-sleep-events-and-bath-timing).
+> **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
+
+Version 0.8 (`ODeadly_Skyrim_0.8.zip`) fixes NPCs staying in their sleeping or sitting pose during a scene: anyone in a bed, bedroll or chair, or asleep, now gets up before the scene starts. See [New in 0.8](#new-in-08-nobody-stays-in-bed-pose).
+
+Version 0.7 had two fixes. Sleep events now begin as you wake, after the sleep has finished, which makes O'Deadly work with NPC AI Position Fix (before, saving after a sleep event could crash). A bath scene now waits until the wash has really ended, so long bath animations (for example the Malignis Animations patch for Dirt and Blood) are no longer cut short. See [New in 0.7](#new-in-07-sleep-events-and-bath-timing).
 
 Version 0.6 was a bug fix: on some setups no scenes ever started, because the main script stopped during its first startup. Updating from 0.5 keeps your settings except the protected-NPC list, which must be set again. See [New in 0.6](#new-in-06-bug-fix-scenes-never-started).
 
@@ -35,6 +39,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 ## Contents
 
 - [What it does](#what-it-does)
+- [Playing the hero](#playing-the-hero)
 - [Family-safe master switch](#family-safe-master-switch-read-this-first)
 - [Requirements](#requirements)
 - [Optional auto-detected mods](#optional-auto-detected-never-required-never-masters)
@@ -46,6 +51,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
+- [New in 0.8](#new-in-08-nobody-stays-in-bed-pose)
 - [New in 0.7](#new-in-07-sleep-events-and-bath-timing)
 - [MCM pages](#mcm-pages)
 - [Test checklist](#test-checklist)
@@ -69,6 +75,12 @@ This is not a prison-only pack and not a nights-only pack. Night attacks, jails,
 **Adults only.** Children are refused for every role, always. This is not a setting.
 
 Found a problem? Please report it with your Papyrus log (lines start with `[ODeadlySkyrim]`) and which modules you had on.
+
+## Playing the hero
+
+You walk into the inn and find bandits on your follower, mid-scene. Walk up to the victim and press **E** (activate): O'Deadly treats that as you stepping in to save them. The scene breaks on purpose, and the attackers may turn on you, so be ready to fight. (Hitting or activating an attacker works the same way.)
+
+If you only want to talk to the victim, don't press E. Use SkyrimNet instead (its talk / voice input). That does not interrupt the scene.
 
 ## Family-safe master switch (read this first)
 
@@ -143,7 +155,7 @@ Every module goes through the same steps, one event at a time:
 4. With SkyrimNet, peaceful NPCs are checked against their bio: "would this character do this?". Without an answer, a character filter (Morality, how they feel about the victim) decides.
 5. OStim must have a suitable installed scene for that exact group. Group scenes fall back to one on one; no scene at all means nothing happens and any spawn is removed.
 6. The scene starts, SkyrimNet narrates it, you get a short message.
-7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not.
+7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not. Pressing **E** on a victim always counts as a rescue and breaks the scene on purpose. To just talk to someone in a scene, use SkyrimNet's talk / voice input instead; it does not interrupt the scene.
 8. Afterwards: spawned actors leave and are cleaned up, a mod event fires (`ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`), SkyrimNet stores a memory. There are no forgive / confront menus: SkyrimNet and you decide what happens next.
 
 No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers. The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
@@ -282,6 +294,13 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
 
+## New in 0.8 (nobody stays in bed pose)
+
+- **Fixed:** an NPC who was lying in a bed (for example a partner sleeping next to you), sitting, or asleep could stay in that pose while the scene played around them. Before any scene starts, every NPC in it who is in a bed, bedroll or chair, or asleep, is now taken out of it first. O'Deadly waits up to about 4 seconds for them to get up, then the scene starts. Bed scenes still use the bed: OStim places everyone on it.
+- **Not changed, on purpose:** pressing **E** (activate) on a victim during a scene still counts as you trying to save them and breaks the scene, and the attackers may turn on you. To talk to someone in a scene without interrupting it, use SkyrimNet's talk / voice input.
+- Nothing else changes: same plugin records and FormIDs (only its description now reads v0.8), same settings and defaults, master switch still OFF. SkyrimNet pack version 0.8.0.
+- Updating from 0.7: overwrite the old files; settings carry over.
+
 ## New in 0.7 (sleep events and bath timing)
 
 - **Fixed: crash on save with NPC AI Position Fix.** That mod tracks every NPC that is moved or loaded in while you sleep or wait, and repositions them when the rest ends. 0.6 woke you and spawned its sleep-event characters while the sleep was still running, so they ended up on that mod's list and were later removed, which could crash the game on the next save.
@@ -398,7 +417,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.7.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.8.zip`)
 
 ## Credits
 

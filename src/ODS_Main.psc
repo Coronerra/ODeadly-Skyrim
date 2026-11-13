@@ -3231,7 +3231,59 @@ Function CalmFollowers()
 	PlayerRef.StopCombatAlarm()
 EndFunction
 
+; 0.8: get every scene actor (not the player, StageWithFade handles them) out of a bed, chair
+; or sleep before OStim takes them, so nobody stays in a sleeping pose during the scene.
+; Bounded: one nudge, up to 4 s of waiting, one more nudge for anyone still stuck.
+Function LeaveFurniture(Actor[] acts)
+	If !acts
+		return
+	EndIf
+	bool any = false
+	int i = 0
+	While i < acts.Length
+		Actor a = acts[i]
+		If a && a != PlayerRef && !a.IsDead() && (a.GetSitState() != 0 || a.GetSleepState() != 0)
+			Log("scene: " + a.GetDisplayName() + " leaves furniture/sleep (sit " + a.GetSitState() + ", sleep " + a.GetSleepState() + ")")
+			a.MoveTo(a)
+			a.EvaluatePackage()
+			any = true
+		EndIf
+		i += 1
+	EndWhile
+	If !any
+		return
+	EndIf
+	int n = 0
+	bool stuck = true
+	While stuck && n < 16
+		Utility.Wait(0.25)
+		stuck = false
+		i = 0
+		While i < acts.Length
+			Actor a = acts[i]
+			If a && a != PlayerRef && !a.IsDead() && a.GetSitState() != 0
+				stuck = true
+			EndIf
+			i += 1
+		EndWhile
+		n += 1
+	EndWhile
+	i = 0
+	While i < acts.Length
+		Actor a = acts[i]
+		If a && a != PlayerRef && !a.IsDead() && (a.GetSitState() != 0 || a.GetSleepState() != 0)
+			a.MoveTo(a)
+			a.EvaluatePackage()
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
 int Function StartThread(Actor[] acts, Actor[] dom, string scene, string meta, int ep)
+	If !Alive(ep)
+		return -1
+	EndIf
+	LeaveFurniture(acts)      ; 0.8: also before a bed scene (kFurn): OStim places them on the bed
 	If !Alive(ep)
 		return -1
 	EndIf
@@ -5719,6 +5771,7 @@ bool Function TryFollowerRescue(Actor vic)
 	EndIf
 	Actor[] dom = new Actor[1]
 	dom[0] = att
+	LeaveFurniture(acts)      ; 0.8
 	int b = OThreadBuilder.Create(acts)
 	If b < 0
 		Log("rescue: OThreadBuilder.Create failed")
