@@ -10,7 +10,7 @@ Skyrim SE / AE · ESL-flagged plugin · Adults only
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
 
-Version 0.9 (`ODeadly_Skyrim_0.9.zip`) adds two optional wilderness-road events, both off by default: Savior Complex (a bandit is raping a traveler; you can watch, join in, or rescue them) and Killer Rabbit vs Vigilants of Stendarr (two Vigilants are losing to a Killer Rabbit; you can kill it and save them). The rabbit event needs Mihail's Killer Rabbit of Caerbannog. See [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants).
+Version 0.9 (`ODeadly_Skyrim_0.9.zip`) adds two optional wilderness-road events, both off by default: Savior Complex (a bandit is forcefully taking a traveler; you can watch, join in, or rescue them) and Killer Rabbit vs Vigilants of Stendarr (two Vigilants are losing to a Killer Rabbit; you can kill it and save them). The rabbit event needs Mihail's Killer Rabbit of Caerbannog. See [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants).
 
 Version 0.8 fixed NPCs staying in their sleeping or sitting pose during a scene: anyone in a bed, bedroll or chair, or asleep, now gets up before the scene starts. See [New in 0.8](#new-in-08-nobody-stays-in-bed-pose).
 
@@ -181,7 +181,7 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Follower rescue (0.3) | OFF | 50% when a follower goes down mid-fight. Downed follower: Both (or Female / Male). |
 | Trespass | OFF | Player OFF, followers ON. |
 | Travel & roads | OFF | Robbery; may turn into a scene. Player OFF, followers ON. |
-| Savior Complex (0.9) | OFF | Rare wilderness-road event: a bandit is raping a traveler. Watch, join or rescue. |
+| Savior Complex (0.9) | OFF | Rare wilderness-road event: a bandit is forcefully taking a traveler. Watch, join or rescue. |
 | Killer Rabbit vs Vigilants (0.9) | OFF, locked without Mihail's Killer Rabbit | Two Vigilants losing to a Killer Rabbit; you can kill it and save them. |
 | Creatures (OCreatures) | OFF, locked without OCreatures | Player OFF even when available. |
 | Vampire seduction | OFF | |
@@ -254,8 +254,8 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 ### Savior Complex (0.9)
 
 - **OFF by default**, behind the master switch and the panic key, adults only. Own toggle and chance (2% per game hour on a wilderness road, and per hour waited outdoors), independent of Travel & roads.
-- You come upon a spawned bandit raping a spawned traveling merchant or traveler (vanilla templates; never a world or quest NPC). It does not fire in interiors, cities or towns, or near a unique essential or protected NPC.
-- When it starts, SkyrimNet is told plainly that the bandit is raping the traveler, so the AI is not left to guess. You then choose: **Watch** (the scene continues; you are not involved), **Join in** (you are added when OStim has a three-person animation; otherwise you stay and watch), or **Rescue** (the scene stops and the bandit turns on you). SkyrimNet is told what you chose. If you save them, the traveler thanks you through SkyrimNet. Pressing E on them, or hitting the bandit, while you were watching also counts as a rescue.
+- You come upon a spawned bandit forcefully taking a spawned traveling merchant or traveler (vanilla templates; never a world or quest NPC). It does not fire in interiors, cities or towns, or near a unique essential or protected NPC.
+- When it starts, SkyrimNet is told plainly that the bandit is forcefully taking the traveler, so the AI is not left to guess. You then choose: **Watch** (the scene continues; you are not involved), **Join in** (you are added when OStim has a three-person animation; otherwise you stay and watch), or **Rescue** (the scene stops and the bandit turns on you). SkyrimNet is told what you chose. If you save them, the traveler thanks you through SkyrimNet. Pressing E on them, or hitting the bandit, while you were watching also counts as a rescue.
 - Spawned actors are cleaned up afterwards.
 
 ### Killer Rabbit vs Vigilants of Stendarr (0.9)
@@ -316,7 +316,7 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 Two new wilderness-road events, each with its own MCM toggle (**OFF by default**) and chance slider. They share the existing travel timer (one roll per game hour outdoors, plus waiting). Master switch, panic key and the no-children rule apply. They never use world or quest NPCs, never fire in interiors or towns, and never start next to a unique essential or protected NPC.
 
-- **Savior Complex** (MCM > Danger): a bandit is raping a traveler. SkyrimNet is told that in plain words when it starts, then you choose to watch, join in, or rescue them, and SkyrimNet is told what you chose. A successful rescue gets a thanks through SkyrimNet.
+- **Savior Complex** (MCM > Danger): a bandit is Forcefully taking a traveler. SkyrimNet is told that in plain words when it starts, then you choose to watch, join in, or rescue them, and SkyrimNet is told what you chose. A successful rescue gets a thanks through SkyrimNet.
 - **Killer Rabbit vs Vigilants of Stendarr** (MCM > Danger): needs Mihail's Killer Rabbit of Caerbannog (locked without it; none of his files are included). Two Vigilants are losing to the rabbit; you can kill it and save them. SkyrimNet is told who won. No essential flags are left behind.
 - Debug tools can force either event now if you are already on a wilderness road, or queue it for the next travel hour / wait.
 - Updating from 0.8 or 0.7: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged (0.9 only adds `ODS_PoolTraveler`, `ODS_PoolVigilant`, and `ODS_SaviorChoice`). The two new options stay off until you turn them on. 0.8's furniture fix is included.
@@ -415,7 +415,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 6. 0.2 force buttons (turn the module on first): morning after (next sleep), bathing (next real wash), shared room (sleep in an inn with a follower), Dark Gift (next sleep), watched (next outdoor scene), climax fauna (next climax).
 7. 0.3 / 0.5, with OStim Kidnapped Redux, ODefeat Reforged or Baka Defeat installed: MCM > General shows them as installed. Use their own menus to force a kidnapping or get defeated, then check that SkyrimNet narrates it.
 8. Follower rescue: turn it on (Danger page) and set the chance to 100, then let a follower go down in a fight with humans. One enemy should start a scene with them while the others keep fighting; hit that enemy to stop it. Try the panic key during one too.
-9. 0.9 Savior Complex: turn it on (Danger page), set the chance to 100 or use Debug > "Savior Complex (now if on a road)" while outdoors in the wilderness, away from towns. Confirm the rape narration, the Watch / Join in / Rescue box, each choice (including a successful rescue and the thanks), and that the panic key stops it and removes the spawns.
+9. 0.9 Savior Complex: turn it on (Danger page), set the chance to 100 or use Debug > "Savior Complex (now if on a road)" while outdoors in the wilderness, away from towns. Confirm the agressive narration, the Watch / Join in / Rescue box, each choice (including a successful rescue and the thanks), and that the panic key stops it and removes the spawns.
 10. 0.9 Killer Rabbit vs Vigilants: requires Mihail's Killer Rabbit of Caerbannog. Turn the option on, then force it on a wilderness road. Confirm the Vigilants are losing, that you can kill the rabbit, that survivors thank you and sound embarrassed, that SkyrimNet is told who won, and that the panic key clears the fight with no leftover essential flags.
 11. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
