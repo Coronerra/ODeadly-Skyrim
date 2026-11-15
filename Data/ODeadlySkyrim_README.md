@@ -2,15 +2,17 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.8**
+**v0.9**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8)** · [Changelog](CHANGELOG.md) · [Earlier v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9)** · [Changelog](CHANGELOG.md) · [Earlier v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
 
-Version 0.8 (`ODeadly_Skyrim_0.8.zip`) fixes NPCs staying in their sleeping or sitting pose during a scene: anyone in a bed, bedroll or chair, or asleep, now gets up before the scene starts. See [New in 0.8](#new-in-08-nobody-stays-in-bed-pose).
+Version 0.9 (`ODeadly_Skyrim_0.9.zip`) adds two optional wilderness-road events, both off by default: Savior Complex (a bandit is raping a traveler; you can watch, join in, or rescue them) and Killer Rabbit vs Vigilants of Stendarr (two Vigilants are losing to a Killer Rabbit; you can kill it and save them). The rabbit event needs Mihail's Killer Rabbit of Caerbannog. See [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants).
+
+Version 0.8 fixed NPCs staying in their sleeping or sitting pose during a scene: anyone in a bed, bedroll or chair, or asleep, now gets up before the scene starts. See [New in 0.8](#new-in-08-nobody-stays-in-bed-pose).
 
 Version 0.7 had two fixes. Sleep events now begin as you wake, after the sleep has finished, which makes O'Deadly work with NPC AI Position Fix (before, saving after a sleep event could crash). A bath scene now waits until the wash has really ended, so long bath animations (for example the Malignis Animations patch for Dirt and Blood) are no longer cut short. See [New in 0.7](#new-in-07-sleep-events-and-bath-timing).
 
@@ -28,7 +30,7 @@ I really don't care for most of the features of this mod, but I realized I have 
 
 This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). I never downloaded ODangerous Nights, so I have no idea if it is compatible. ODangerous Nights is not needed — this does the same thing, and so much more. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
 
-Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, 0.4 can use Mihail's Killer Rabbit of Caerbannog for the climax fauna easter egg, and 0.5 does the same for Baka Defeat – OStim Edition, but none of them is required.
+Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, 0.4 can use Mihail's Killer Rabbit of Caerbannog for the climax fauna easter egg, 0.5 does the same for Baka Defeat – OStim Edition, and 0.9 can start a Savior Complex or Killer Rabbit vs Vigilants road event (the rabbit event needs Mihail's Killer Rabbit of Caerbannog), but none of them is required.
 
 If there are any other scenarios you want added that can work without additional mod requirements, I can.
 
@@ -51,6 +53,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
+- [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants)
 - [New in 0.8](#new-in-08-nobody-stays-in-bed-pose)
 - [New in 0.7](#new-in-07-sleep-events-and-bath-timing)
 - [MCM pages](#mcm-pages)
@@ -127,7 +130,7 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **JContainers**: only used to read iActions' `extra_alcohol.json` directly.
 - **[OStim Kidnapped Redux](https://www.patreon.com/posts/175042213)** (0.3, [Lirael's](https://www.patreon.com/LiraelAtelier) OStim conversion of vinfamy's SexLab Kidnapped Redux): SkyrimNet hears when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly holds its own encounters while you are held.
 - **[ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196)** (0.3, by [Lirael](https://www.patreon.com/LiraelAtelier)): SkyrimNet hears when you are defeated and what happens next. A downed player is left to ODefeat Reforged; O'Deadly's Defeat module keeps handling followers.
-- **[The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905)** (0.4, by Mihail): unlocks the third Climax fauna option, which can spawn his killer rabbits after a climax. The unique rabbit in the Cave of Caerbannog is left alone.
+- **[The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905)** (0.4 / 0.9, by Mihail): unlocks the third Climax fauna option, which can spawn his killer rabbits after a climax, and the 0.9 Killer Rabbit vs Vigilants road event. The unique rabbit in the Cave of Caerbannog is left alone.
 - **[Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288)** (0.5, `SexLabDefeat.esp`; OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo, Baka Edition by BakaFactory): SkyrimNet hears when you are beaten and taken, what happens next, companions taken after a lost fight, and NPCs beaten by NPCs. A downed player is left to Baka Defeat; O'Deadly's Defeat module keeps handling followers.
 - **Use only one defeat mod.** Baka Defeat and ODefeat Reforged both take over a downed player, so running both can start two scenes at once or leave you stuck on the ground. Pick one, preferably **Baka Defeat**, since it does more (NPC vs NPC, you as the aggressor, robbery, the inn wake-up, followers, creatures). ODefeat Reforged is lighter if you only want player defeat. If O'Deadly finds both, it warns you on screen and on the MCM.
 
@@ -178,6 +181,8 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Follower rescue (0.3) | OFF | 50% when a follower goes down mid-fight. Downed follower: Both (or Female / Male). |
 | Trespass | OFF | Player OFF, followers ON. |
 | Travel & roads | OFF | Robbery; may turn into a scene. Player OFF, followers ON. |
+| Savior Complex (0.9) | OFF | Rare wilderness-road event: a bandit is raping a traveler. Watch, join or rescue. |
+| Killer Rabbit vs Vigilants (0.9) | OFF, locked without Mihail's Killer Rabbit | Two Vigilants losing to a Killer Rabbit; you can kill it and save them. |
 | Creatures (OCreatures) | OFF, locked without OCreatures | Player OFF even when available. |
 | Vampire seduction | OFF | |
 | Blackmail / public rumours | OFF | Need SkyrimNet. |
@@ -246,6 +251,19 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 - A robber takes 25% of your gold into their own pockets (kill them to get it back; it is never deleted). 50% chance it turns into a scene.
 - No carriage or fast-travel ambushes.
 
+### Savior Complex (0.9)
+
+- **OFF by default**, behind the master switch and the panic key, adults only. Own toggle and chance (2% per game hour on a wilderness road, and per hour waited outdoors), independent of Travel & roads.
+- You come upon a spawned bandit raping a spawned traveling merchant or traveler (vanilla templates; never a world or quest NPC). It does not fire in interiors, cities or towns, or near a unique essential or protected NPC.
+- When it starts, SkyrimNet is told plainly that the bandit is raping the traveler, so the AI is not left to guess. You then choose: **Watch** (the scene continues; you are not involved), **Join in** (you are added when OStim has a three-person animation; otherwise you stay and watch), or **Rescue** (the scene stops and the bandit turns on you). SkyrimNet is told what you chose. If you save them, the traveler thanks you through SkyrimNet. Pressing E on them, or hitting the bandit, while you were watching also counts as a rescue.
+- Spawned actors are cleaned up afterwards.
+
+### Killer Rabbit vs Vigilants of Stendarr (0.9)
+
+- **OFF by default**, behind the master switch and the panic key. Own toggle and chance (2% per game hour / wait hour). Needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`); without that plugin the option is locked. None of his files are included, and his plugin is not a master.
+- On a wilderness road, two spawned generic Vigilants of Stendarr (vanilla templates only, never Keeper Carcette or other unique Vigilants) are fighting a Killer Rabbit and losing. The rabbit is a vanilla hare reskinned to Mihail's killer-rabbit race, the same method as the climax-fauna option; his unique cave rabbit is never copied or moved. It does not fire in interiors, cities or towns, or near a unique essential or protected NPC.
+- You can kill the rabbit. SkyrimNet is told who won. Surviving Vigilants thank you and are embarrassed that a rabbit was beating them. They are knocked unconscious when they are about to lose, not flagged essential, and no essential flags are left on anyone. The panic key wakes anyone who was unconscious and clears the fight.
+
 ### Creatures (needs OCreatures)
 
 - Werewolves, draugr, trolls, falmer, spriggans, giants, hagravens. Each type is probed against OStim's library and only used if scenes exist.
@@ -293,6 +311,15 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
+
+## New in 0.9 (Savior Complex and Killer Rabbit vs Vigilants)
+
+Two new wilderness-road events, each with its own MCM toggle (**OFF by default**) and chance slider. They share the existing travel timer (one roll per game hour outdoors, plus waiting). Master switch, panic key and the no-children rule apply. They never use world or quest NPCs, never fire in interiors or towns, and never start next to a unique essential or protected NPC.
+
+- **Savior Complex** (MCM > Danger): a bandit is raping a traveler. SkyrimNet is told that in plain words when it starts, then you choose to watch, join in, or rescue them, and SkyrimNet is told what you chose. A successful rescue gets a thanks through SkyrimNet.
+- **Killer Rabbit vs Vigilants of Stendarr** (MCM > Danger): needs Mihail's Killer Rabbit of Caerbannog (locked without it; none of his files are included). Two Vigilants are losing to the rabbit; you can kill it and save them. SkyrimNet is told who won. No essential flags are left behind.
+- Debug tools can force either event now if you are already on a wilderness road, or queue it for the next travel hour / wait.
+- Updating from 0.8 or 0.7: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged (0.9 only adds `ODS_PoolTraveler`, `ODS_PoolVigilant`, and `ODS_SaviorChoice`). The two new options stay off until you turn them on. 0.8's furniture fix is included.
 
 ## New in 0.8 (nobody stays in bed pose)
 
@@ -376,7 +403,7 @@ Two listeners, not new encounter modules: O'Deadly does not start, stop or chang
 
 ## MCM pages
 
-General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns (now with the shared room option) — Danger (now with follower rescue) — Creatures — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
+General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns (now with the shared room option) — Danger (now with follower rescue, Savior Complex, and Killer Rabbit vs Vigilants) — Creatures — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
 
 ## Test checklist
 
@@ -388,7 +415,9 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 6. 0.2 force buttons (turn the module on first): morning after (next sleep), bathing (next real wash), shared room (sleep in an inn with a follower), Dark Gift (next sleep), watched (next outdoor scene), climax fauna (next climax).
 7. 0.3 / 0.5, with OStim Kidnapped Redux, ODefeat Reforged or Baka Defeat installed: MCM > General shows them as installed. Use their own menus to force a kidnapping or get defeated, then check that SkyrimNet narrates it.
 8. Follower rescue: turn it on (Danger page) and set the chance to 100, then let a follower go down in a fight with humans. One enemy should start a scene with them while the others keep fighting; hit that enemy to stop it. Try the panic key during one too.
-9. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+9. 0.9 Savior Complex: turn it on (Danger page), set the chance to 100 or use Debug > "Savior Complex (now if on a road)" while outdoors in the wilderness, away from towns. Confirm the rape narration, the Watch / Join in / Rescue box, each choice (including a successful rescue and the thanks), and that the panic key stops it and removes the spawns.
+10. 0.9 Killer Rabbit vs Vigilants: requires Mihail's Killer Rabbit of Caerbannog. Turn the option on, then force it on a wilderness road. Confirm the Vigilants are losing, that you can kill the rabbit, that survivors thank you and sound embarrassed, that SkyrimNet is told who won, and that the panic key clears the fight with no leftover essential flags.
+11. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
 ## Known limits
 
@@ -407,6 +436,9 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Baka Defeat does not announce the knockdown, the surrender or the struggle itself, so SkyrimNet first hears about a defeat when Baka's first scene with you starts. A defeat that ends without a scene is only told through its outcome (robbed, left for dead, woke up at an inn, got away). Tied-up victims and Baka's third-party post-assault events are not narrated.
 - Creature probe spawns a hidden actor for a moment when the Creatures module is enabled and on load; if a type shows "No scenes found" wrongly, stand next to a follower and press Re-check.
 
+- Savior Complex needs an OStim scene for the spawned bandit and traveler. Joining in also needs a three-person scene; without one you stay and watch.
+- Killer Rabbit vs Vigilants is locked without Mihail's The Killer Rabbit of Caerbannog. The rabbit is as strong as his race makes it; two generic Vigilants are expected to lose without help.
+
 ## Repository contents
 
 - `README.md` — these notes (a copy also ships in the zip as `ODeadlySkyrim_README.md`)
@@ -417,7 +449,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.8.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.9.zip`)
 
 ## Credits
 
@@ -426,7 +458,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Built on OStim Standalone, SkyUI, powerofthree's Papyrus Extender and SkyrimNet APIs (none of their files are included).
 - Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
 - Optional 0.3 listeners for Lirael's [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) use only their documented / public mod events. Thanks to [Lirael](https://www.patreon.com/LiraelAtelier) and vinfamy; none of their files are included and neither is a master.
-- Optional 0.4 Climax fauna support for Mihail's [The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) uses only a runtime check for `mihailkillerbunny.esp` and his killer-rabbit race. Thanks to Mihail; none of his files are included, and his plugin is not a master.
+- Optional 0.4 Climax fauna support and the 0.9 Killer Rabbit vs Vigilants road event for Mihail's [The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) use only a runtime check for `mihailkillerbunny.esp` and his killer-rabbit race (vanilla hares are reskinned; his unique cave rabbit is never copied). Thanks to Mihail; none of his files are included, and his plugin is not a master.
 - Optional 0.5 listener for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288) uses only its own mod events and a runtime check for `SexLabDefeat.esp`. OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo; Baka Edition by BakaFactory. Thanks to all of them; none of their files are included, and the plugin is not a master.
 
 ## Other work

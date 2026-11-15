@@ -41,6 +41,11 @@ pools = [
                                    0x3133C, 0xC5348, 0x9380D, 0xDC172, 0x65C39, 0xB91D7, 0xD055E, 0x65C37, 0x65C38, 0x36D53)),
     ('ODS_PoolFauna',    0x81B, (0x6DC9D,)),   # hare
     ('ODS_PoolButterfly', 0x81C, (0x22219, 0x2221E, 0xB97AF)),   # blue butterfly, luna moth, monarch
+    # 0.9 roadside events (vanilla Skyrim.esm only; never unique / quest NPCs)
+    ('ODS_PoolTraveler', 0x81D, (0x73FBE, 0xBD759, 0xBD75E, 0x1034E4, 0x1034E6)),  # hunter, farmer templates, WE farmers
+    ('ODS_PoolVigilant', 0x81E, (0x10C44E, 0x10C453, 0x10C454, 0x10C455, 0x10C457,
+                                 0x10C46F, 0x10C470, 0x10C471, 0x10C476, 0x10C477,
+                                 0x10C478, 0x10C479, 0x10C47C)),  # generic Vigilant of Stendarr (never Carcette 0xBFB55)
 ]
 fl = [rec('FLST', OWN | lid, [sub('EDID', z(ed))] + [sub('LNAM', struct.pack('<I', x)) for x in ids]) for ed, lid, ids in pools]
 
@@ -67,7 +72,7 @@ main_props = [pobj('PlayerRef', 0x14),
     pobj('Follower1Alias', MAINQ, 8), pobj('Follower2Alias', MAINQ, 9), pobj('Follower3Alias', MAINQ, 10), pobj('Follower4Alias', MAINQ, 11),
     pobj('PlayerFaction', 0xDB1), pobj('CurrentFollowerFaction', 0x5C84E),
     pobj('FadeToBlackHoldIMod', 0xF756E), pobj('FadeToBlackBackIMod', 0xF756F),
-    pobj('Gold001', 0xF)] + [pobj(ed, OWN | lid) for ed, lid, _ in pools]
+    pobj('Gold001', 0xF)] + [pobj(ed, OWN | lid) for ed, lid, _ in pools] + [pobj('ODS_SaviorChoice', OWN | 0x81F)]
 v_main = vmad_quest([script('ODS_Main', main_props)],
     [(aid, MAINQ, [script(sc, [])]) for aid, _, _, _, sc in aliases if sc])
 alias_subs = []
@@ -80,10 +85,21 @@ v_mcm = vmad_quest([script('ODS_MCM', [pobj('Main', MAINQ)])], [(0, MCMQ, [scrip
 qmcm = rec('QUST', MCMQ, [sub('EDID', z('ODS_MCMQuest')), sub('VMAD', v_mcm), sub('FULL', z("O'Deadly Skyrim MCM")),
     sub('DNAM', bytes.fromhex('110132ff0000000000000000')), sub('FLTR', z('ODeadlySkyrim\\')), sub('NEXT', b''),
     sub('ANAM', struct.pack('<I', 1))] + alias(0, 'PlayerAlias', 0, 0x14))
-nrec = 2 + len(fl)
-hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x81D)), sub('CNAM', z('That Guy (Coronerra)')),
-    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v0.8. By That Guy (Coronerra).")),
+def mesg(fid, edid, desc, buttons, box=True):
+    flags = 1 if box else 0
+    subs_ = [sub('EDID', z(edid)), sub('DESC', z(desc)), sub('INAM', struct.pack('<I', 0)),
+             sub('DNAM', struct.pack('<I', flags)), sub('TNAM', struct.pack('<I', 0))]
+    for b in buttons:
+        subs_.append(sub('ITXT', z(b)))
+    return rec('MESG', fid, subs_)
+
+savior_msg = mesg(OWN | 0x81F, 'ODS_SaviorChoice',
+    'On the road ahead, a bandit is raping a traveler. What do you do?',
+    ('Watch', 'Join in', 'Rescue'))
+nrec = 2 + len(fl) + 1
+hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x820)), sub('CNAM', z('That Guy (Coronerra)')),
+    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v0.9. By That Guy (Coronerra).")),
     sub('MAST', z('Skyrim.esm')), sub('DATA', struct.pack('<Q', 0))], flags=0x200)
 out = sys.argv[1] if len(sys.argv) > 1 else 'ODeadlySkyrim.esp'
-open(out, 'wb').write(hdr + grup('QUST', [qmain, qmcm]) + grup('FLST', fl))
+open(out, 'wb').write(hdr + grup('QUST', [qmain, qmcm]) + grup('FLST', fl) + grup('MESG', [savior_msg]))
 print('wrote', out, 'records', nrec)

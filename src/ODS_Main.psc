@@ -1,5 +1,5 @@
 Scriptname ODS_Main extends Quest
-{O'Deadly Skyrim (A SkyrimNet environmental mod) v0.3 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
+{O'Deadly Skyrim (A SkyrimNet environmental mod) v0.9 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
 
 ; ======================= properties (filled in ODeadlySkyrim.esp) =======================
 Actor Property PlayerRef Auto
@@ -32,6 +32,9 @@ FormList Property ODS_PoolWatcher Auto      ; 0.2: distant watcher spawn (vanill
 FormList Property ODS_AlcoholVanilla Auto   ; 0.2: vanilla drinks, used when iActions is not installed
 FormList Property ODS_PoolFauna Auto        ; 0.2: easter egg rabbits (vanilla hare)
 FormList Property ODS_PoolButterfly Auto    ; 0.2: easter egg butterflies / moths (vanilla critters)
+FormList Property ODS_PoolTraveler Auto     ; 0.9: Savior Complex travelers / merchants (vanilla)
+FormList Property ODS_PoolVigilant Auto     ; 0.9: generic Vigilants of Stendarr (vanilla, never unique)
+Message Property ODS_SaviorChoice Auto      ; 0.9: Watch / Join in / Rescue
 
 ; ======================= event kinds =======================
 int Property K_ATTACK = 1 AutoReadOnly     ; night attack (Sleep Ambush port)
@@ -53,7 +56,9 @@ float Property REST_MENU_CAP = 10.0 AutoReadOnly    ; 0.7: longest wait for the 
 float Property REST_SETTLE = 1.0 AutoReadOnly       ; 0.7: pause after the rest ends, before staging (s)
 int Property K_INNSHARE = 14 AutoReadOnly ; 0.2 inns full: one rented room for the whole party
 int Property K_DARKGIFT = 15 AutoReadOnly ; 0.2 Dark Gift: a vampire wakes the player
-int Property K_COUNT = 16 AutoReadOnly
+int Property K_SAVIOR = 16 AutoReadOnly    ; 0.9 Savior Complex: bandit raping a traveler
+int Property K_BUNNYFIGHT = 17 AutoReadOnly ; 0.9 Killer Rabbit vs Vigilants of Stendarr
+int Property K_COUNT = 18 AutoReadOnly
 int Property CR_COUNT = 7 AutoReadOnly     ; werewolf, draugr, troll, falmer, spriggan, giant, hagraven
 
 ; ======================= settings: general =======================
@@ -172,6 +177,12 @@ int Property iRobberyPct = 25 Auto Hidden
 float Property fRobberySceneChance = 50.0 Auto Hidden
 bool Property bTravelPlayer = false Auto Hidden
 bool Property bTravelFollowers = true Auto Hidden
+
+; 0.9 roadside events (own toggles, OFF by default; not part of Travel & roads)
+bool Property bSavior = false Auto Hidden
+float Property fSaviorChance = 2.0 Auto Hidden      ; % per game hour / wait hour on a wilderness road
+bool Property bBunnyFight = false Auto Hidden
+float Property fBunnyFightChance = 2.0 Auto Hidden  ; % per game hour / wait hour; needs mihailkillerbunny.esp
 
 bool Property bCrEnabled = false Auto Hidden
 bool[] Property bCrType Auto Hidden
@@ -339,6 +350,14 @@ int[] iBakaKind             ; [8] 1 player victim, 2 companion, 3 player on top,
 Actor[] kBakaVic            ; [8]
 Actor[] kBakaAgg            ; [8]
 bool bBothDefeatsWarned = false   ; the one-time MessageBox for this save
+; 0.9 roadside events
+int iSaviorChoice = 0            ; 0 none, 1 watch, 2 join, 3 rescue
+bool bSaviorJoining = false      ; suppress Aftermath while a join/rescue stops the first thread
+bool bRoadFight = false          ; savior rescue combat, or bunny vs Vigilants, still running
+Actor kBunny
+Actor kVigilant1
+Actor kVigilant2
+int iRoadTicks = 0
 
 string Property MODNAME = "O'Deadly Skyrim" AutoReadOnly
 
@@ -781,6 +800,7 @@ Function AbortAll()
 	iForceMode = 0
 	kPendingSpouse = None
 	kDefeatVictim = None
+	ClearRoadEvent(false)
 	; 0.2 modules: nothing pending survives a panic
 	bMorningArmed = false
 	bMorningPending = false
@@ -2132,7 +2152,7 @@ EndFunction
 ; per-hour rolls over every module that fits this place; returns the kind (0 none), sets iHitHour
 int Function RollKinds(int hours, bool isSleep)
 	InitArrays()
-	float[] ch = new float[16]
+	float[] ch = new float[18]
 	int cat = GetLocCategory()
 	bool drunk = IsDrunk(PlayerRef)
 	bool jail = InJailOrBarracks()
@@ -2180,11 +2200,19 @@ int Function RollKinds(int hours, bool isSleep)
 		EndIf
 		ch[K_ATTACK] = Mod(atk, drunk)
 	EndIf
-	If !isSleep && bTravelEnabled && cat == 5 && IsOutdoors()
-		ch[K_ROAD] = fRoadWaitChance
+	If !isSleep && cat == 5 && IsOutdoors()
+		If bTravelEnabled
+			ch[K_ROAD] = fRoadWaitChance
+		EndIf
+		If bSavior && RoadEventPlaceOK()
+			ch[K_SAVIOR] = fSaviorChance
+		EndIf
+		If bBunnyFight && KillerBunnyOK() && RoadEventPlaceOK()
+			ch[K_BUNNYFIGHT] = fBunnyFightChance
+		EndIf
 	EndIf
 	; priority order
-	int[] order = new int[13]
+	int[] order = new int[15]
 	order[0] = K_JAIL
 	order[1] = K_TRESPASS
 	order[2] = K_CHEAT
@@ -2196,12 +2224,14 @@ int Function RollKinds(int hours, bool isSleep)
 	order[8] = K_VAMPIRE
 	order[9] = K_CREATURE
 	order[10] = K_ATTACK
-	order[11] = K_ROAD
-	order[12] = 0
+	order[11] = K_SAVIOR
+	order[12] = K_BUNNYFIGHT
+	order[13] = K_ROAD
+	order[14] = 0
 	int h = 1
 	While h <= hours
 		int k = 0
-		While k < 12
+		While k < 14
 			int kind = order[k]
 			If ch[kind] > 0.0 && Utility.RandomFloat(0.0, 100.0) < ch[kind]
 				iHitHour = h
@@ -2376,6 +2406,10 @@ bool Function Dispatch(int kind, int ep)
 		return StageInnShare(ep)
 	ElseIf kind == K_DARKGIFT
 		return StageDarkGift(ep)
+	ElseIf kind == K_SAVIOR
+		return StageSavior(ep)
+	ElseIf kind == K_BUNNYFIGHT
+		return StageBunnyFight(ep)
 	EndIf
 	return false
 EndFunction
@@ -3484,6 +3518,10 @@ string Function StartText()
 		return "Bathing together near " + where + ", " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " let the wash turn into something more."
 	ElseIf iKind == K_INNSHARE
 		return "The inn at " + where + " was full, so the party shares a single room. In the dark, " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " end up in the same bed and do not go to sleep."
+	ElseIf iKind == K_SAVIOR
+		return "On the road near " + where + ", the bandit " + an + " is raping the traveler " + vn + "."
+	ElseIf iKind == K_BUNNYFIGHT
+		return "On the road near " + where + ", two Vigilants of Stendarr are fighting a Killer Rabbit of Caerbannog, and the rabbit is beating them."
 	ElseIf iKind == K_DARKGIFT
 		If bForcedScene
 			return "At " + where + ", " + pn + " wakes to the vampire " + kAttacker.GetDisplayName() + " pinning them down, fangs at their throat, taking them."
@@ -3554,6 +3592,10 @@ Function Wake()
 	ElseIf iKind == K_INNSHARE
 		ShowMsg("One room, one party... " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " aren't sleeping.")
 		shake = false
+	ElseIf iKind == K_SAVIOR
+		ShowMsg("On the road ahead, " + an + " is raping " + vn + "...")
+	ElseIf iKind == K_BUNNYFIGHT
+		ShowMsg("Two Vigilants of Stendarr are fighting a Killer Rabbit of Caerbannog... and they are losing!")
 	ElseIf iKind == K_DARKGIFT
 		ShowMsg("Cold lips at your throat... " + kAttacker.GetDisplayName() + " has come for you.")
 	ElseIf kVictim == PlayerRef
@@ -3572,6 +3614,11 @@ Function Intervene()
 		return
 	EndIf
 	If kVictim == PlayerRef && kVictim2 == None
+		return
+	EndIf
+	; 0.9: activating / hitting during Savior Complex (watch) is a rescue
+	If iKind == K_SAVIOR && iSaviorChoice == 1
+		SaviorRescue(iEpoch)
 		return
 	EndIf
 	bIntervened = true
@@ -3594,6 +3641,9 @@ Event OnOStimThreadEnd(string eventName, string strArgs, float numArg, Form send
 		ODefSceneEnded(strArgs)
 	EndIf
 	int id = numArg as int
+	If bSaviorJoining
+		return
+	EndIf
 	If bRescueOn && id >= 0 && id == iRescueThread
 		RescueOutcome(0)
 		return
@@ -3717,7 +3767,10 @@ Function RestoreAttackers(bool afterScene)
 				If !afterScene
 					a.SetActorValue("Aggression", fOldAgg[i])
 				ElseIf IsSpawned(a)
-					If bIntervened
+					If iKind == K_SAVIOR && iSaviorChoice != 3
+						a.SetActorValue("Aggression", 0.0)
+						a.SetActorValue("Confidence", 0.0)
+					ElseIf bIntervened
 						a.SetActorValue("Aggression", 2.0)
 						a.SetActorValue("Confidence", fOldConf[i])
 					ElseIf a == kThief
@@ -3790,6 +3843,9 @@ Function LogSkyrimNet()
 	If !bSkyrimNetLog || !SNetOK() || kVictim == None || kAttacker == None
 		return
 	EndIf
+	If iKind == K_SAVIOR && iSaviorChoice == 3
+		return
+	EndIf
 	string pn = PlayerRef.GetDisplayName()
 	string an = AttackerNames()
 	string vn = Names2(kVictim, kVictim2)
@@ -3813,6 +3869,12 @@ Function LogSkyrimNet()
 		EndIf
 	ElseIf iKind == K_ATTACK
 		txt = an + " fell upon " + pn + " in the night while the camp slept and forced themselves on " + pn + "."
+	ElseIf iKind == K_SAVIOR
+		If iSaviorChoice == 2
+			txt = "On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and joined in."
+		Else
+			txt = "On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and stood and watched, without intervening."
+		EndIf
 	Else
 		txt = StartText()
 		If bIntervened
@@ -3904,6 +3966,10 @@ Event OnUpdate()
 	If !bMaster
 		return
 	EndIf
+	If bRoadFight
+		WatchRoadFight()
+		return
+	EndIf
 	If !bAftermathDone
 		bool run1 = iThread >= 0 && OThread.IsRunning(iThread)
 		bool run2 = iThread2 >= 0 && OThread.IsRunning(iThread2)
@@ -3946,6 +4012,7 @@ Event OnUpdate()
 EndEvent
 
 Function Cleanup()
+	ClearRoadEvent(true)
 	ClearStage()
 	kThief = None
 	iRobbedGold = 0
@@ -3969,7 +4036,16 @@ Function OnLocChange(Location akOld, Location akNew)
 EndFunction
 
 bool Function TravelWanted()
-	return (bTravelEnabled || (AnyCreatureOK() && fCrRoamChance > 0.0)) && IsOutdoors() && GetLocCategory() == 5
+	If !IsOutdoors() || GetLocCategory() != 5
+		return false
+	EndIf
+	If bTravelEnabled || (AnyCreatureOK() && fCrRoamChance > 0.0)
+		return true
+	EndIf
+	If bSavior || (bBunnyFight && KillerBunnyOK())
+		return true
+	EndIf
+	return false
 EndFunction
 
 Function RefreshTimers(Location akNew)
@@ -4031,7 +4107,14 @@ Event OnUpdateGameTime()
 		If TravelWanted()
 			fTravelDue = now + 1.0 / 24.0
 			If kind == 0 && !bBusy && !OtherBusy(false) && !CooldownActive()
-				If bTravelEnabled && Utility.RandomFloat(0.0, 100.0) < fRoadChance
+				If iForceMode == K_SAVIOR || iForceMode == K_BUNNYFIGHT || iForceMode == K_ROAD || iForceMode == K_CREATURE
+					kind = iForceMode
+					iForceMode = 0
+				ElseIf bSavior && RoadEventPlaceOK() && Utility.RandomFloat(0.0, 100.0) < fSaviorChance
+					kind = K_SAVIOR
+				ElseIf bBunnyFight && KillerBunnyOK() && RoadEventPlaceOK() && Utility.RandomFloat(0.0, 100.0) < fBunnyFightChance
+					kind = K_BUNNYFIGHT
+				ElseIf bTravelEnabled && Utility.RandomFloat(0.0, 100.0) < fRoadChance
 					kind = K_ROAD
 				ElseIf AnyCreatureOK() && Utility.RandomFloat(0.0, 100.0) < fCrRoamChance
 					kind = K_CREATURE
@@ -5214,6 +5297,510 @@ Function FaunaBurst(int id)
 		DeleteFauna()
 	EndIf
 	bFaunaRunning = false
+EndFunction
+
+; ======================= 0.9: roadside events (Savior Complex, Killer Rabbit vs Vigilants) =======================
+; Wilderness roads only. Never interiors, cities/towns, or near unique essential/protected NPCs.
+; Spawned copies only (never world / quest NPCs). No ActorBase.SetEssential. Panic clears everything.
+
+bool Function RoadEventPlaceOK()
+	If !IsOutdoors()
+		return false
+	EndIf
+	If GetLocCategory() != 5
+		return false
+	EndIf
+	Location loc = PlayerRef.GetCurrentLocation()
+	If TreeHasKW(loc, "LocTypeCity") || TreeHasKW(loc, "LocTypeTown")
+		return false
+	EndIf
+	return !QuestNPCNearby()
+EndFunction
+
+bool Function QuestNPCNearby()
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 4000.0, false, false, false)
+	int i = 0
+	While i < near.Length
+		Actor a = near[i]
+		If a && a != PlayerRef && !a.IsDead() && !a.IsDisabled() && !IsFollowerActor(a) && !IsSpawned(a)
+			ActorBase b = a.GetActorBase()
+			If b && b.IsUnique() && (a.IsEssential() || b.IsEssential() || b.IsProtected())
+				Log("road event skipped: quest NPC " + a.GetDisplayName() + " nearby")
+				return true
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	return false
+EndFunction
+
+Function WakeUnconscious(Actor a)
+	If a && !a.IsDead()
+		a.SetUnconscious(false)
+	EndIf
+EndFunction
+
+Function ClearRoadEvent(bool deleteSpawns)
+	bRoadFight = false
+	bSaviorJoining = false
+	iSaviorChoice = 0
+	iRoadTicks = 0
+	WakeUnconscious(kVigilant1)
+	WakeUnconscious(kVigilant2)
+	WakeUnconscious(kVictim)
+	kBunny = None
+	kVigilant1 = None
+	kVigilant2 = None
+	If deleteSpawns
+		DeleteAllSpawned()
+	EndIf
+EndFunction
+
+Function TalkNet(string t, Actor a, Actor b, bool narrate, bool remember)
+	If !SNetOK()
+		return
+	EndIf
+	If narrate && bSkyrimNetStart
+		SkyrimNetApi.DirectNarration(t, a, b)
+	EndIf
+	If remember && bSkyrimNetLog
+		SkyrimNetApi.RegisterPersistentEvent(t, a, b)
+	EndIf
+EndFunction
+
+Function FinishRoadEvent()
+	bRoadFight = false
+	iSaviorChoice = 0
+	iRoadTicks = 0
+	WakeUnconscious(kVigilant1)
+	WakeUnconscious(kVigilant2)
+	kBunny = None
+	kVigilant1 = None
+	kVigilant2 = None
+	iCleanupTicks = 0
+	bAftermathDone = true
+	RegisterForSingleUpdate(5.0)
+EndFunction
+
+Actor Function SpawnFromPool(FormList pool, Actor anchor, int tries)
+	If pool == None || pool.GetSize() == 0 || anchor == None
+		return None
+	EndIf
+	int n = 0
+	While n < tries
+		Form base = pool.GetAt(Utility.RandomInt(0, pool.GetSize() - 1))
+		Actor a = SpawnNear(base, anchor)
+		If a
+			If !IsMinor(a) && IsHumanoid(a)
+				a.Enable()
+				return a
+			EndIf
+			DeleteSpawn(a)
+		EndIf
+		n += 1
+	EndWhile
+	return None
+EndFunction
+
+; debug: start it now if the player is already on a wilderness road; otherwise queues for the next travel hour / wait
+bool Function TryForceRoadEvent(int kind)
+	If !Ready()
+		return false
+	EndIf
+	If kind == K_BUNNYFIGHT && !KillerBunnyOK()
+		return false
+	EndIf
+	If bBusy || OtherBusy(false)
+		iForceMode = kind
+		return false
+	EndIf
+	If !RoadEventPlaceOK()
+		iForceMode = kind
+		return false
+	EndIf
+	iForceMode = 0
+	bBusy = true
+	StageWithFade(kind, iEpoch, false)
+	return true
+EndFunction
+
+bool Function StageSavior(int ep)
+	If !RoadEventPlaceOK() || !Alive(ep)
+		return false
+	EndIf
+	If ODS_PoolTraveler == None || ODS_PoolTraveler.GetSize() == 0 || ODS_PoolBandit == None || ODS_PoolBandit.GetSize() == 0
+		Log("savior: missing traveler or bandit pool")
+		return false
+	EndIf
+	Actor vic = None
+	int t = 0
+	While t < 6 && vic == None
+		Actor c = SpawnFromPool(ODS_PoolTraveler, PlayerRef, 1)
+		If c
+			If GenderOK(c) && !IsMinor(c)
+				vic = c
+			Else
+				DeleteSpawn(c)
+			EndIf
+		EndIf
+		t += 1
+	EndWhile
+	If vic == None || !Alive(ep)
+		If vic
+			DeleteSpawn(vic)
+		EndIf
+		Log("savior: no adult traveler")
+		return false
+	EndIf
+	Actor bandit = SpawnFromPool(ODS_PoolBandit, vic, 4)
+	If bandit == None || IsMinor(bandit) || !Alive(ep)
+		DeleteSpawn(vic)
+		If bandit
+			DeleteSpawn(bandit)
+		EndIf
+		Log("savior: no bandit")
+		return false
+	EndIf
+	If PairScene(bandit, vic, true) == ""
+		DeleteSpawn(vic)
+		DeleteSpawn(bandit)
+		Log("savior: no OStim scene for the pair")
+		return false
+	EndIf
+	bandit.Enable()
+	vic.Enable()
+	AddAttacker(bandit)
+	AddVictim(vic)
+	iSaviorChoice = 0
+	If !StartEncounter(true, "odangerous,aggressive,savior", ep)
+		Log("savior: StartEncounter failed")
+		DeleteAllSpawned()
+		return false
+	EndIf
+	If !Alive(ep)
+		return true
+	EndIf
+	int choice = 0
+	If ODS_SaviorChoice
+		choice = ODS_SaviorChoice.Show()
+	EndIf
+	If !Alive(ep)
+		return true
+	EndIf
+	SaviorChosen(choice, ep)
+	return true
+EndFunction
+
+Function SaviorChosen(int choice, int ep)
+	string pn = PlayerRef.GetDisplayName()
+	string an = AttackerNames()
+	string vn = Names2(kVictim, kVictim2)
+	string where = WhereName()
+	If choice == 1
+		iSaviorChoice = 2
+		TalkNet("On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and chose to join in.", kAttacker, kVictim, true, true)
+		ShowMsg("You join in...")
+		SaviorJoin(ep)
+	ElseIf choice == 2
+		TalkNet("On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and chose to rescue " + vn + ". The bandit turns on " + pn + ".", kAttacker, kVictim, true, true)
+		SaviorRescue(ep)
+	Else
+		iSaviorChoice = 1
+		TalkNet("On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and chose to stand and watch, without intervening.", kAttacker, kVictim, true, true)
+		ShowMsg("You stand and watch...")
+	EndIf
+EndFunction
+
+Function SaviorJoin(int ep)
+	If !Alive(ep) || kAttacker == None || kVictim == None
+		return
+	EndIf
+	bSaviorJoining = true
+	int t = iThread
+	iThread = -1
+	If t >= 0 && OThread.IsRunning(t)
+		OThread.Stop(t)
+	EndIf
+	Utility.Wait(0.6)
+	bSaviorJoining = false
+	If !Alive(ep)
+		return
+	EndIf
+	Actor[] att = new Actor[2]
+	att[0] = kAttacker
+	att[1] = PlayerRef
+	Actor[] vic = new Actor[1]
+	vic[0] = kVictim
+	Actor[] outA = new Actor[3]
+	string sc = SceneForSet(att, 2, vic, 1, true, outA)
+	If sc == "" || IsMinor(kVictim) || IsMinor(kAttacker)
+		ShowMsg("There is no room for a third. You stay and watch.")
+		iSaviorChoice = 1
+		TalkNet(PlayerRef.GetDisplayName() + " tried to join the assault on " + kVictim.GetDisplayName() + " but could not, and stood and watched instead.", kAttacker, kVictim, true, true)
+		bAftermathDone = false
+		RegisterForSingleUpdate(10.0)
+		return
+	EndIf
+	sScene1 = sc
+	kSceneActs = outA
+	Actor[] dom = new Actor[2]
+	dom[0] = kAttacker
+	dom[1] = PlayerRef
+	iThread = StartThread(outA, dom, sc, "odangerous,aggressive,savior,joined", ep)
+	If iThread < 0
+		ShowMsg("You stay and watch...")
+		iSaviorChoice = 1
+		bAftermathDone = false
+		RegisterForSingleUpdate(10.0)
+		return
+	EndIf
+	bAftermathDone = false
+	iCleanupTicks = 0
+	RegisterForSingleUpdate(10.0)
+EndFunction
+
+Function SaviorRescue(int ep)
+	If !bMaster
+		return
+	EndIf
+	bSaviorJoining = true
+	bIntervened = true
+	iSaviorChoice = 3
+	int t = iThread
+	int t2 = iThread2
+	iThread = -1
+	iThread2 = -1
+	If t2 >= 0 && OThread.IsRunning(t2)
+		OThread.Stop(t2)
+	EndIf
+	If t >= 0 && OThread.IsRunning(t)
+		OThread.Stop(t)
+	EndIf
+	Utility.Wait(0.6)
+	bSaviorJoining = false
+	If !Alive(ep)
+		return
+	EndIf
+	RestoreAttackers(false)
+	If kAttacker && !kAttacker.IsDead()
+		kAttacker.SetActorValue("Aggression", 2.0)
+		kAttacker.SetActorValue("Confidence", 4.0)
+		kAttacker.StartCombat(PlayerRef)
+	EndIf
+	If kVictim && !kVictim.IsDead()
+		kVictim.StopCombat()
+		kVictim.StopCombatAlarm()
+		kVictim.SetActorValue("Aggression", 0.0)
+		kVictim.RestoreActorValue("Health", 200.0)
+	EndIf
+	ShowMsg("The bandit turns on you!")
+	bRoadFight = true
+	bAftermathDone = true
+	iRoadTicks = 0
+	RegisterForSingleUpdate(1.0)
+EndFunction
+
+Function SaviorVictory()
+	string pn = PlayerRef.GetDisplayName()
+	string vn = "the traveler"
+	If kVictim
+		vn = kVictim.GetDisplayName()
+	EndIf
+	string where = WhereName()
+	string t = pn + " killed the bandit who had been raping " + vn + " on the road near " + where + " and saved them."
+	If kVictim && !kVictim.IsDead()
+		t += " " + vn + " thanks " + pn + " for the rescue."
+		ShowMsg(vn + " thanks you for stepping in.")
+		TalkNet(t, kVictim, PlayerRef, true, true)
+	Else
+		TalkNet(t, kAttacker, PlayerRef, true, true)
+		ShowMsg("The bandit is dead.")
+	EndIf
+	FinishRoadEvent()
+EndFunction
+
+bool Function StageBunnyFight(int ep)
+	If !RoadEventPlaceOK() || !KillerBunnyOK() || !Alive(ep)
+		return false
+	EndIf
+	Race kr = KillerBunnyRace()
+	ActorBase hare = None
+	If ODS_PoolFauna && ODS_PoolFauna.GetSize() > 0
+		hare = ODS_PoolFauna.GetAt(0) as ActorBase
+	EndIf
+	If kr == None || hare == None || ODS_PoolVigilant == None || ODS_PoolVigilant.GetSize() == 0
+		Log("bunny fight: missing race, hare or Vigilant pool")
+		return false
+	EndIf
+	Actor v1 = SpawnFromPool(ODS_PoolVigilant, PlayerRef, 4)
+	Actor v2 = None
+	If v1
+		v2 = SpawnFromPool(ODS_PoolVigilant, v1, 4)
+	EndIf
+	If v1 == None || v2 == None || IsMinor(v1) || IsMinor(v2) || !Alive(ep)
+		If v1
+			DeleteSpawn(v1)
+		EndIf
+		If v2
+			DeleteSpawn(v2)
+		EndIf
+		Log("bunny fight: could not spawn two Vigilants")
+		return false
+	EndIf
+	; same method as climax fauna: vanilla hare, then SetRace. Never PlaceAtMe Mihail's unique cave rabbit.
+	Actor bunny = SpawnNear(hare, v1)
+	If bunny == None || !Alive(ep)
+		DeleteSpawn(v1)
+		DeleteSpawn(v2)
+		If bunny
+			DeleteSpawn(bunny)
+		EndIf
+		Log("bunny fight: could not spawn the rabbit")
+		return false
+	EndIf
+	bunny.SetRace(kr)
+	bunny.QueueNiNodeUpdate()
+	v1.Enable()
+	v2.Enable()
+	bunny.Enable()
+	v1.RestoreActorValue("Health", 250.0)
+	v2.RestoreActorValue("Health", 250.0)
+	bunny.SetActorValue("Aggression", 2.0)
+	bunny.SetActorValue("Confidence", 4.0)
+	v1.SetActorValue("Aggression", 2.0)
+	v2.SetActorValue("Aggression", 2.0)
+	v1.StartCombat(bunny)
+	v2.StartCombat(bunny)
+	bunny.StartCombat(v1)
+	kVigilant1 = v1
+	kVigilant2 = v2
+	kBunny = bunny
+	iKind = K_BUNNYFIGHT
+	bRoadFight = true
+	bAftermathDone = true
+	fLastEvent = Utility.GetCurrentGameTime()
+	ClearFade()
+	ShowMsg("Two Vigilants of Stendarr are fighting a Killer Rabbit of Caerbannog... and they are losing!")
+	TalkNet("On the road near " + WhereName() + ", two Vigilants of Stendarr, " + v1.GetDisplayName() + " and " + v2.GetDisplayName() + ", are fighting a Killer Rabbit of Caerbannog. The rabbit is beating them. " + PlayerRef.GetDisplayName() + " can still kill the rabbit.", bunny, PlayerRef, true, false)
+	iRoadTicks = 0
+	RegisterForSingleUpdate(1.0)
+	return true
+EndFunction
+
+Function KnockIfLosing(Actor a)
+	If a == None || a.IsDead() || a.IsUnconscious()
+		return
+	EndIf
+	If a.GetActorValuePercentage("Health") < 0.25
+		a.SetUnconscious(true)
+		a.StopCombat()
+		a.StopCombatAlarm()
+	EndIf
+EndFunction
+
+bool Function VigilantDown(Actor a)
+	return a == None || a.IsDead() || a.IsUnconscious()
+EndFunction
+
+Function WatchRoadFight()
+	If !bMaster
+		bRoadFight = false
+		return
+	EndIf
+	iRoadTicks += 1
+	If iKind == K_SAVIOR && iSaviorChoice == 3
+		If kVictim && !kVictim.IsDead() && kVictim.GetActorValuePercentage("Health") < 0.3
+			kVictim.RestoreActorValue("Health", 100.0)
+			kVictim.StopCombat()
+		EndIf
+		If kAttacker == None || kAttacker.IsDead()
+			SaviorVictory()
+			return
+		EndIf
+		If PlayerRef.IsDead() || (kAttacker && kAttacker.GetDistance(PlayerRef) > 6000.0) || iRoadTicks >= 180
+			FinishRoadEvent()
+			return
+		EndIf
+		RegisterForSingleUpdate(1.0)
+		return
+	EndIf
+	If iKind == K_BUNNYFIGHT
+		BunnyFightTick()
+		return
+	EndIf
+	bRoadFight = false
+	RegisterForSingleUpdate(5.0)
+EndFunction
+
+Function BunnyFightTick()
+	KnockIfLosing(kVigilant1)
+	KnockIfLosing(kVigilant2)
+	bool bunnyDead = kBunny == None || kBunny.IsDead()
+	bool playerGone = PlayerRef.IsDead() || (kBunny && !bunnyDead && kBunny.GetDistance(PlayerRef) > 6000.0)
+	If bunnyDead
+		BunnyResolved(true)
+		return
+	EndIf
+	If playerGone || iRoadTicks >= 180
+		If VigilantDown(kVigilant1) && VigilantDown(kVigilant2)
+			BunnyResolved(false)
+		Else
+			; still fighting or player walked off mid-fight: wrap up
+			BunnyResolved(false)
+		EndIf
+		return
+	EndIf
+	RegisterForSingleUpdate(1.0)
+EndFunction
+
+Function BunnyResolved(bool playerOrVigilantsWon)
+	string pn = PlayerRef.GetDisplayName()
+	string where = WhereName()
+	int lived = 0
+	If kVigilant1 && !kVigilant1.IsDead()
+		lived += 1
+	EndIf
+	If kVigilant2 && !kVigilant2.IsDead()
+		lived += 1
+	EndIf
+	If playerOrVigilantsWon
+		WakeUnconscious(kVigilant1)
+		WakeUnconscious(kVigilant2)
+		If kVigilant1 && !kVigilant1.IsDead()
+			kVigilant1.StopCombat()
+			kVigilant1.RestoreActorValue("Health", 200.0)
+		EndIf
+		If kVigilant2 && !kVigilant2.IsDead()
+			kVigilant2.StopCombat()
+			kVigilant2.RestoreActorValue("Health", 200.0)
+		EndIf
+		lived = 0
+		If kVigilant1 && !kVigilant1.IsDead()
+			lived += 1
+		EndIf
+		If kVigilant2 && !kVigilant2.IsDead()
+			lived += 1
+		EndIf
+		string t
+		If lived > 0
+			t = "On the road near " + where + ", " + pn + " killed the Killer Rabbit of Caerbannog and saved the Vigilants of Stendarr. The surviving Vigilants thank " + pn + ", and are embarrassed that a rabbit was beating them."
+			ShowMsg("The Vigilants thank you... and look embarrassed that a rabbit had them on the ropes.")
+		Else
+			t = "On the road near " + where + ", " + pn + " killed the Killer Rabbit of Caerbannog, but both Vigilants of Stendarr had already fallen."
+			ShowMsg("The Killer Rabbit is dead. The Vigilants were not so lucky.")
+		EndIf
+		TalkNet(t, kBunny, PlayerRef, true, true)
+	Else
+		string t = "On the road near " + where + ", the Killer Rabbit of Caerbannog defeated two Vigilants of Stendarr"
+		If PlayerRef.IsDead()
+			t += " and " + pn + " as well."
+		Else
+			t += "."
+		EndIf
+		ShowMsg("The Killer Rabbit of Caerbannog wins...")
+		TalkNet(t, kBunny, PlayerRef, true, true)
+	EndIf
+	FinishRoadEvent()
 EndFunction
 
 ; ======================= 0.3: SKYRIMNET BRIDGES (listeners only) =======================

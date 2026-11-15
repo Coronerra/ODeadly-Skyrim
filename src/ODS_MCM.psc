@@ -1,5 +1,5 @@
 Scriptname ODS_MCM extends SKI_ConfigBase
-{O'Deadly Skyrim v0.3 MCM (SkyUI). By That Guy (Coronerra).}
+{O'Deadly Skyrim v0.9 MCM (SkyUI). By That Guy (Coronerra).}
 
 ODS_Main Property Main Auto
 
@@ -56,14 +56,16 @@ string[] msgOpts
 string[] catOpts
 string[] jailOpts
 string[] faunaOpts
+int oForceSavior
+int oForceBunnyFight
 
 int Function GetVersion()
-	return 7
+	return 8
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4/0.5/0.6 rebuild them
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4/0.5/0.6/0.9 rebuild them
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -299,6 +301,10 @@ bool Function GetB(string k)
 		return Main.bDarkInfect
 	ElseIf k == "fauna"
 		return Main.bFauna
+	ElseIf k == "savior"
+		return Main.bSavior
+	ElseIf k == "bunnyfight"
+		return Main.bBunnyFight
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -406,6 +412,7 @@ Function SetB(string k, bool v)
 		Main.bTrespassFollowers = v
 	ElseIf k == "travel"
 		Main.bTravelEnabled = v
+		Main.RefreshTimers(Game.GetPlayer().GetCurrentLocation())
 	ElseIf k == "travelplayer"
 		Main.bTravelPlayer = v
 	ElseIf k == "travelfol"
@@ -458,6 +465,12 @@ Function SetB(string k, bool v)
 		Main.bDarkInfect = v
 	ElseIf k == "fauna"
 		Main.bFauna = v
+	ElseIf k == "savior"
+		Main.bSavior = v
+		Main.RefreshTimers(Game.GetPlayer().GetCurrentLocation())
+	ElseIf k == "bunnyfight"
+		Main.bBunnyFight = v
+		Main.RefreshTimers(Game.GetPlayer().GetCurrentLocation())
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -537,6 +550,10 @@ float Function GetF(string k)
 		return Main.fWatchChance
 	ElseIf k == "darkgiftch"
 		return Main.fDarkGiftChance
+	ElseIf k == "saviorch"
+		return Main.fSaviorChance
+	ElseIf k == "bunnyfightch"
+		return Main.fBunnyFightChance
 	ElseIf k == "faunach"
 		return Main.fFaunaChance
 	ElseIf k == "faunarabbits"
@@ -624,6 +641,10 @@ Function SetF(string k, float v)
 		Main.fWatchChance = v
 	ElseIf k == "darkgiftch"
 		Main.fDarkGiftChance = v
+	ElseIf k == "saviorch"
+		Main.fSaviorChance = v
+	ElseIf k == "bunnyfightch"
+		Main.fBunnyFightChance = v
 	ElseIf k == "faunach"
 		Main.fFaunaChance = v
 	ElseIf k == "faunarabbits"
@@ -804,7 +825,7 @@ Function SliderSpec(string k)
 		df = 5.0
 	ElseIf k == "crroam"
 		df = 1.0
-	ElseIf k == "betrayalch"
+	ElseIf k == "betrayalch" || k == "saviorch" || k == "bunnyfightch"
 		df = 2.0
 	ElseIf k == "morningch"
 		mx = 100.0
@@ -914,6 +935,8 @@ Function ResetIds()
 	oForceSpiked = -100
 	oForceTrespass = -100
 	oForceRoad = -100
+	oForceSavior = -100
+	oForceBunnyFight = -100
 	oForceBetrayal = -100
 	oForceVampire = -100
 	oForceDefeat = -100
@@ -1146,6 +1169,16 @@ Function PageDanger()
 	AddS("Robbery turns into a scene", "robscene", r)
 	AddT("Player can be taken", "travelplayer", r)
 	AddT("Followers can be taken", "travelfol", r)
+	AddHeaderOption("Savior Complex")
+	AddT("Enable Savior Complex", "savior")
+	int sv = Flag(Main.bSavior)
+	AddS("Chance per game hour / wait hour", "saviorch", sv)
+	AddHeaderOption("Killer Rabbit vs Vigilants")
+	If !Main.KillerBunnyOK()
+		AddTextOption("Needs Mihail's Killer Rabbit of Caerbannog", "", OPTION_FLAG_DISABLED)
+	EndIf
+	AddT("Enable the road fight", "bunnyfight", Flag(Main.KillerBunnyOK()))
+	AddS("Chance per game hour / wait hour", "bunnyfightch", Flag(Main.KillerBunnyOK() && Main.bBunnyFight))
 	SetCursorPosition(1)
 	AddHeaderOption("Vampires")
 	AddT("Vampire seduction in lairs / dungeons", "vampire")
@@ -1321,6 +1354,8 @@ Function PageDebug()
 	oForceSpiked = AddTextOption("Spiked drink", "", f)
 	oForceTrespass = AddTextOption("Trespass", "", f)
 	oForceRoad = AddTextOption("Road robbery (wait outdoors)", "", f)
+	oForceSavior = AddTextOption("Savior Complex (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bSavior))
+	oForceBunnyFight = AddTextOption("Killer Rabbit vs Vigilants (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bBunnyFight && Main.KillerBunnyOK()))
 	oForceBetrayal = AddTextOption("Follower betrayal", "", f)
 	oForceVampire = AddTextOption("Vampire", "", f)
 	oForceDefeat = AddTextOption("Defeat (next bleedout)", "", f)
@@ -1356,6 +1391,10 @@ string Function ForceName()
 		return "Trespass"
 	ElseIf m == Main.K_ROAD
 		return "Road"
+	ElseIf m == Main.K_SAVIOR
+		return "Savior Complex"
+	ElseIf m == Main.K_BUNNYFIGHT
+		return "Killer Rabbit vs Vigilants"
 	ElseIf m == Main.K_CREATURE
 		return "Creature"
 	ElseIf m == Main.K_BETRAYAL
@@ -1373,6 +1412,17 @@ string Function ForceName()
 EndFunction
 
 ; ---------------- events ----------------
+Function ForceRoadNow(int k, string label)
+	If Main.TryForceRoadEvent(k)
+		ShowMessage(label + " is starting now (you are on a wilderness road).", false)
+	ElseIf Main.iForceMode == k
+		ShowMessage(label + " will start on the next game hour outdoors, or the next wait of 1h+, on a wilderness road away from towns and quest-critical NPCs. It still needs a valid scene (Savior Complex) or Mihail's Killer Rabbit (the fight).", false)
+	Else
+		ShowMessage("Could not start " + label + " (master off, busy, or not ready).", false)
+	EndIf
+	ForcePageReset()
+EndFunction
+
 Function SetForce(int k, string label)
 	Main.iForceMode = k
 	ShowMessage("Next sleep or wait of 1h+ will force: " + label + ". It still needs a valid victim, partner and installed scene.", false)
@@ -1461,6 +1511,14 @@ Event OnOptionSelect(int o)
 		SetForce(Main.K_TRESPASS, "trespass")
 	ElseIf o == oForceRoad
 		SetForce(Main.K_ROAD, "road robbery")
+	ElseIf o == oForceSavior
+		ForceRoadNow(Main.K_SAVIOR, "Savior Complex")
+	ElseIf o == oForceBunnyFight
+		If !Main.KillerBunnyOK()
+			ShowMessage("The Killer Rabbit vs Vigilants event needs Mihail's The Killer Rabbit of Caerbannog (mihailkillerbunny.esp). It is not included here.", false)
+		Else
+			ForceRoadNow(Main.K_BUNNYFIGHT, "Killer Rabbit vs Vigilants")
+		EndIf
 	ElseIf o == oForceBetrayal
 		SetForce(Main.K_BETRAYAL, "follower betrayal")
 	ElseIf o == oForceVampire
@@ -1730,6 +1788,14 @@ string Function Hint(string k)
 		return "OFF by default. Sleeping or waiting in someone else's home can let the owner find you."
 	ElseIf k == "travel"
 		return "OFF by default. Robbers on the road (one roll per game hour outdoors, plus waiting). Stolen gold goes into the robber's pockets and can be taken back."
+	ElseIf k == "savior"
+		return "OFF by default. Rare wilderness-road event: a bandit is raping a traveling merchant or traveler (adults only, spawned copies, never quest NPCs). You can watch, join in, or rescue them. SkyrimNet is told plainly what is happening and what you chose. Does not fire in interiors, towns, or near unique essential NPCs. Master switch, panic key and the no-children rule still apply."
+	ElseIf k == "saviorch"
+		return "Chance per game hour on a wilderness road, and per hour waited outdoors. 0 = never."
+	ElseIf k == "bunnyfight"
+		return "OFF by default. Needs Mihail's The Killer Rabbit of Caerbannog; none of his files are included. Rare wilderness-road event: two Vigilants of Stendarr (spawned copies, never world/quest Vigilants) are losing a fight to a Killer Rabbit. You can kill the rabbit and save them. SkyrimNet is told who won. No essential flags are left on anyone. Does not fire in interiors, towns, or near unique essential NPCs. Master switch and panic key still apply."
+	ElseIf k == "bunnyfightch"
+		return "Chance per game hour on a wilderness road, and per hour waited outdoors. 0 = never. Locked without Mihail's Killer Rabbit of Caerbannog."
 	ElseIf k == "vampire"
 		return "OFF by default. In vampire lairs and dungeons, a vampire already there may entrance a victim while you sleep."
 	ElseIf k == "blackmail"

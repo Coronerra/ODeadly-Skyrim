@@ -2,6 +2,18 @@
 
 By That Guy (Coronerra).
 
+## 0.9
+
+Two new wilderness-road events, each with its own MCM toggle (OFF by default) and chance slider (2% per game hour / wait hour). 0.8's furniture fix is included.
+
+- **Savior Complex** (MCM > Danger). A rare roadside encounter: a spawned bandit is raping a spawned traveling merchant or traveler (vanilla templates only; never a world or quest NPC). Adults only. SkyrimNet is told plainly at the start that the bandit is raping the traveler, so the AI is not left to guess. A message box then offers Watch (the scene continues; you are not involved), Join in (you are added to the scene when OStim has a three-person animation; otherwise you stay and watch), or Rescue (the scene stops, the bandit turns hostile). SkyrimNet is told what you chose. On a successful rescue the traveler thanks you through SkyrimNet. Activating or hitting the bandit while you were watching also counts as a rescue. Spawned actors are cleaned up afterwards.
+- **Killer Rabbit vs Vigilants of Stendarr** (MCM > Danger). Needs Mihail's [The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`); locked without it, and none of his files are included. Two spawned generic Vigilants of Stendarr (vanilla templates, never Keeper Carcette or other unique Vigilants) are fighting a Killer Rabbit and losing. The rabbit is a vanilla hare reskinned to Mihail's race, the same method as the climax-fauna option; his unique cave rabbit is never copied. You can kill the rabbit. SkyrimNet is told who won. Surviving Vigilants thank you and are embarrassed that a rabbit was beating them. Vigilants who are about to die are knocked unconscious instead of being flagged essential, and no essential flags are left on anyone. The panic key and master switch clear the fight and wake anyone who was unconscious.
+- Both events use the existing travel timer (one roll per game hour outdoors, plus waiting). They only fire outdoors in the wilderness, not in interiors, cities or towns, and not when a unique essential or protected NPC is nearby. Master switch, panic key and the no-children rule apply. They are independent of the Travel & roads robbery option.
+- Debug tools can force either event now (if you are already on a wilderness road) or queue it for the next travel hour / wait.
+- New plugin records: `ODS_PoolTraveler`, `ODS_PoolVigilant`, and the Savior Complex choice message `ODS_SaviorChoice`. ESL, `Skyrim.esm` only. New script settings start at default (off) on an existing save. MCM rebuilds its pages (`GetVersion` 8). SkyrimNet pack version 0.9.0.
+
+Updating from 0.8 or 0.7: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged (0.9 only adds `ODS_PoolTraveler`, `ODS_PoolVigilant`, and `ODS_SaviorChoice`). The two new options stay off until you turn them on.
+
 ## 0.8
 
 Scene actors leave furniture and sleep first.
