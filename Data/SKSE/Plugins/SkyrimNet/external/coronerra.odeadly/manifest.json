@@ -2,8 +2,8 @@
     "id": "coronerra.odeadly",
     "type": "bundle",
     "title": "O'Deadly Skyrim",
-    "tagline": "Lets O'Deadly Skyrim ask whether a character would act, based on their bio.",
-    "description": "Decision template used by O'Deadly Skyrim (A SkyrimNet environmental mod). When the mod is about to involve a real NPC, it asks SkyrimNet's decision model whether that character, given their bio and the situation, would do it. Without a decisions provider the mod falls back to its own character filter.",
+    "tagline": "Lets O'Deadly Skyrim ask whether a character would act, or would be willing, based on their bio.",
+    "description": "Decision template used by O'Deadly Skyrim (A SkyrimNet environmental mod). When the mod is about to involve a real NPC, it asks SkyrimNet's decision model whether that character, given their bio and the situation, would do it (or, for 1.0's beast-form claim, whether a companion is willing). Without a decisions provider the mod falls back to its own character filter.",
     "author": "That Guy (Coronerra)",
     "tags": [
         "adult",
@@ -11,7 +11,7 @@
         "immersion"
     ],
     "nsfw": true,
-    "version": "0.9.0",
+    "version": "1.0.0",
     "min_skyrimnet_version": "0.28.0",
     "mods": [
         {

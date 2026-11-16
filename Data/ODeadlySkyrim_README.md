@@ -2,15 +2,17 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v0.9**
+**v1.0**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9)** · [Changelog](CHANGELOG.md) · [Earlier v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0)** · [Changelog](CHANGELOG.md) · [Earlier v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
 
-Version 0.9 (`ODeadly_Skyrim_0.9.zip`) adds two optional wilderness-road events, both off by default: Savior Complex (a bandit is raping a traveler; you can watch, join in, or rescue them) and Killer Rabbit vs Vigilants of Stendarr (two Vigilants are losing to a Killer Rabbit; you can kill it and save them). The rabbit event needs Mihail's Killer Rabbit of Caerbannog. See [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants).
+Version 1.0 (`ODeadly_Skyrim_1.0.zip`) adds three optional modules, all off by default: **Join in** (walk in on your spouse or a companion in a consensual scene and join them), **wild creatures** on the road (needs OCreatures), and **OStim Beast Form** support (werewolves at night, and choices when you transform). See [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form).
+
+Version 0.9 added two optional wilderness-road events, both off by default: Savior Complex (a bandit is forcefully taking a traveler; you can watch, join in, or rescue them) and Killer Rabbit vs Vigilants of Stendarr (two Vigilants are losing to a Killer Rabbit; you can kill it and save them). The rabbit event needs Mihail's Killer Rabbit of Caerbannog. See [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants).
 
 Version 0.8 fixed NPCs staying in their sleeping or sitting pose during a scene: anyone in a bed, bedroll or chair, or asleep, now gets up before the scene starts. See [New in 0.8](#new-in-08-nobody-stays-in-bed-pose).
 
@@ -30,7 +32,7 @@ I really don't care for most of the features of this mod, but I realized I have 
 
 This was based on the idea of [ODangerous Nights](https://www.patreon.com/posts/166577223). I never downloaded ODangerous Nights, so I have no idea if it is compatible. ODangerous Nights is not needed — this does the same thing, and so much more. All I could think was: why are all these mods based on the player being a chick and getting assaulted? Where are the followers? Why not the followers? So many of them are hotter. So from there I added on, and on, and on.
 
-Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, 0.4 can use Mihail's Killer Rabbit of Caerbannog for the climax fauna easter egg, 0.5 does the same for Baka Defeat – OStim Edition, and 0.9 can start a Savior Complex or Killer Rabbit vs Vigilants road event (the rabbit event needs Mihail's Killer Rabbit of Caerbannog), but none of them is required.
+Its intent is to make Skyrim as… whatever as the end user wants. It is 100% based on the standard environment — as in Skyrim — not dependent on other environmental mods. Inns, jails, barracks, roads, camps and the wilderness are the ones already in the game. Version 0.2 can also pick up a few popular mods you may already have (iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim, Sacrosanct) when they are installed, 0.3 tells SkyrimNet what happens in OStim Kidnapped Redux and ODefeat Reforged, 0.4 can use Mihail's Killer Rabbit of Caerbannog for the climax fauna easter egg, 0.5 does the same for Baka Defeat – OStim Edition, 0.9 can start a Savior Complex or Killer Rabbit vs Vigilants road event (the rabbit event needs Mihail's Killer Rabbit of Caerbannog), and 1.0 can use OCreatures and OStim Beast Form for wilderness and beast-form encounters, but none of them is required.
 
 If there are any other scenarios you want added that can work without additional mod requirements, I can.
 
@@ -53,6 +55,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
+- [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form)
 - [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants)
 - [New in 0.8](#new-in-08-nobody-stays-in-bed-pose)
 - [New in 0.7](#new-in-07-sleep-events-and-bath-timing)
@@ -117,7 +120,8 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 ## Optional (auto-detected, never required, never masters)
 
 - **SkyrimNet** (recommended): start narration, memories, rumours, blackmail, named places (beta 29+), and "would this character do it?" checks against their bio (beta 28+, needs a SkyrimNet decisions provider). Without SkyrimNet the engine still runs, using a built-in character filter instead of bios.
-- **OCreatures** + creature scene packs: unlocks the Creatures page. Locked off without it.
+- **OCreatures** + creature scene packs: unlocks the Creatures page, including the 1.0 wild creature road events. Locked off without it.
+- **OStim Beast Form** (1.0, tested against 0.8, either the Growl or the TWO edition): unlocks the Beast Form page (werewolves at night, choices when you transform). O'Deadly checks for the plugin and for Beast Form's own start scenes; without them the page is locked. None of its files are included.
 - **OCum**: messier memories.
 - **ZaZ Animation Pack**: jail scenes prefer restraint scenes; made-to-watch narration.
 - **OStimNet / OStim Navigator**: better scene tags.
@@ -161,7 +165,7 @@ Every module goes through the same steps, one event at a time:
 7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not. Pressing **E** on a victim always counts as a rescue and breaks the scene on purpose. To just talk to someone in a scene, use SkyrimNet's talk / voice input instead; it does not interrupt the scene.
 8. Afterwards: spawned actors leave and are cleaned up, a mod event fires (`ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`), SkyrimNet stores a memory. There are no forgive / confront menus: SkyrimNet and you decide what happens next.
 
-No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers. The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
+No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers (1.0: after you transform into beast form, at most 12 single-update checks about 10 seconds apart, only while the Beast Form choices are on). The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
 
 If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use SkyrimNet named places. A tagged place wins over vanilla keywords, so you can mark a rented inn room as a player home, or tag a custom cell as a jail or barracks. Untagged spots fall back to normal Skyrim location keywords and cell names.
 
@@ -181,9 +185,13 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Follower rescue (0.3) | OFF | 50% when a follower goes down mid-fight. Downed follower: Both (or Female / Male). |
 | Trespass | OFF | Player OFF, followers ON. |
 | Travel & roads | OFF | Robbery; may turn into a scene. Player OFF, followers ON. |
-| Savior Complex (0.9) | OFF | Rare wilderness-road event: a bandit is raping a traveler. Watch, join or rescue. |
+| Savior Complex (0.9) | OFF | Rare wilderness-road event: a bandit is forcefully taking a traveler. Watch, join or rescue. |
 | Killer Rabbit vs Vigilants (0.9) | OFF, locked without Mihail's Killer Rabbit | Two Vigilants losing to a Killer Rabbit; you can kill it and save them. |
 | Creatures (OCreatures) | OFF, locked without OCreatures | Player OFF even when available. |
+| Join in (1.0) | OFF | Walk in on your spouse / a companion in a consensual scene: watch, join in, or stop them. 100% when possible; take over if no three-person scene. |
+| Wild creatures (1.0) | OFF, locked without OCreatures | 2% per game hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
+| Werewolves at night (1.0) | OFF, locked without OStim Beast Form | 3% per night hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
+| Beast form choices (1.0) | OFF, locked without OStim Beast Form | 50% per transformation: take a beaten bandit, or claim a willing spouse / companion. |
 | Vampire seduction | OFF | |
 | Blackmail / public rumours | OFF | Need SkyrimNet. |
 | OCum memories | OFF, locked without OCum | |
@@ -254,8 +262,8 @@ Other defaults: creature chance 40%, victim range 2000, scene duration 60-120 s.
 ### Savior Complex (0.9)
 
 - **OFF by default**, behind the master switch and the panic key, adults only. Own toggle and chance (2% per game hour on a wilderness road, and per hour waited outdoors), independent of Travel & roads.
-- You come upon a spawned bandit raping a spawned traveling merchant or traveler (vanilla templates; never a world or quest NPC). It does not fire in interiors, cities or towns, or near a unique essential or protected NPC.
-- When it starts, SkyrimNet is told plainly that the bandit is raping the traveler, so the AI is not left to guess. You then choose: **Watch** (the scene continues; you are not involved), **Join in** (you are added when OStim has a three-person animation; otherwise you stay and watch), or **Rescue** (the scene stops and the bandit turns on you). SkyrimNet is told what you chose. If you save them, the traveler thanks you through SkyrimNet. Pressing E on them, or hitting the bandit, while you were watching also counts as a rescue.
+- You come upon a spawned bandit forcefully taking a spawned traveling merchant or traveler (vanilla templates; never a world or quest NPC). It does not fire in interiors, cities or towns, or near a unique essential or protected NPC.
+- When it starts, SkyrimNet is told plainly that the bandit is forcefully taking the traveler, so the AI is not left to guess. You then choose: **Watch** (the scene continues; you are not involved), **Join in** (you are added when OStim has a three-person animation; otherwise you stay and watch), or **Rescue** (the scene stops and the bandit turns on you). SkyrimNet is told what you chose. If you save them, the traveler thanks you through SkyrimNet. Pressing E on them, or hitting the bandit, while you were watching also counts as a rescue.
 - Spawned actors are cleaned up afterwards.
 
 ### Killer Rabbit vs Vigilants of Stendarr (0.9)
@@ -312,11 +320,38 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
 
+## New in 1.0 (join in, wild creatures, OStim Beast Form)
+
+Three new modules. Each one is **OFF by default**, has its own MCM toggles and chance slider, needs the master switch, is stopped by the panic key, and never involves children in any role. OCreatures and OStim Beast Form are detected at runtime; neither is a master and none of their files are included.
+
+### Join in (MCM > Relationships)
+
+- When one of this mod's consensual scenes involves your spouse or a companion and someone else (cheating spouse, shared inn room, bathing), and you are not in it, you get a choice: **Watch**, **Join in**, or **Stop them**.
+- Joining ends the two-person scene and starts a three-person scene with you, your spouse / companion and their partner, if OStim has one for that group. If not, you **take over** instead: their partner steps aside and you take their place (toggle; off means you just keep watching).
+- Never offered for forced scenes, and never for creature scenes.
+- SkyrimNet is told plainly that you walked in on them and joined, or pushed the other person aside.
+
+### Wild creatures (MCM > Creatures, needs OCreatures)
+
+- A rare wilderness-road event: a creature is forcefully taking a spawned traveler, your spouse / a companion (your spouse first when nearby), or you. Each victim type has its own toggle (player OFF by default).
+- When it is not you, you choose **Watch** or **Rescue**. Rescuing breaks the scene and the creature turns on you; SkyrimNet is told whether you saved them or watched.
+- Only creature types with installed OStim scenes are used (the same probe as the Creatures page), never draugr or falmer outdoors. With OStim Beast Form installed, werewolves are left to the Beast Form page.
+- Uses the existing travel timer, only fires in the wilderness away from towns, interiors and unique essential or protected NPCs. Spawns are cleaned up afterwards.
+
+### OStim Beast Form (MCM > Beast Form)
+
+- **Werewolves at night:** between 20:00 and 05:00 on a wilderness road, a werewolf in full beast form may be aggressively taking a spawned traveler, your spouse / a companion, or you (player OFF by default). Watch or rescue, as above. Not while you are in beast form yourself.
+- **When you transform:** a short while after you turn into a werewolf or vampire lord (at most one offer per transformation), you may be offered to **take a beaten bandit** (a hostile adult nearby who is down or badly hurt; in werewolf form in the wilderness, a bandit who ambushed you if nobody is around) or to **claim your spouse or a willing companion**. Claiming is consensual: your spouse is always willing; a companion is asked through SkyrimNet's decision model from their bio when available, otherwise their relationship with you decides.
+- Scenes start through OStim on Beast Form's own start scenes, so Beast Form's menu takes it from there. If the plugin or its start scenes are missing, none of these options appear.
+- No join-in for any beast or creature scene.
+
+Updating from 0.9: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged; 1.0 only adds four message boxes. All new options stay off until you turn them on. MCM `GetVersion` 9 (the pages rebuild, and a new "Beast Form" page appears). SkyrimNet pack 1.0.0 adds a second decision template (`would_consent`).
+
 ## New in 0.9 (Savior Complex and Killer Rabbit vs Vigilants)
 
 Two new wilderness-road events, each with its own MCM toggle (**OFF by default**) and chance slider. They share the existing travel timer (one roll per game hour outdoors, plus waiting). Master switch, panic key and the no-children rule apply. They never use world or quest NPCs, never fire in interiors or towns, and never start next to a unique essential or protected NPC.
 
-- **Savior Complex** (MCM > Danger): a bandit is raping a traveler. SkyrimNet is told that in plain words when it starts, then you choose to watch, join in, or rescue them, and SkyrimNet is told what you chose. A successful rescue gets a thanks through SkyrimNet.
+- **Savior Complex** (MCM > Danger): a bandit is forcefully taking a traveler. SkyrimNet is told that in plain words when it starts, then you choose to watch, join in, or rescue them, and SkyrimNet is told what you chose. A successful rescue gets a thanks through SkyrimNet.
 - **Killer Rabbit vs Vigilants of Stendarr** (MCM > Danger): needs Mihail's Killer Rabbit of Caerbannog (locked without it; none of his files are included). Two Vigilants are losing to the rabbit; you can kill it and save them. SkyrimNet is told who won. No essential flags are left behind.
 - Debug tools can force either event now if you are already on a wilderness road, or queue it for the next travel hour / wait.
 - Updating from 0.8 or 0.7: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged (0.9 only adds `ODS_PoolTraveler`, `ODS_PoolVigilant`, and `ODS_SaviorChoice`). The two new options stay off until you turn them on. 0.8's furniture fix is included.
@@ -403,7 +438,7 @@ Two listeners, not new encounter modules: O'Deadly does not start, stop or chang
 
 ## MCM pages
 
-General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships — Jail & inns (now with the shared room option) — Danger (now with follower rescue, Savior Complex, and Killer Rabbit vs Vigilants) — Creatures — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
+General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships (now with Join in) — Jail & inns (now with the shared room option) — Danger (now with follower rescue, Savior Complex, and Killer Rabbit vs Vigilants) — Creatures (now with wild creatures) — Beast Form (1.0) — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
 
 ## Test checklist
 
@@ -415,9 +450,12 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 6. 0.2 force buttons (turn the module on first): morning after (next sleep), bathing (next real wash), shared room (sleep in an inn with a follower), Dark Gift (next sleep), watched (next outdoor scene), climax fauna (next climax).
 7. 0.3 / 0.5, with OStim Kidnapped Redux, ODefeat Reforged or Baka Defeat installed: MCM > General shows them as installed. Use their own menus to force a kidnapping or get defeated, then check that SkyrimNet narrates it.
 8. Follower rescue: turn it on (Danger page) and set the chance to 100, then let a follower go down in a fight with humans. One enemy should start a scene with them while the others keep fighting; hit that enemy to stop it. Try the panic key during one too.
-9. 0.9 Savior Complex: turn it on (Danger page), set the chance to 100 or use Debug > "Savior Complex (now if on a road)" while outdoors in the wilderness, away from towns. Confirm the rape narration, the Watch / Join in / Rescue box, each choice (including a successful rescue and the thanks), and that the panic key stops it and removes the spawns.
+9. 0.9 Savior Complex: turn it on (Danger page), set the chance to 100 or use Debug > "Savior Complex (now if on a road)" while outdoors in the wilderness, away from towns. Confirm the aggressive narration, the Watch / Join in / Rescue box, each choice (including a successful rescue and the thanks), and that the panic key stops it and removes the spawns.
 10. 0.9 Killer Rabbit vs Vigilants: requires Mihail's Killer Rabbit of Caerbannog. Turn the option on, then force it on a wilderness road. Confirm the Vigilants are losing, that you can kill the rabbit, that survivors thank you and sound embarrassed, that SkyrimNet is told who won, and that the panic key clears the fight with no leftover essential flags.
-11. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+11. 1.0 Join in: turn it on (Relationships page) along with cheating spouse, shared room or bathing, and force one of those with your spouse / a companion nearby. Confirm the Watch / Join in / Stop them box, that joining starts a three-person scene (or a take-over), and the SkyrimNet memory.
+12. 1.0 wild creatures (OCreatures) and werewolves at night (OStim Beast Form): turn them on, then use Debug > "Wild creature" / "Werewolf (now if on a road)" on a wilderness road (werewolves need night). Confirm watch, rescue, the narration, and that the panic key removes the spawns.
+13. 1.0 beast form choices (OStim Beast Form): turn them on, press Debug > "Beast form choice", then transform (or press it while transformed). Confirm the take / claim box and that the scene opens on Beast Form's start scene.
+14. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
 ## Known limits
 
@@ -437,6 +475,9 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Creature probe spawns a hidden actor for a moment when the Creatures module is enabled and on load; if a type shows "No scenes found" wrongly, stand next to a follower and press Re-check.
 
 - Savior Complex needs an OStim scene for the spawned bandit and traveler. Joining in also needs a three-person scene; without one you stay and watch.
+- Join in needs an OStim scene for the three of you (or, for a take-over, for you and your spouse / companion). Without one you keep watching.
+- Wild creatures and werewolves need installed scenes for the exact pair; no scene means nothing happens and the spawns are removed. The werewolf is a vanilla werewolf template; if it does not come out in beast form on your setup, the event is skipped.
+- Beast form choices appear a few seconds after the transformation, once you are out of combat. Vanilla beast form has a timer; if you change back mid-scene, how that plays is up to OStim Beast Form.
 - Killer Rabbit vs Vigilants is locked without Mihail's The Killer Rabbit of Caerbannog. The rabbit is as strong as his race makes it; two generic Vigilants are expected to lose without help.
 
 ## Repository contents
@@ -449,7 +490,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_0.9.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_1.0.zip`)
 
 ## Credits
 
@@ -459,6 +500,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Optional 0.2 integrations read the public events and forms of iActions, Dirt and Blood, Bathing in Skyrim, Blood and OStim and Sacrosanct. Thanks to their authors; none of their files are included.
 - Optional 0.3 listeners for Lirael's [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) use only their documented / public mod events. Thanks to [Lirael](https://www.patreon.com/LiraelAtelier) and vinfamy; none of their files are included and neither is a master.
 - Optional 0.4 Climax fauna support and the 0.9 Killer Rabbit vs Vigilants road event for Mihail's [The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) use only a runtime check for `mihailkillerbunny.esp` and his killer-rabbit race (vanilla hares are reskinned; his unique cave rabbit is never copied). Thanks to Mihail; none of his files are included, and his plugin is not a master.
+- Optional 1.0 support for OCreatures and OStim Beast Form uses only runtime plugin checks and their OStim scene IDs. Thanks to their authors; none of their files are included, and neither is a master.
 - Optional 0.5 listener for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288) uses only its own mod events and a runtime check for `SexLabDefeat.esp`. OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo; Baka Edition by BakaFactory. Thanks to all of them; none of their files are included, and the plugin is not a master.
 
 ## Other work

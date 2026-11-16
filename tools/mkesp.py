@@ -72,7 +72,9 @@ main_props = [pobj('PlayerRef', 0x14),
     pobj('Follower1Alias', MAINQ, 8), pobj('Follower2Alias', MAINQ, 9), pobj('Follower3Alias', MAINQ, 10), pobj('Follower4Alias', MAINQ, 11),
     pobj('PlayerFaction', 0xDB1), pobj('CurrentFollowerFaction', 0x5C84E),
     pobj('FadeToBlackHoldIMod', 0xF756E), pobj('FadeToBlackBackIMod', 0xF756F),
-    pobj('Gold001', 0xF)] + [pobj(ed, OWN | lid) for ed, lid, _ in pools] + [pobj('ODS_SaviorChoice', OWN | 0x81F)]
+    pobj('Gold001', 0xF)] + [pobj(ed, OWN | lid) for ed, lid, _ in pools] + [pobj('ODS_SaviorChoice', OWN | 0x81F)] + [  # 1.0 (new FormIDs appended)
+    pobj('ODS_JoinChoice', OWN | 0x820), pobj('ODS_WildChoice', OWN | 0x821),
+    pobj('ODS_BeastPreyChoice', OWN | 0x822), pobj('ODS_BeastClaimChoice', OWN | 0x823)]
 v_main = vmad_quest([script('ODS_Main', main_props)],
     [(aid, MAINQ, [script(sc, [])]) for aid, _, _, _, sc in aliases if sc])
 alias_subs = []
@@ -96,10 +98,17 @@ def mesg(fid, edid, desc, buttons, box=True):
 savior_msg = mesg(OWN | 0x81F, 'ODS_SaviorChoice',
     'On the road ahead, a bandit is raping a traveler. What do you do?',
     ('Watch', 'Join in', 'Rescue'))
-nrec = 2 + len(fl) + 1
-hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x820)), sub('CNAM', z('That Guy (Coronerra)')),
-    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v0.9. By That Guy (Coronerra).")),
+# 1.0: appended message boxes (0x820-0x823); existing FormIDs are never renumbered
+msgs10 = [
+    mesg(OWN | 0x820, 'ODS_JoinChoice', 'You walk in on them. What do you do?', ('Watch', 'Join in', 'Stop them')),
+    mesg(OWN | 0x821, 'ODS_WildChoice', 'A beast has someone pinned down. What do you do?', ('Watch', 'Rescue')),
+    mesg(OWN | 0x822, 'ODS_BeastPreyChoice', 'The beast in you wants them. Take them?', ('Take them', 'Let them go')),
+    mesg(OWN | 0x823, 'ODS_BeastClaimChoice', 'They are willing. Claim them?', ('Claim them', 'Not now')),
+]
+nrec = 2 + len(fl) + 1 + len(msgs10)
+hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x824)), sub('CNAM', z('That Guy (Coronerra)')),
+    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v1.0. By That Guy (Coronerra).")),
     sub('MAST', z('Skyrim.esm')), sub('DATA', struct.pack('<Q', 0))], flags=0x200)
 out = sys.argv[1] if len(sys.argv) > 1 else 'ODeadlySkyrim.esp'
-open(out, 'wb').write(hdr + grup('QUST', [qmain, qmcm]) + grup('FLST', fl) + grup('MESG', [savior_msg]))
+open(out, 'wb').write(hdr + grup('QUST', [qmain, qmcm]) + grup('FLST', fl) + grup('MESG', [savior_msg] + msgs10))
 print('wrote', out, 'records', nrec)

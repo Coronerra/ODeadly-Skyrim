@@ -1,0 +1,28 @@
+{# O'Deadly Skyrim 1.0 consent template (beast-form claim of a companion). Context from Papyrus: actor_name, target_name, situation.
+   Answer key read by the script: question "would" (noul) -> "true" / "false". #}
+[ state actor ]
+{% for n in get_nearby_npc_list(player.UUID) %}{% if decnpc(n.UUID).name == actor_name %}{{ render_character_profile("short_inline", n.UUID) }}
+{% endif %}{% endfor %}
+Name: {{ actor_name }}
+[ end state ]
+
+[ state target ]
+{% if target_name == decnpc(player.UUID).name %}{{ render_character_profile("short_inline", player.UUID) }}
+{% else %}{% for n in get_nearby_npc_list(player.UUID) %}{% if decnpc(n.UUID).name == target_name %}{{ render_character_profile("short_inline", n.UUID) }}
+{% endif %}{% endfor %}{% endif %}
+Name: {{ target_name }}
+[ end state ]
+
+[ state situation ]
+{{ situation }}
+[ end state ]
+
+[ question would noul ]
+Would {{ actor_name }} willingly have sex with {{ target_name }} in this `situation`, where {{ target_name }} is in full beast form?
+Judge only from who {{ actor_name }} is in `actor`: their temperament, desires, how close they are to {{ target_name }} (`target`) and how they feel about the beast {{ target_name }} becomes.
+Only say yes if {{ actor_name }} would truly want it. Shy, reluctant, frightened or uninterested characters would not.
+[ criteria ]
+true: yes, {{ actor_name }} wants this and gives themselves willingly
+false: no, {{ actor_name }} does not want this
+[ end criteria ]
+[ end question ]

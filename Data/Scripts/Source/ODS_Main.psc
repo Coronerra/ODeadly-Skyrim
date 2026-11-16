@@ -1,5 +1,5 @@
 Scriptname ODS_Main extends Quest
-{O'Deadly Skyrim (A SkyrimNet environmental mod) v0.9 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
+{O'Deadly Skyrim (A SkyrimNet environmental mod) v1.0 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
 
 ; ======================= properties (filled in ODeadlySkyrim.esp) =======================
 Actor Property PlayerRef Auto
@@ -58,7 +58,11 @@ int Property K_INNSHARE = 14 AutoReadOnly ; 0.2 inns full: one rented room for t
 int Property K_DARKGIFT = 15 AutoReadOnly ; 0.2 Dark Gift: a vampire wakes the player
 int Property K_SAVIOR = 16 AutoReadOnly    ; 0.9 Savior Complex: bandit raping a traveler
 int Property K_BUNNYFIGHT = 17 AutoReadOnly ; 0.9 Killer Rabbit vs Vigilants of Stendarr
-int Property K_COUNT = 18 AutoReadOnly
+int Property K_CRWILD = 18 AutoReadOnly     ; 1.0 OCreatures: a creature takes a traveler / companion / the player on the road
+int Property K_WEREWOLF = 19 AutoReadOnly   ; 1.0 OStim Beast Form: a werewolf in full beast form at night in the wilderness
+int Property K_BEASTPREY = 20 AutoReadOnly  ; 1.0 OStim Beast Form: the player in beast form takes a beaten bandit
+int Property K_BEASTCLAIM = 21 AutoReadOnly ; 1.0 OStim Beast Form: the player in beast form claims a willing spouse / companion
+int Property K_COUNT = 22 AutoReadOnly
 int Property CR_COUNT = 7 AutoReadOnly     ; werewolf, draugr, troll, falmer, spriggan, giant, hagraven
 
 ; ======================= settings: general =======================
@@ -543,7 +547,7 @@ Function OnGameLoaded()
 	iPlaceAPI = -1
 	iDecisionAPI = -1
 	bOCreatures = OCreaturesInstalled()
-	If bOCreatures && bCrEnabled && bMaster
+	If bOCreatures && (bCrEnabled || bCrWild) && bMaster
 		DetectCreatures()
 	ElseIf !bOCreatures
 		int i = 0
@@ -744,7 +748,7 @@ Function EnableMaster()
 	UpdateEssential()
 	FillFollowerAliases()
 	bOCreatures = OCreaturesInstalled()
-	If bOCreatures && bCrEnabled
+	If bOCreatures && (bCrEnabled || bCrWild)
 		DetectCreatures()
 	EndIf
 	ResolveSoft()
@@ -800,6 +804,7 @@ Function AbortAll()
 	iForceMode = 0
 	kPendingSpouse = None
 	kDefeatVictim = None
+	kBeastTarget = None
 	ClearRoadEvent(false)
 	; 0.2 modules: nothing pending survives a panic
 	bMorningArmed = false
@@ -851,6 +856,8 @@ Function ClearStage()
 	iKind = 0
 	kFurn = None
 	sPreScene = ""
+	iJoinChoice = 0
+	kJoinOther = None
 	If bCalmed
 		bCalmed[0] = false
 		bCalmed[1] = false
@@ -2152,7 +2159,7 @@ EndFunction
 ; per-hour rolls over every module that fits this place; returns the kind (0 none), sets iHitHour
 int Function RollKinds(int hours, bool isSleep)
 	InitArrays()
-	float[] ch = new float[18]
+	float[] ch = new float[22]
 	int cat = GetLocCategory()
 	bool drunk = IsDrunk(PlayerRef)
 	bool jail = InJailOrBarracks()
@@ -2210,9 +2217,15 @@ int Function RollKinds(int hours, bool isSleep)
 		If bBunnyFight && KillerBunnyOK() && RoadEventPlaceOK()
 			ch[K_BUNNYFIGHT] = fBunnyFightChance
 		EndIf
+		If bWolfNight && WolfNightOK() && RoadEventPlaceOK()
+			ch[K_WEREWOLF] = fWolfNightChance
+		EndIf
+		If bCrWild && AnyCrWildOK() && RoadEventPlaceOK()
+			ch[K_CRWILD] = fCrWildChance
+		EndIf
 	EndIf
 	; priority order
-	int[] order = new int[15]
+	int[] order = new int[17]
 	order[0] = K_JAIL
 	order[1] = K_TRESPASS
 	order[2] = K_CHEAT
@@ -2226,12 +2239,14 @@ int Function RollKinds(int hours, bool isSleep)
 	order[10] = K_ATTACK
 	order[11] = K_SAVIOR
 	order[12] = K_BUNNYFIGHT
-	order[13] = K_ROAD
-	order[14] = 0
+	order[13] = K_WEREWOLF
+	order[14] = K_CRWILD
+	order[15] = K_ROAD
+	order[16] = 0
 	int h = 1
 	While h <= hours
 		int k = 0
-		While k < 14
+		While k < 16
 			int kind = order[k]
 			If ch[kind] > 0.0 && Utility.RandomFloat(0.0, 100.0) < ch[kind]
 				iHitHour = h
@@ -2363,6 +2378,9 @@ Function StageWithFade(int kind, int ep, bool fromRest)
 	iKind = kind
 	iBioAsked = 0
 	bool ok = Dispatch(kind, ep)
+	If ok && Alive(ep)
+		MaybeOfferJoin(ep)      ; 1.0: consensual scenes only, off by default
+	EndIf
 	If !ok
 		If Alive(ep)
 			ReleaseStaged()
@@ -2410,6 +2428,12 @@ bool Function Dispatch(int kind, int ep)
 		return StageSavior(ep)
 	ElseIf kind == K_BUNNYFIGHT
 		return StageBunnyFight(ep)
+	ElseIf kind == K_CRWILD || kind == K_WEREWOLF
+		return StageWild(kind, ep)
+	ElseIf kind == K_BEASTPREY
+		return StageBeastPrey(ep)
+	ElseIf kind == K_BEASTCLAIM
+		return StageBeastClaim(ep)
 	EndIf
 	return false
 EndFunction
@@ -3409,7 +3433,9 @@ bool Function StartEncounter(bool forced, string meta, int ep)
 		If IsSpawned(kAtt[i])
 			kAtt[i].Enable()
 		EndIf
-		If forced || IsSpawned(kAtt[i]) || (kAtt[i] != PlayerRef && kAtt[i].IsHostileToActor(PlayerRef))
+		If kAtt[i] == PlayerRef
+			; 1.0 beast form: the player leads the scene; nothing to calm
+		ElseIf forced || IsSpawned(kAtt[i]) || (kAtt[i].IsHostileToActor(PlayerRef))
 			Calm(i)
 		Else
 			kAtt[i].StopCombat()
@@ -3522,6 +3548,14 @@ string Function StartText()
 		return "On the road near " + where + ", the bandit " + an + " is raping the traveler " + vn + "."
 	ElseIf iKind == K_BUNNYFIGHT
 		return "On the road near " + where + ", two Vigilants of Stendarr are fighting a Killer Rabbit of Caerbannog, and the rabbit is beating them."
+	ElseIf iKind == K_CRWILD
+		return "In the wilderness near " + where + ", " + WildBeastName() + " has caught " + WildVictimText() + " and is raping them."
+	ElseIf iKind == K_WEREWOLF
+		return "Under the night sky near " + where + ", a werewolf in full beast form has caught " + WildVictimText() + " and is raping them."
+	ElseIf iKind == K_BEASTPREY
+		return "Near " + where + ", " + pn + ", a " + BeastWord(PlayerRef) + " in full beast form, has their beaten foe " + kVictim.GetDisplayName() + " at their mercy and is raping them."
+	ElseIf iKind == K_BEASTCLAIM
+		return "Near " + where + ", " + pn + ", a " + BeastWord(PlayerRef) + " in full beast form, claims " + BondText(kVictim) + kVictim.GetDisplayName() + ", who is willing and gives themselves to the beast. It is consensual sex."
 	ElseIf iKind == K_DARKGIFT
 		If bForcedScene
 			return "At " + where + ", " + pn + " wakes to the vampire " + kAttacker.GetDisplayName() + " pinning them down, fangs at their throat, taking them."
@@ -3596,6 +3630,13 @@ Function Wake()
 		ShowMsg("On the road ahead, " + an + " is raping " + vn + "...")
 	ElseIf iKind == K_BUNNYFIGHT
 		ShowMsg("Two Vigilants of Stendarr are fighting a Killer Rabbit of Caerbannog... and they are losing!")
+	ElseIf iKind == K_CRWILD || iKind == K_WEREWOLF
+		ShowMsg(kAttacker.GetDisplayName() + " has " + vn + " pinned down...")
+	ElseIf iKind == K_BEASTPREY
+		ShowMsg("The beast claims its prey...")
+	ElseIf iKind == K_BEASTCLAIM
+		ShowMsg(kVictim.GetDisplayName() + " gives in to the beast...")
+		shake = false
 	ElseIf iKind == K_DARKGIFT
 		ShowMsg("Cold lips at your throat... " + kAttacker.GetDisplayName() + " has come for you.")
 	ElseIf kVictim == PlayerRef
@@ -3616,8 +3657,11 @@ Function Intervene()
 	If kVictim == PlayerRef && kVictim2 == None
 		return
 	EndIf
+	If kAttacker == PlayerRef || iJoinChoice >= 2
+		return      ; 1.0: the player is in the scene (beast form / joined); OStim ends it
+	EndIf
 	; 0.9: activating / hitting during Savior Complex (watch) is a rescue
-	If iKind == K_SAVIOR && iSaviorChoice == 1
+	If IsWitnessKind(iKind) && iSaviorChoice == 1
 		SaviorRescue(iEpoch)
 		return
 	EndIf
@@ -3700,6 +3744,9 @@ Function CaughtCheck(int id)
 	If (Utility.GetCurrentGameTime() - fLastCaught) < 1.0
 		return
 	EndIf
+	If bBusy && iJoinChoice >= 2
+		return       ; 1.0: the player just joined our own scene
+	EndIf
 	Actor[] acts = OThread.GetActors(id)
 	If acts.Find(PlayerRef) < 0 || acts.Length < 2
 		return
@@ -3758,7 +3805,7 @@ Function RestoreAttackers(bool afterScene)
 	int i = 0
 	While i < 4
 		Actor a = kAtt[i]
-		If a && !a.IsDead()
+		If a && a != PlayerRef && !a.IsDead()
 			If bAddedFac[i]
 				a.RemoveFromFaction(PlayerFaction)
 				bAddedFac[i] = false
@@ -3767,7 +3814,7 @@ Function RestoreAttackers(bool afterScene)
 				If !afterScene
 					a.SetActorValue("Aggression", fOldAgg[i])
 				ElseIf IsSpawned(a)
-					If iKind == K_SAVIOR && iSaviorChoice != 3
+					If IsWitnessKind(iKind) && iSaviorChoice != 3
 						a.SetActorValue("Aggression", 0.0)
 						a.SetActorValue("Confidence", 0.0)
 					ElseIf bIntervened
@@ -3843,7 +3890,7 @@ Function LogSkyrimNet()
 	If !bSkyrimNetLog || !SNetOK() || kVictim == None || kAttacker == None
 		return
 	EndIf
-	If iKind == K_SAVIOR && iSaviorChoice == 3
+	If IsWitnessKind(iKind) && iSaviorChoice == 3
 		return
 	EndIf
 	string pn = PlayerRef.GetDisplayName()
@@ -3853,7 +3900,9 @@ Function LogSkyrimNet()
 	string txt
 	If iKind == K_CHEAT
 		txt = "While " + pn + " slept, " + pn + "'s spouse " + kVictim.GetDisplayName() + " had sex with " + kAttacker.GetDisplayName() + ". " + pn + " woke and saw it"
-		If bIntervened
+		If iJoinChoice >= 2
+			txt += "." + JoinMemoryText()
+		ElseIf bIntervened
 			txt += " and interrupted them."
 		Else
 			txt += "."
@@ -3875,9 +3924,16 @@ Function LogSkyrimNet()
 		Else
 			txt = "On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and stood and watched, without intervening."
 		EndIf
+	ElseIf (iKind == K_CRWILD || iKind == K_WEREWOLF) && kVictim != PlayerRef
+		txt = StartText()
+		If iSaviorChoice == 1
+			txt += " " + pn + " saw it and stood and watched, without intervening."
+		EndIf
 	Else
 		txt = StartText()
-		If bIntervened
+		If iJoinChoice >= 2
+			txt += JoinMemoryText()
+		ElseIf bIntervened
 			txt += " " + pn + " stepped in and stopped it."
 		EndIf
 	EndIf
@@ -3928,7 +3984,7 @@ EndFunction
 
 ; ======================= blackmail (light, one cooldown, no questline) =======================
 Function RememberBlackmail()
-	If !bBlackmail || iKind == K_CREATURE || kAttacker == None || IsSpawned(kAttacker) || !IsHumanoid(kAttacker)
+	If !bBlackmail || iKind == K_CREATURE || iKind == K_CRWILD || iKind == K_WEREWOLF || iKind == K_BEASTPREY || iKind == K_BEASTCLAIM || kAttacker == None || IsSpawned(kAttacker) || !IsHumanoid(kAttacker)
 		return
 	EndIf
 	If kVictim != PlayerRef && kVictim2 != PlayerRef && iKind != K_CHEAT
@@ -4045,6 +4101,9 @@ bool Function TravelWanted()
 	If bSavior || (bBunnyFight && KillerBunnyOK())
 		return true
 	EndIf
+	If (bCrWild && AnyCrWildOK()) || (bWolfNight && BFScenesOK())
+		return true
+	EndIf
 	return false
 EndFunction
 
@@ -4107,13 +4166,17 @@ Event OnUpdateGameTime()
 		If TravelWanted()
 			fTravelDue = now + 1.0 / 24.0
 			If kind == 0 && !bBusy && !OtherBusy(false) && !CooldownActive()
-				If iForceMode == K_SAVIOR || iForceMode == K_BUNNYFIGHT || iForceMode == K_ROAD || iForceMode == K_CREATURE
+				If iForceMode == K_SAVIOR || iForceMode == K_BUNNYFIGHT || iForceMode == K_ROAD || iForceMode == K_CREATURE || iForceMode == K_CRWILD || iForceMode == K_WEREWOLF
 					kind = iForceMode
 					iForceMode = 0
 				ElseIf bSavior && RoadEventPlaceOK() && Utility.RandomFloat(0.0, 100.0) < fSaviorChance
 					kind = K_SAVIOR
 				ElseIf bBunnyFight && KillerBunnyOK() && RoadEventPlaceOK() && Utility.RandomFloat(0.0, 100.0) < fBunnyFightChance
 					kind = K_BUNNYFIGHT
+				ElseIf bWolfNight && WolfNightOK() && Utility.RandomFloat(0.0, 100.0) < fWolfNightChance && RoadEventPlaceOK()
+					kind = K_WEREWOLF
+				ElseIf bCrWild && AnyCrWildOK() && Utility.RandomFloat(0.0, 100.0) < fCrWildChance && RoadEventPlaceOK()
+					kind = K_CRWILD
 				ElseIf bTravelEnabled && Utility.RandomFloat(0.0, 100.0) < fRoadChance
 					kind = K_ROAD
 				ElseIf AnyCreatureOK() && Utility.RandomFloat(0.0, 100.0) < fCrRoamChance
@@ -5410,6 +5473,9 @@ bool Function TryForceRoadEvent(int kind)
 	If kind == K_BUNNYFIGHT && !KillerBunnyOK()
 		return false
 	EndIf
+	If (kind == K_CRWILD && !AnyCrWildOK()) || (kind == K_WEREWOLF && !BFScenesOK())
+		return false
+	EndIf
 	If bBusy || OtherBusy(false)
 		iForceMode = kind
 		return false
@@ -5590,10 +5656,16 @@ Function SaviorRescue(int ep)
 	If kVictim && !kVictim.IsDead()
 		kVictim.StopCombat()
 		kVictim.StopCombatAlarm()
-		kVictim.SetActorValue("Aggression", 0.0)
+		If IsSpawned(kVictim)
+			kVictim.SetActorValue("Aggression", 0.0)
+		EndIf
 		kVictim.RestoreActorValue("Health", 200.0)
 	EndIf
-	ShowMsg("The bandit turns on you!")
+	If iKind == K_SAVIOR
+		ShowMsg("The bandit turns on you!")
+	ElseIf kAttacker
+		ShowMsg(kAttacker.GetDisplayName() + " turns on you!")
+	EndIf
 	bRoadFight = true
 	bAftermathDone = true
 	iRoadTicks = 0
@@ -5608,13 +5680,20 @@ Function SaviorVictory()
 	EndIf
 	string where = WhereName()
 	string t = pn + " killed the bandit who had been raping " + vn + " on the road near " + where + " and saved them."
+	If iKind == K_CRWILD || iKind == K_WEREWOLF
+		t = pn + " killed " + WildBeastName() + " that had been raping " + vn + " near " + where + " and saved them."
+	EndIf
 	If kVictim && !kVictim.IsDead()
 		t += " " + vn + " thanks " + pn + " for the rescue."
 		ShowMsg(vn + " thanks you for stepping in.")
 		TalkNet(t, kVictim, PlayerRef, true, true)
 	Else
 		TalkNet(t, kAttacker, PlayerRef, true, true)
-		ShowMsg("The bandit is dead.")
+		If iKind == K_SAVIOR
+			ShowMsg("The bandit is dead.")
+		Else
+			ShowMsg("It is dead.")
+		EndIf
 	EndIf
 	FinishRoadEvent()
 EndFunction
@@ -5708,7 +5787,7 @@ Function WatchRoadFight()
 		return
 	EndIf
 	iRoadTicks += 1
-	If iKind == K_SAVIOR && iSaviorChoice == 3
+	If IsWitnessKind(iKind) && iSaviorChoice == 3
 		If kVictim && !kVictim.IsDead() && kVictim.GetActorValuePercentage("Health") < 0.3
 			kVictim.RestoreActorValue("Health", 100.0)
 			kVictim.StopCombat()
@@ -6498,4 +6577,854 @@ bool Function ToggleProtected(Actor a)
 		return true
 	EndIf
 	return false
+EndFunction
+
+; =====================================================================================
+; ======================= 1.0: join in, wild creatures, OStim Beast Form =======================
+; Every 1.0 module is OFF by default, has its own MCM toggle and chance, needs the master
+; switch, is stopped by the panic key, and refuses children for every role. Other mods are
+; soft-detected only (never masters). New settings and runtime variables are declared here,
+; at the end of the script, so a 0.9 save keeps every existing value.
+; SkyrimNet text in this block is deliberately blunt so the AI is never left guessing.
+; =====================================================================================
+
+; ---------- 1.0 settings ----------
+bool Property bJoinIn = false Auto Hidden            ; join in when you catch your spouse / a companion (consensual only)
+float Property fJoinChance = 100.0 Auto Hidden       ; % the choice is offered
+bool Property bJoinTakeOver = true Auto Hidden       ; no three-person scene installed: take over instead
+bool Property bCrWild = false Auto Hidden            ; OCreatures: a creature takes someone in the wilderness
+float Property fCrWildChance = 2.0 Auto Hidden       ; % per game hour / wait hour on a wilderness road
+bool Property bCrWildTraveler = true Auto Hidden
+bool Property bCrWildCompanion = true Auto Hidden
+bool Property bCrWildPlayer = false Auto Hidden
+bool Property bWolfNight = false Auto Hidden         ; OStim Beast Form: a werewolf at night in the wilderness
+float Property fWolfNightChance = 3.0 Auto Hidden    ; % per night game hour / wait hour on a wilderness road
+bool Property bWolfTraveler = true Auto Hidden
+bool Property bWolfCompanion = true Auto Hidden
+bool Property bWolfPlayer = false Auto Hidden
+bool Property bBeastOffer = false Auto Hidden        ; OStim Beast Form: choices when the player transforms
+float Property fBeastOfferChance = 50.0 Auto Hidden  ; % per transformation
+bool Property bBeastPrey = true Auto Hidden          ; take a beaten bandit
+bool Property bBeastPreySpawn = true Auto Hidden     ; nobody beaten nearby: a bandit who ambushed you (wilderness only)
+bool Property bBeastClaim = true Auto Hidden         ; claim a willing spouse / companion
+bool Property bForceBeastOffer = false Auto Hidden   ; debug: next transformation (or now) offers, no chance roll
+Message Property ODS_JoinChoice Auto                 ; 1.0: Watch / Join in / Stop them
+Message Property ODS_WildChoice Auto                 ; 1.0: Watch / Rescue
+Message Property ODS_BeastPreyChoice Auto            ; 1.0: Take them / Let them go
+Message Property ODS_BeastClaimChoice Auto           ; 1.0: Claim them / Not now
+
+; ---------- 1.0 runtime ----------
+int iJoinChoice = 0          ; 0 none, 1 watched, 2 joined (three-person scene), 3 took over
+Actor kJoinOther             ; the partner pushed aside on a take-over
+Actor kBeastTarget           ; picked before a beast-form event is staged
+int iBeastTries = 0
+bool bBeastOffered = false
+
+; ---------- 1.0 soft detection ----------
+bool Function BeastFormOK()
+	return ModLoaded("OStim_Beast_Form_Merged.esp") || ModLoaded("OStim_Beast_Form_TWO.esp")
+EndFunction
+
+; OStim Beast Form's own start scene for a female werewolf and a man ships in every edition;
+; without it (or without the plugin) none of the Beast Form options appear.
+bool Function BFScenesOK()
+	return BeastFormOK() && OStimOK() && OMetaData.GetActorCount("OBFWerewolfIdleMF") == 2
+EndFunction
+
+Race Function WerewolfRace()
+	return Game.GetFormFromFile(0x000CDD84, "Skyrim.esm") as Race
+EndFunction
+
+Race Function VampireLordRace()
+	If !ModLoaded("Dawnguard.esm")
+		return None
+	EndIf
+	return Game.GetFormFromFile(0x0000283A, "Dawnguard.esm") as Race
+EndFunction
+
+bool Function IsWerewolfForm(Actor a)
+	If a == None
+		return false
+	EndIf
+	Race w = WerewolfRace()
+	return w && a.GetRace() == w
+EndFunction
+
+bool Function IsVampireLordForm(Actor a)
+	If a == None
+		return false
+	EndIf
+	Race vl = VampireLordRace()
+	return vl && a.GetRace() == vl
+EndFunction
+
+bool Function IsBeastForm(Actor a)
+	return IsWerewolfForm(a) || IsVampireLordForm(a)
+EndFunction
+
+bool Function PlayerIsBeast()
+	return IsBeastForm(PlayerRef)
+EndFunction
+
+string Function BeastWord(Actor a)
+	If IsVampireLordForm(a)
+		return "vampire lord"
+	EndIf
+	return "werewolf"
+EndFunction
+
+bool Function IsNight()
+	GlobalVariable gh = Game.GetFormFromFile(0x00000038, "Skyrim.esm") as GlobalVariable
+	If gh == None
+		return true
+	EndIf
+	float h = gh.GetValue()
+	return h >= 20.0 || h < 5.0
+EndFunction
+
+bool Function WolfNightOK()
+	return BFScenesOK() && IsNight() && !PlayerIsBeast()
+EndFunction
+
+bool Function IsWitnessKind(int k)
+	return k == K_SAVIOR || k == K_CRWILD || k == K_WEREWOLF
+EndFunction
+
+string Function SexLetter(Actor a)
+	If a.GetLeveledActorBase().GetSex() == 1
+		return "F"
+	EndIf
+	return "M"
+EndFunction
+
+; ---------- 1.0: OStim Beast Form scenes ----------
+; Beast Form 0.8 start scenes, actor order as in its JSON (the beast first). "" = not installed.
+string Function BFStartFor(Actor beast, Actor other)
+	If beast == None || other == None || !BFScenesOK()
+		return ""
+	EndIf
+	bool bm = beast.GetLeveledActorBase().GetSex() == 0
+	bool om = other.GetLeveledActorBase().GetSex() == 0
+	string id = ""
+	string alt = ""
+	If IsWerewolfForm(beast)
+		If IsWerewolfForm(other)
+			id = "OBFWerewolfIdleCC" + SexLetter(beast) + SexLetter(other)     ; werewolf couples
+		ElseIf IsBeastForm(other)
+			id = ""
+		ElseIf bm && !om
+			id = "OCrWerewolfIdleFM"
+		ElseIf bm && om
+			id = "OBFWerewolfIdleMM"
+		ElseIf !bm && om
+			id = "OBFWerewolfIdleMF"
+		Else
+			id = "OBFWerewolfIdleFwF"
+			alt = "OCrWerewolfIdleFF"
+		EndIf
+	ElseIf IsVampireLordForm(beast)
+		If IsVampireLordForm(other)
+			id = "OBFVampireLordIdleCC" + SexLetter(beast) + SexLetter(other)  ; vampire lord couples
+		ElseIf bm && !om && !IsBeastForm(other)
+			id = "OCrVampireLordIdleFM"
+		EndIf
+	EndIf
+	If id != "" && OMetaData.GetActorCount(id) == 2
+		return id
+	EndIf
+	If alt != "" && OMetaData.GetActorCount(alt) == 2
+		return alt
+	EndIf
+	return ""
+EndFunction
+
+; one beast + one partner. preferHub: open on Beast Form's start scene (the player picks from its
+; menu); otherwise a fitting scene from the library first and the start scene as the fallback.
+; Sets kSceneActs / sPreScene for StartEncounter. "" = nothing installed for this pair.
+string Function BeastPairScene(Actor beast, Actor other, bool forced, bool preferHub)
+	If beast == None || other == None || IsMinor(beast) || IsMinor(other)
+		return ""
+	EndIf
+	string hub = BFStartFor(beast, other)
+	string s = ""
+	Actor[] outA = new Actor[2]
+	If !preferHub || hub == ""
+		Actor[] a1 = new Actor[1]
+		a1[0] = beast
+		Actor[] v1 = new Actor[1]
+		v1[0] = other
+		s = SceneForSet(a1, 1, v1, 1, forced, outA)
+	EndIf
+	If s == "" && hub != ""
+		s = hub
+		outA[0] = beast
+		outA[1] = other
+	EndIf
+	If s != ""
+		Actor[] acts = new Actor[2]
+		acts[0] = outA[0]
+		acts[1] = outA[1]
+		kSceneActs = acts
+		sPreScene = s
+		kFurn = None
+	EndIf
+	return s
+EndFunction
+
+; ---------- 1.0: join in (consensual scenes with your spouse or a companion only) ----------
+; Called by StageWithFade right after the scene started. Only for the cheating spouse, shared
+; inn room and bathing modules, only when the scene is consensual and you are not in it.
+Function MaybeOfferJoin(int ep)
+	If !bJoinIn || !bMaster || iThread < 0 || bForcedScene || bPaired || nAtt != 1 || nVic != 1
+		return
+	EndIf
+	If iKind != K_CHEAT && iKind != K_INNSHARE && iKind != K_BATH
+		return
+	EndIf
+	If kAttacker == None || kVictim == None || kAttacker == PlayerRef || kVictim == PlayerRef
+		return
+	EndIf
+	If kSceneActs && kSceneActs.Find(PlayerRef) >= 0
+		return
+	EndIf
+	Actor lover = None
+	Actor other = None
+	If IsSpouse(kVictim) || IsFollowerActor(kVictim)
+		lover = kVictim
+		other = kAttacker
+	ElseIf IsSpouse(kAttacker) || IsFollowerActor(kAttacker)
+		lover = kAttacker
+		other = kVictim
+	EndIf
+	If lover == None || other == None || IsMinor(lover) || IsMinor(other) || IsMinor(PlayerRef)
+		return
+	EndIf
+	If Utility.RandomFloat(0.0, 100.0) >= fJoinChance
+		return
+	EndIf
+	If !OThread.IsRunning(iThread) || !Alive(ep)
+		return
+	EndIf
+	int choice = 0
+	If ODS_JoinChoice
+		choice = ODS_JoinChoice.Show()
+	EndIf
+	If !Alive(ep) || iThread < 0 || bAftermathDone
+		return
+	EndIf
+	If choice == 1
+		JoinIn(lover, other, ep)
+	ElseIf choice == 2
+		Intervene()
+	Else
+		iJoinChoice = 1
+		Log("join: player watches")
+	EndIf
+EndFunction
+
+Function JoinIn(Actor lover, Actor other, int ep)
+	string pn = PlayerRef.GetDisplayName()
+	string ln = lover.GetDisplayName()
+	string on = other.GetDisplayName()
+	string rel = "companion "
+	If IsSpouse(lover)
+		rel = "spouse "
+	EndIf
+	; find the new scene first, so nothing is stopped when no scene has room for the player
+	Actor[] att = new Actor[2]
+	att[0] = other
+	att[1] = PlayerRef
+	Actor[] vic = new Actor[1]
+	vic[0] = lover
+	Actor[] out3 = new Actor[3]
+	string sc = SceneForSet(att, 2, vic, 1, false, out3)
+	int mode = 2
+	Actor[] acts = out3
+	If sc == "" && bJoinTakeOver
+		Actor[] a1 = new Actor[1]
+		a1[0] = PlayerRef
+		Actor[] out2 = new Actor[2]
+		sc = SceneForSet(a1, 1, vic, 1, false, out2)
+		mode = 3
+		acts = out2
+	EndIf
+	If sc == ""
+		iJoinChoice = 1
+		ShowMsg("No installed scene has room for you. You stay and watch.")
+		Log("join: no three-person or take-over scene for this cast")
+		return
+	EndIf
+	If !Alive(ep) || iThread < 0 || !OThread.IsRunning(iThread)
+		return
+	EndIf
+	bSaviorJoining = true          ; the stop below is not the end of the encounter
+	int t = iThread
+	iThread = -1
+	OThread.Stop(t)
+	Utility.Wait(0.6)
+	bSaviorJoining = false
+	If !Alive(ep)
+		return
+	EndIf
+	kFurn = None
+	sScene1 = sc
+	kSceneActs = acts
+	iJoinChoice = mode
+	If mode == 3
+		kJoinOther = other
+	EndIf
+	iThread = StartThread(acts, kNoActors, sc, "odangerous,cheating,joined", ep)
+	If iThread < 0
+		iJoinChoice = 1
+		ShowMsg("You could not join them.")
+		bAftermathDone = false
+		RegisterForSingleUpdate(5.0)
+		return
+	EndIf
+	If mode == 3
+		other.EvaluatePackage()
+		ShowMsg("You push " + on + " aside and take over...")
+		TalkNet(pn + " walked in on their " + rel + ln + " having sex with " + on + ", shoved " + on + " aside and took over. " + pn + " is now having sex with " + ln + " while " + on + " watches.", lover, PlayerRef, true, false)
+	Else
+		ShowMsg("You join them...")
+		TalkNet(pn + " walked in on their " + rel + ln + " having sex with " + on + " and joined in. " + pn + ", " + ln + " and " + on + " are now having a threesome.", lover, PlayerRef, true, false)
+	EndIf
+	bAftermathDone = false
+	iCleanupTicks = 0
+	RegisterForSingleUpdate(10.0)
+EndFunction
+
+string Function JoinMemoryText()
+	string pn = PlayerRef.GetDisplayName()
+	If iJoinChoice == 3 && kJoinOther
+		return " " + pn + " walked in on them, shoved " + kJoinOther.GetDisplayName() + " aside and took over."
+	ElseIf iJoinChoice == 2
+		return " " + pn + " walked in on them and joined in for a threesome."
+	EndIf
+	return ""
+EndFunction
+
+; ---------- 1.0: wild creatures (OCreatures) and werewolves at night (OStim Beast Form) ----------
+bool Function CrWildTypeOK(int t)
+	If !bOCreatures || !iCrStatus || !bCrType
+		return false
+	EndIf
+	If iCrStatus[t] != 2 || !bCrType[t]
+		return false
+	EndIf
+	If t == 0 && BFScenesOK()
+		return false      ; werewolves belong to the Beast Form module when Beast Form is installed
+	EndIf
+	return true
+EndFunction
+
+bool Function AnyCrWildOK()
+	If !bCrWild || !OCreaturesInstalled()
+		return false
+	EndIf
+	int t = 0
+	While t < 7
+		If CrWildTypeOK(t)
+			return true
+		EndIf
+		t += 1
+	EndWhile
+	return false
+EndFunction
+
+int Function PickCrWildType()
+	int[] cand = new int[7]
+	int c = 0
+	int t = 0
+	While t < 7
+		If CrWildTypeOK(t) && t != 1 && t != 3      ; outdoors: no draugr or falmer
+			cand[c] = t
+			c += 1
+		EndIf
+		t += 1
+	EndWhile
+	If c == 0
+		t = 0
+		While t < 7
+			If CrWildTypeOK(t)
+				cand[c] = t
+				c += 1
+			EndIf
+			t += 1
+		EndWhile
+	EndIf
+	If c == 0
+		return -1
+	EndIf
+	return cand[Utility.RandomInt(0, c - 1)]
+EndFunction
+
+Actor Function SpawnCrWildFor(Actor vic, int ep)
+	int tries = 0
+	While tries < 3 && Alive(ep)
+		int t = PickCrWildType()
+		If t < 0
+			return None
+		EndIf
+		Actor a = TrySpawn(CrPool(t), vic, true, ep)
+		If a
+			return a
+		EndIf
+		tries += 1
+	EndWhile
+	return None
+EndFunction
+
+Actor Function SpawnWerewolfFor(Actor vic, int ep)
+	If ODS_PoolWerewolf == None || ODS_PoolWerewolf.GetSize() == 0 || !Alive(ep)
+		return None
+	EndIf
+	Actor w = SpawnNear(ODS_PoolWerewolf.GetAt(Utility.RandomInt(0, ODS_PoolWerewolf.GetSize() - 1)), vic)
+	If w == None
+		return None
+	EndIf
+	If !Alive(ep) || !IsWerewolfForm(w) || IsMinor(w)
+		DeleteSpawn(w)
+		return None
+	EndIf
+	If BeastPairScene(w, vic, true, false) == ""
+		Log("werewolf: no Beast Form / OStim scene for the pair")
+		DeleteSpawn(w)
+		return None
+	EndIf
+	return w
+EndFunction
+
+Actor Function SpawnTraveler(int ep)
+	If ODS_PoolTraveler == None || ODS_PoolTraveler.GetSize() == 0
+		return None
+	EndIf
+	int t = 0
+	While t < 6 && Alive(ep)
+		Actor c = SpawnFromPool(ODS_PoolTraveler, PlayerRef, 1)
+		If c
+			If GenderOK(c) && !IsMinor(c)
+				return c
+			EndIf
+			DeleteSpawn(c)
+		EndIf
+		t += 1
+	EndWhile
+	return None
+EndFunction
+
+; the spouse first (when nearby), else a follower who can be a victim
+Actor Function WildCompanion()
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, fVictimRange, false, false, true)
+	Actor fol = None
+	int i = 0
+	While i < near.Length
+		Actor a = near[i]
+		If a && a != PlayerRef && !a.IsDead() && !a.IsDisabled() && !a.IsInCombat() && !IsMinor(a) && !OActor.IsInOStim(a) && !IsStaged(a) && GenderOK(a) && !IsProtected(a)
+			If IsSpouse(a)
+				return a
+			EndIf
+			If fol == None && IsValidVictim(a, false, true)
+				fol = a
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	return fol
+EndFunction
+
+string Function WildBeastName()
+	If iKind == K_WEREWOLF
+		return "a werewolf in full beast form"
+	EndIf
+	If kAttacker
+		return "a " + kAttacker.GetDisplayName()
+	EndIf
+	return "a creature"
+EndFunction
+
+string Function WildVictimText()
+	If kVictim == None
+		return "someone"
+	EndIf
+	string pn = PlayerRef.GetDisplayName()
+	If kVictim == PlayerRef
+		return pn
+	ElseIf IsSpouse(kVictim)
+		return pn + "'s spouse " + kVictim.GetDisplayName()
+	ElseIf IsFollowerActor(kVictim)
+		return pn + "'s companion " + kVictim.GetDisplayName()
+	EndIf
+	return "the traveler " + kVictim.GetDisplayName()
+EndFunction
+
+string Function BondText(Actor a)
+	If IsSpouse(a)
+		return "their spouse "
+	ElseIf IsFollowerActor(a)
+		return "their companion "
+	EndIf
+	return ""
+EndFunction
+
+; K_CRWILD / K_WEREWOLF: a spawned traveler, your spouse / a companion, or you. No join-in:
+; there are no one-creature, two-human scenes. Watch or rescue when it is not you.
+bool Function StageWild(int kind, int ep)
+	If !RoadEventPlaceOK() || !Alive(ep)
+		return false
+	EndIf
+	bool wolf = kind == K_WEREWOLF
+	If wolf && (!BFScenesOK() || PlayerIsBeast())
+		Log("werewolf: Beast Form scenes missing or the player is in beast form")
+		return false
+	EndIf
+	If !wolf && !AnyCrWildOK()
+		Log("wild creature: OCreatures / creature scenes not available")
+		return false
+	EndIf
+	bool wantTrav = bCrWildTraveler
+	bool wantComp = bCrWildCompanion
+	bool wantPlayer = bCrWildPlayer
+	If wolf
+		wantTrav = bWolfTraveler
+		wantComp = bWolfCompanion
+		wantPlayer = bWolfPlayer
+	EndIf
+	Actor comp = None
+	If wantComp
+		comp = WildCompanion()
+	EndIf
+	If wantPlayer && !IsValidVictim(PlayerRef, true, false)
+		wantPlayer = false
+	EndIf
+	int[] opts = new int[3]
+	int n = 0
+	If wantTrav
+		opts[n] = 0
+		n += 1
+	EndIf
+	If comp
+		opts[n] = 1
+		n += 1
+	EndIf
+	If wantPlayer
+		opts[n] = 2
+		n += 1
+	EndIf
+	If n == 0
+		Log("wild: no victim type enabled or available")
+		return false
+	EndIf
+	int pick = opts[Utility.RandomInt(0, n - 1)]
+	Actor vic = PlayerRef
+	If pick == 0
+		vic = SpawnTraveler(ep)
+	ElseIf pick == 1
+		vic = comp
+	EndIf
+	If vic == None || IsMinor(vic) || !Alive(ep)
+		If vic && IsSpawned(vic)
+			DeleteSpawn(vic)
+		EndIf
+		return false
+	EndIf
+	Actor att = None
+	If wolf
+		att = SpawnWerewolfFor(vic, ep)
+	Else
+		att = SpawnCrWildFor(vic, ep)
+	EndIf
+	If att == None || !Alive(ep)
+		If IsSpawned(vic)
+			DeleteSpawn(vic)
+		EndIf
+		If att && IsSpawned(att)
+			DeleteSpawn(att)
+		EndIf
+		Log("wild: no beast with an installed scene for " + vic.GetDisplayName())
+		return false
+	EndIf
+	AddAttacker(att)
+	AddVictim(vic)
+	iSaviorChoice = 0
+	string meta = "odangerous,aggressive,creature,wild"
+	If wolf
+		meta = "odangerous,aggressive,werewolf,beastform"
+	EndIf
+	If !StartEncounter(true, meta, ep)
+		Log("wild: StartEncounter failed")
+		DeleteAllSpawned()
+		return false
+	EndIf
+	If !Alive(ep) || vic == PlayerRef
+		return true
+	EndIf
+	int choice = 0
+	If ODS_WildChoice
+		choice = ODS_WildChoice.Show()
+	EndIf
+	If !Alive(ep) || bAftermathDone
+		return true
+	EndIf
+	WildChosen(choice, ep)
+	return true
+EndFunction
+
+Function WildChosen(int choice, int ep)
+	string pn = PlayerRef.GetDisplayName()
+	string an = WildBeastName()
+	string vn = WildVictimText()
+	If choice == 1
+		TalkNet(pn + " sees " + an + " raping " + vn + " and charges in to rescue them.", kAttacker, kVictim, true, false)
+		SaviorRescue(ep)
+	Else
+		iSaviorChoice = 1
+		TalkNet(pn + " sees " + an + " raping " + vn + " and chooses to stand and watch, without intervening.", kAttacker, kVictim, true, false)
+		ShowMsg("You stand and watch...")
+	EndIf
+EndFunction
+
+; ---------- 1.0: the player in beast form (OStim Beast Form) ----------
+; ODS_PlayerAlias.OnRaceSwitchComplete -> here. Returns seconds until the first check, 0 = none.
+float Function OnPlayerRaceSwitch()
+	bBeastOffered = false
+	iBeastTries = 0
+	If !Ready() || !bBeastOffer || !PlayerIsBeast() || !BFScenesOK()
+		return 0.0
+	EndIf
+	return 12.0
+EndFunction
+
+; ODS_PlayerAlias single update while transformed. Bounded: at most 12 checks (about two
+; minutes), one offer per transformation, and only waits while you are still fighting.
+float Function BeastOfferTick()
+	If !Ready() || !bBeastOffer || bBeastOffered || !PlayerIsBeast() || !BFScenesOK()
+		return 0.0
+	EndIf
+	iBeastTries += 1
+	If iBeastTries > 12
+		return 0.0
+	EndIf
+	If bBusy || OtherBusy(false)
+		return 10.0
+	EndIf
+	bBeastOffered = true
+	If !bForceBeastOffer
+		If CooldownActive() || Utility.RandomFloat(0.0, 100.0) >= fBeastOfferChance
+			return 0.0
+		EndIf
+	EndIf
+	bForceBeastOffer = false
+	OfferBeast()
+	return 0.0
+EndFunction
+
+; debug: the next transformation offers (or right away, after the menu closes, if already transformed)
+Function ForceBeastOffer()
+	bForceBeastOffer = true
+	If PlayerIsBeast()
+		bBeastOffered = false
+		iBeastTries = 0
+		ODS_PlayerAlias pa = GetAliasByName("Player") as ODS_PlayerAlias
+		If pa
+			pa.StartBeastTick(2.0)
+		EndIf
+	EndIf
+EndFunction
+
+bool Function OfferBeast()
+	If !Ready() || !PlayerIsBeast() || !BFScenesOK() || bBusy || OtherBusy(false)
+		return false
+	EndIf
+	iBioAsked = 0
+	Actor prey = None
+	Actor mate = None
+	If bBeastPrey
+		prey = FindBeastPrey()
+	EndIf
+	If bBeastClaim
+		mate = FindBeastMate()
+	EndIf
+	bool spawnPrey = prey == None && bBeastPrey && bBeastPreySpawn && RoadEventPlaceOK() && IsWerewolfForm(PlayerRef)
+	bool canPrey = prey != None || spawnPrey
+	int kind = 0
+	If mate && (!canPrey || Utility.RandomInt(0, 1) == 0)
+		kind = K_BEASTCLAIM
+	ElseIf canPrey
+		kind = K_BEASTPREY
+	EndIf
+	If kind == 0
+		Log("beast form: nobody to take or claim here")
+		return false
+	EndIf
+	int choice = 1
+	If kind == K_BEASTPREY
+		If prey
+			ShowMsg(prey.GetDisplayName() + " lies beaten at your feet...")
+		EndIf
+		If ODS_BeastPreyChoice
+			choice = ODS_BeastPreyChoice.Show()
+		EndIf
+		kBeastTarget = prey
+	Else
+		ShowMsg(mate.GetDisplayName() + " is close by, and willing...")
+		If ODS_BeastClaimChoice
+			choice = ODS_BeastClaimChoice.Show()
+		EndIf
+		kBeastTarget = mate
+	EndIf
+	If choice != 0 || !Ready() || !PlayerIsBeast() || bBusy || OtherBusy(false)
+		kBeastTarget = None
+		Log("beast form: declined or no longer possible")
+		return false
+	EndIf
+	bBusy = true
+	StageWithFade(kind, iEpoch, false)
+	return true
+EndFunction
+
+bool Function BeastHasScene(Actor a, bool forced)
+	If BFStartFor(PlayerRef, a) != ""
+		return true
+	EndIf
+	return PairScene(PlayerRef, a, forced) != ""
+EndFunction
+
+; a hostile adult humanoid nearby who is down or badly hurt (a bandit you just beat)
+Actor Function FindBeastPrey()
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 2500.0, false, false, true)
+	int i = 0
+	While i < near.Length
+		Actor a = near[i]
+		If a && BaseEligible(a, true) && IsHumanoid(a) && !IsBeastForm(a) && !IsFollowerActor(a) && GenderOK(a) && (bGuardVictims || !IsGuardActor(a))
+			If a.IsHostileToActor(PlayerRef) && (a.IsBleedingOut() || a.GetActorValuePercentage("Health") < 0.5)
+				If BeastHasScene(a, true)
+					return a
+				EndIf
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	return None
+EndFunction
+
+; the spouse first, else a follower; both must be willing
+Actor Function FindBeastMate()
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, fVictimRange, false, false, true)
+	Actor fol = None
+	int i = 0
+	While i < near.Length
+		Actor a = near[i]
+		If a && a != PlayerRef && !a.IsDead() && !a.IsDisabled() && !a.IsInCombat() && !IsMinor(a) && !OActor.IsInOStim(a) && !IsStaged(a) && !IsProtected(a)
+			bool sp = IsSpouse(a)
+			If (sp || (fol == None && IsFollowerActor(a))) && BeastHasScene(a, false) && BeastMateWilling(a)
+				If sp
+					return a
+				EndIf
+				fol = a
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	return fol
+EndFunction
+
+; spouse: yes. Companion: SkyrimNet's decision model from their bio when available, else
+; relationship rank Confidant or better.
+bool Function BeastMateWilling(Actor a)
+	If IsSpouse(a)
+		return true
+	EndIf
+	int r = AskConsent(a, PlayerRef.GetDisplayName() + ", their travelling companion, is in full " + BeastWord(PlayerRef) + " beast form and wants to have sex with them right now, near " + WhereName() + ".")
+	If r == 1
+		return true
+	ElseIf r == 0
+		Log(a.GetDisplayName() + ": SkyrimNet says not willing")
+		return false
+	EndIf
+	return a.GetRelationshipRank(PlayerRef) >= 2
+EndFunction
+
+; 1 yes, 0 no, 2 unknown (same plumbing as AskBio, consent template)
+int Function AskConsent(Actor a, string situation)
+	If !bBioCheck || !SNetOK() || !DecisionsAvailable() || iBioAsked >= 2
+		return 2
+	EndIf
+	iBioAsked += 1
+	iBioAnswer = -1
+	string ctx = "{\"actor_name\":\"" + JsonSafe(a.GetDisplayName()) + "\",\"target_name\":\"" + JsonSafe(PlayerRef.GetDisplayName()) + "\",\"situation\":\"" + JsonSafe(situation) + "\"}"
+	int rc = SkyrimNetApi.SendCustomDecisionToLLM("odeadly/would_consent", ctx, self, "ODS_Main", "OnBioDecision")
+	If rc != 1
+		return 2
+	EndIf
+	int ep = iEpoch
+	float waited = 0.0
+	While iBioAnswer < 0 && waited < fBioTimeout && Alive(ep)
+		Utility.Wait(0.5)
+		waited += 0.5
+	EndWhile
+	If iBioAnswer < 0
+		return 2
+	EndIf
+	return iBioAnswer
+EndFunction
+
+bool Function StageBeastPrey(int ep)
+	Actor prey = kBeastTarget
+	kBeastTarget = None
+	If !PlayerIsBeast() || !BFScenesOK() || !Alive(ep)
+		return false
+	EndIf
+	If prey && (prey.IsDead() || IsMinor(prey) || OActor.IsInOStim(prey))
+		prey = None
+	EndIf
+	If prey == None && bBeastPreySpawn && RoadEventPlaceOK()
+		int t = 0
+		While prey == None && t < 4 && Alive(ep)
+			Actor c = SpawnFromPool(ODS_PoolBandit, PlayerRef, 1)
+			If c
+				If GenderOK(c) && !IsMinor(c)
+					prey = c
+				Else
+					DeleteSpawn(c)
+				EndIf
+			EndIf
+			t += 1
+		EndWhile
+	EndIf
+	If prey == None || !Alive(ep)
+		Log("beast prey: nobody to take")
+		return false
+	EndIf
+	Pacify(prey)                     ; beaten: stops fighting until the next location change
+	prey.StopCombat()
+	PlayerRef.StopCombatAlarm()
+	If BeastPairScene(PlayerRef, prey, true, true) == ""
+		Log("beast prey: no Beast Form / OStim scene for the pair")
+		If IsSpawned(prey)
+			DeleteSpawn(prey)
+		EndIf
+		return false
+	EndIf
+	AddAttacker(PlayerRef)
+	AddVictim(prey)
+	return StartEncounter(true, "odangerous,aggressive,beastform,prey", ep)
+EndFunction
+
+bool Function StageBeastClaim(int ep)
+	Actor mate = kBeastTarget
+	kBeastTarget = None
+	If mate == None || !PlayerIsBeast() || !BFScenesOK() || !Alive(ep)
+		return false
+	EndIf
+	If mate.IsDead() || IsMinor(mate) || OActor.IsInOStim(mate)
+		return false
+	EndIf
+	If BeastPairScene(PlayerRef, mate, false, true) == ""
+		Log("beast claim: no Beast Form / OStim scene for the pair")
+		return false
+	EndIf
+	AddAttacker(PlayerRef)
+	AddVictim(mate)
+	return StartEncounter(false, "odangerous,consensual,beastform,claim", ep)
 EndFunction

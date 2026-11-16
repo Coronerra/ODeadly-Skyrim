@@ -1,5 +1,5 @@
 Scriptname ODS_MCM extends SKI_ConfigBase
-{O'Deadly Skyrim v0.9 MCM (SkyUI). By That Guy (Coronerra).}
+{O'Deadly Skyrim v1.0 MCM (SkyUI). By That Guy (Coronerra).}
 
 ODS_Main Property Main Auto
 
@@ -60,12 +60,12 @@ int oForceSavior
 int oForceBunnyFight
 
 int Function GetVersion()
-	return 8
+	return 9
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3/0.4/0.5/0.6/0.9 rebuild them
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form"
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -78,17 +78,18 @@ EndEvent
 
 Function SetupPages()
 	ModName = "O'Deadly Skyrim"
-	Pages = new string[10]
+	Pages = new string[11]
 	Pages[0] = "General"
 	Pages[1] = "Night attacks"
 	Pages[2] = "Relationships"
 	Pages[3] = "Jail & inns"
 	Pages[4] = "Danger"
 	Pages[5] = "Creatures"
-	Pages[6] = "More encounters"
-	Pages[7] = "This location"
-	Pages[8] = "Protected followers"
-	Pages[9] = "Debug"
+	Pages[6] = "Beast Form"
+	Pages[7] = "More encounters"
+	Pages[8] = "This location"
+	Pages[9] = "Protected followers"
+	Pages[10] = "Debug"
 	genderOpts = new string[3]
 	genderOpts[0] = "Any"
 	genderOpts[1] = "Female only"
@@ -305,6 +306,34 @@ bool Function GetB(string k)
 		return Main.bSavior
 	ElseIf k == "bunnyfight"
 		return Main.bBunnyFight
+	ElseIf k == "joinin"
+		return Main.bJoinIn
+	ElseIf k == "jointake"
+		return Main.bJoinTakeOver
+	ElseIf k == "crwild"
+		return Main.bCrWild
+	ElseIf k == "crwildtrav"
+		return Main.bCrWildTraveler
+	ElseIf k == "crwildcomp"
+		return Main.bCrWildCompanion
+	ElseIf k == "crwildplayer"
+		return Main.bCrWildPlayer
+	ElseIf k == "wolfnight"
+		return Main.bWolfNight
+	ElseIf k == "wolftrav"
+		return Main.bWolfTraveler
+	ElseIf k == "wolfcomp"
+		return Main.bWolfCompanion
+	ElseIf k == "wolfplayer"
+		return Main.bWolfPlayer
+	ElseIf k == "beastoffer"
+		return Main.bBeastOffer
+	ElseIf k == "beastprey"
+		return Main.bBeastPrey
+	ElseIf k == "beastpreyspawn"
+		return Main.bBeastPreySpawn
+	ElseIf k == "beastclaim"
+		return Main.bBeastClaim
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -471,6 +500,34 @@ Function SetB(string k, bool v)
 	ElseIf k == "bunnyfight"
 		Main.bBunnyFight = v
 		Main.RefreshTimers(Game.GetPlayer().GetCurrentLocation())
+	ElseIf k == "joinin"
+		Main.bJoinIn = v
+	ElseIf k == "jointake"
+		Main.bJoinTakeOver = v
+	ElseIf k == "crwild"
+		Main.bCrWild = v
+	ElseIf k == "crwildtrav"
+		Main.bCrWildTraveler = v
+	ElseIf k == "crwildcomp"
+		Main.bCrWildCompanion = v
+	ElseIf k == "crwildplayer"
+		Main.bCrWildPlayer = v
+	ElseIf k == "wolfnight"
+		Main.bWolfNight = v
+	ElseIf k == "wolftrav"
+		Main.bWolfTraveler = v
+	ElseIf k == "wolfcomp"
+		Main.bWolfCompanion = v
+	ElseIf k == "wolfplayer"
+		Main.bWolfPlayer = v
+	ElseIf k == "beastoffer"
+		Main.bBeastOffer = v
+	ElseIf k == "beastprey"
+		Main.bBeastPrey = v
+	ElseIf k == "beastpreyspawn"
+		Main.bBeastPreySpawn = v
+	ElseIf k == "beastclaim"
+		Main.bBeastClaim = v
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -554,6 +611,14 @@ float Function GetF(string k)
 		return Main.fSaviorChance
 	ElseIf k == "bunnyfightch"
 		return Main.fBunnyFightChance
+	ElseIf k == "joinch"
+		return Main.fJoinChance
+	ElseIf k == "crwildch"
+		return Main.fCrWildChance
+	ElseIf k == "wolfch"
+		return Main.fWolfNightChance
+	ElseIf k == "beastch"
+		return Main.fBeastOfferChance
 	ElseIf k == "faunach"
 		return Main.fFaunaChance
 	ElseIf k == "faunarabbits"
@@ -645,6 +710,14 @@ Function SetF(string k, float v)
 		Main.fSaviorChance = v
 	ElseIf k == "bunnyfightch"
 		Main.fBunnyFightChance = v
+	ElseIf k == "joinch"
+		Main.fJoinChance = v
+	ElseIf k == "crwildch"
+		Main.fCrWildChance = v
+	ElseIf k == "wolfch"
+		Main.fWolfNightChance = v
+	ElseIf k == "beastch"
+		Main.fBeastOfferChance = v
 	ElseIf k == "faunach"
 		Main.fFaunaChance = v
 	ElseIf k == "faunarabbits"
@@ -736,7 +809,7 @@ string Function FmtOf(string k)
 		return "x{1}"
 	ElseIf k == "ovratk" || k == "ovrcht"
 		return "{1}"
-	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach"
+	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach" || k == "joinch" || k == "beastch"
 		return "{0}%"
 	EndIf
 	return "{1}%"
@@ -858,6 +931,19 @@ Function SliderSpec(string k)
 		mx = 100.0
 		st = 1.0
 		df = 5.0
+	ElseIf k == "joinch" || k == "beastch"
+		mx = 100.0
+		st = 5.0
+		df = 100.0
+		If k == "beastch"
+			df = 50.0
+		EndIf
+	ElseIf k == "crwildch"
+		mx = 25.0
+		df = 2.0
+	ElseIf k == "wolfch"
+		mx = 25.0
+		df = 3.0
 	ElseIf k == "faunarabbits"
 		mn = 5.0
 		mx = 30.0
@@ -937,6 +1023,9 @@ Function ResetIds()
 	oForceRoad = -100
 	oForceSavior = -100
 	oForceBunnyFight = -100
+	oForceCrWild = -100
+	oForceWolf = -100
+	oForceBeast = -100
 	oForceBetrayal = -100
 	oForceVampire = -100
 	oForceDefeat = -100
@@ -980,6 +1069,8 @@ Event OnPageReset(string page)
 		PageDanger()
 	ElseIf page == "Creatures"
 		PageCreatures()
+	ElseIf page == "Beast Form"
+		PageBeast()
 	ElseIf page == "More encounters"
 		PageMore()
 	ElseIf page == "This location"
@@ -1007,6 +1098,7 @@ Function PageGeneral()
 	AddTextOption("powerofthree's Papyrus Extender", YesNo(Main.PO3OK()), OPTION_FLAG_DISABLED)
 	AddTextOption("SkyrimNet", YesNo(Main.SNetOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("OCreatures", YesNo(Main.OCreaturesInstalled()), OPTION_FLAG_DISABLED)
+	AddTextOption("OStim Beast Form", YesNo(Main.BeastFormOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("OCum", YesNo(Main.OCumOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("ZaZ Animation Pack", YesNo(Main.ZaZOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("ODangerousNights", YesNo(Main.ODNLoaded()), OPTION_FLAG_DISABLED)
@@ -1091,6 +1183,10 @@ Function PageRelationships()
 	AddHeaderOption("Follower betrayal")
 	AddT("Followers can take advantage of you", "betrayal")
 	AddS("Chance per hour (asleep or drunk)", "betrayalch", Flag(Main.bBetrayal))
+	AddHeaderOption("Join in (1.0)")
+	AddT("Offer to join in", "joinin")
+	AddS("Chance the choice is offered", "joinch", Flag(Main.bJoinIn))
+	AddT("No three-person scene: take over", "jointake", Flag(Main.bJoinIn))
 	SetCursorPosition(1)
 	AddHeaderOption("Cheating chance per hour slept")
 	int c = 0
@@ -1220,6 +1316,43 @@ Function PageCreatures()
 		AddTextOption("  " + StatusText(st), "", OPTION_FLAG_DISABLED)
 		t += 1
 	EndWhile
+	SetCursorPosition(16)
+	AddHeaderOption("Wild creatures on the road (1.0)")
+	AddT("Enable wild creature events", "crwild", Flag(ocr))
+	bool w = ocr && Main.bCrWild
+	AddS("Chance per game hour / wait hour", "crwildch", Flag(w))
+	AddT("Victims: spawned travelers", "crwildtrav", Flag(w))
+	AddT("Victims: your spouse / companions", "crwildcomp", Flag(w))
+	AddT("Victims: the player", "crwildplayer", Flag(w))
+	If Main.BeastFormOK()
+		AddTextOption("  Werewolves: handled on the Beast Form page", "", OPTION_FLAG_DISABLED)
+	EndIf
+EndFunction
+
+; 1.0: OStim Beast Form (soft dependency, locked off when it or its scenes are missing)
+Function PageBeast()
+	bool bf = Main.BFScenesOK()
+	AddHeaderOption("OStim Beast Form")
+	If !Main.BeastFormOK()
+		AddTextOption("OStim Beast Form not installed: locked off", "", OPTION_FLAG_DISABLED)
+	ElseIf !bf
+		AddTextOption("Beast Form scenes not found: locked off", "", OPTION_FLAG_DISABLED)
+	EndIf
+	AddHeaderOption("Werewolves at night")
+	AddT("Enable werewolf night encounters", "wolfnight", Flag(bf))
+	bool w = bf && Main.bWolfNight
+	AddS("Chance per night hour / wait hour", "wolfch", Flag(w))
+	AddT("Victims: spawned travelers", "wolftrav", Flag(w))
+	AddT("Victims: your spouse / companions", "wolfcomp", Flag(w))
+	AddT("Victims: the player", "wolfplayer", Flag(w))
+	SetCursorPosition(1)
+	AddHeaderOption("When you transform")
+	AddT("Offer choices in beast form", "beastoffer", Flag(bf))
+	bool o = bf && Main.bBeastOffer
+	AddS("Chance per transformation", "beastch", Flag(o))
+	AddT("Take a beaten bandit", "beastprey", Flag(o))
+	AddT("  Nobody beaten: a bandit ambush", "beastpreyspawn", Flag(o && Main.bBeastPrey))
+	AddT("Claim a willing spouse / companion", "beastclaim", Flag(o))
 EndFunction
 
 ; 0.2 modules, one column, top to bottom. The climax fauna easter egg is deliberately the last module.
@@ -1357,6 +1490,9 @@ Function PageDebug()
 	oForceSavior = AddTextOption("Savior Complex (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bSavior))
 	oForceBunnyFight = AddTextOption("Killer Rabbit vs Vigilants (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bBunnyFight && Main.KillerBunnyOK()))
 	oForceBetrayal = AddTextOption("Follower betrayal", "", f)
+	oForceCrWild = AddTextOption("Wild creature (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.AnyCrWildOK()))
+	oForceWolf = AddTextOption("Werewolf (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bWolfNight && Main.BFScenesOK()))
+	oForceBeast = AddTextOption("Beast form choice (now / next transform)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bBeastOffer && Main.BFScenesOK()))
 	oForceVampire = AddTextOption("Vampire", "", f)
 	oForceDefeat = AddTextOption("Defeat (next bleedout)", "", f)
 	AddHeaderOption("0.2 modules")
@@ -1407,6 +1543,10 @@ string Function ForceName()
 		return "Shared room"
 	ElseIf m == Main.K_DARKGIFT
 		return "Dark Gift"
+	ElseIf m == Main.K_CRWILD
+		return "Wild creature"
+	ElseIf m == Main.K_WEREWOLF
+		return "Werewolf"
 	EndIf
 	return "Vampire"
 EndFunction
@@ -1416,7 +1556,7 @@ Function ForceRoadNow(int k, string label)
 	If Main.TryForceRoadEvent(k)
 		ShowMessage(label + " is starting now (you are on a wilderness road).", false)
 	ElseIf Main.iForceMode == k
-		ShowMessage(label + " will start on the next game hour outdoors, or the next wait of 1h+, on a wilderness road away from towns and quest-critical NPCs. It still needs a valid scene (Savior Complex) or Mihail's Killer Rabbit (the fight).", false)
+		ShowMessage(label + " will start on the next game hour outdoors, or the next wait of 1h+, on a wilderness road away from towns and quest-critical NPCs. It still needs a valid scene (Savior Complex, wild creature, werewolf) or Mihail's Killer Rabbit (the fight).", false)
 	Else
 		ShowMessage("Could not start " + label + " (master off, busy, or not ready).", false)
 	EndIf
@@ -1458,7 +1598,10 @@ Event OnOptionSelect(int o)
 		If k == "cr" && Main.bCrEnabled && Main.bMaster
 			Main.DetectCreatures()
 		EndIf
-		If k == "jail" || k == "travel" || k == "cr"
+		If k == "crwild" && Main.bCrWild && Main.bMaster
+			Main.DetectCreatures()
+		EndIf
+		If k == "jail" || k == "travel" || k == "cr" || k == "crwild" || k == "wolfnight"
 			If Main.bMaster
 				Main.RefreshTimers(Game.GetPlayer().GetCurrentLocation())
 			EndIf
@@ -1519,6 +1662,14 @@ Event OnOptionSelect(int o)
 		Else
 			ForceRoadNow(Main.K_BUNNYFIGHT, "Killer Rabbit vs Vigilants")
 		EndIf
+	ElseIf o == oForceCrWild
+		ForceRoadNow(Main.K_CRWILD, "Wild creature")
+	ElseIf o == oForceWolf
+		ForceRoadNow(Main.K_WEREWOLF, "Werewolf")
+	ElseIf o == oForceBeast
+		Main.ForceBeastOffer()
+		ShowMessage("Beast form choice forced (no chance roll). In werewolf or vampire lord form it appears a few seconds after this menu closes; otherwise on your next transformation. It still needs someone to take or claim and an installed Beast Form scene.", false)
+		ForcePageReset()
 	ElseIf o == oForceBetrayal
 		SetForce(Main.K_BETRAYAL, "follower betrayal")
 	ElseIf o == oForceVampire
@@ -1789,7 +1940,7 @@ string Function Hint(string k)
 	ElseIf k == "travel"
 		return "OFF by default. Robbers on the road (one roll per game hour outdoors, plus waiting). Stolen gold goes into the robber's pockets and can be taken back."
 	ElseIf k == "savior"
-		return "OFF by default. Rare wilderness-road event: a bandit is raping a traveling merchant or traveler (adults only, spawned copies, never quest NPCs). You can watch, join in, or rescue them. SkyrimNet is told plainly what is happening and what you chose. Does not fire in interiors, towns, or near unique essential NPCs. Master switch, panic key and the no-children rule still apply."
+		return "OFF by default. Rare wilderness-road event: a bandit is forcefully taking a traveling merchant or traveler (adults only, spawned copies, never quest NPCs). You can watch, join in, or rescue them. SkyrimNet is told plainly what is happening and what you chose. Does not fire in interiors, towns, or near unique essential NPCs. Master switch, panic key and the no-children rule still apply."
 	ElseIf k == "saviorch"
 		return "Chance per game hour on a wilderness road, and per hour waited outdoors. 0 = never."
 	ElseIf k == "bunnyfight"
@@ -1826,6 +1977,36 @@ string Function Hint(string k)
 		return "OFF by default. While you sleep a vampire may wake you with a love scene. With Blood and OStim it is a feeding scene. Never children."
 	ElseIf k == "darkinfect"
 		return "Afterwards you contract vampirism (through Sacrosanct when installed). Immune to disease, or already a vampire: nothing infectious happens."
+	ElseIf k == "joinin"
+		return "OFF by default. When you find your spouse or a companion in a consensual scene from this mod (cheating spouse, shared inn room, bathing), you can watch, join in, or stop them. Joining starts a three-person scene. Never for forced scenes, never for creature scenes. SkyrimNet is told plainly that you walked in and joined."
+	ElseIf k == "joinch"
+		return "Chance the Join in choice is offered when it is possible. 100 = always."
+	ElseIf k == "jointake"
+		return "ON (default): if no installed three-person scene fits, you take the other partner's place instead. OFF: you can only watch."
+	ElseIf k == "crwild"
+		return "OFF by default. Needs OCreatures. Rare wilderness-road event: a creature is forcefully taking a spawned traveler, your spouse / a companion, or you. You can watch or rescue. Only creature types with installed scenes, never draugr or falmer outdoors, and werewolves are left to the Beast Form page when OStim Beast Form is installed. Never children."
+	ElseIf k == "crwildch"
+		return "Chance per game hour on a wilderness road, and per hour waited outdoors. 0 = never."
+	ElseIf k == "crwildplayer" || k == "wolfplayer"
+		return "OFF by default. ON: you can be the victim too."
+	ElseIf k == "crwildtrav" || k == "wolftrav"
+		return "A spawned adult traveler (never a quest NPC). You can watch or rescue them."
+	ElseIf k == "crwildcomp" || k == "wolfcomp"
+		return "Your spouse first when nearby, else a follower who is not protected. You can watch or rescue them."
+	ElseIf k == "wolfnight"
+		return "OFF by default. Needs OStim Beast Form and its scenes. At night (20:00-05:00) on a wilderness road, a werewolf may be aggressively taking a spawned traveler, your spouse / a companion, or you. You can watch or rescue. Not while you are in beast form yourself. Never children."
+	ElseIf k == "wolfch"
+		return "Chance per night game hour on a wilderness road, and per night hour waited outdoors. 0 = never."
+	ElseIf k == "beastoffer"
+		return "OFF by default. Needs OStim Beast Form and its scenes. A short while after you turn into a werewolf or vampire lord (once per transformation), you may get a choice. Scenes start on Beast Form's own start scenes. Master switch and panic key apply."
+	ElseIf k == "beastch"
+		return "Chance per transformation that a choice is offered (if someone fits)."
+	ElseIf k == "beastprey"
+		return "A hostile adult nearby who is down or badly hurt (a bandit you just beat): you can forcefully take them."
+	ElseIf k == "beastpreyspawn"
+		return "Werewolf form in the wilderness with nobody beaten nearby: a bandit who ambushed you lies beaten at your feet."
+	ElseIf k == "beastclaim"
+		return "Your spouse, or a companion who is willing (SkyrimNet's decision model from their bio when available, else relationship rank), gives themselves to the beast. Consensual."
 	ElseIf k == "fauna"
 		return "Easter egg, Off by default. After your climax, a ring of rabbits may appear and come for you, with a cloud of butterflies. The third option uses Mihail's Killer Rabbit of Caerbannog when that mod is installed; his files are not included. The master switch and panic key stop it too."
 	EndIf
@@ -1860,3 +2041,8 @@ Event OnOptionHighlight(int o)
 		EndIf
 	EndIf
 EndEvent
+
+; 1.0 (appended)
+int oForceCrWild
+int oForceWolf
+int oForceBeast
