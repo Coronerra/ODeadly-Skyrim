@@ -8492,6 +8492,8 @@ bool Property bPathoAnyNPC = false Auto Hidden          ; OFF: followers and spo
 int Property iPathoCap = 5 Auto Hidden                  ; most NPCs infected by this mod at once (1-10)
 bool Property bPathoTransform = true Auto Hidden        ; infected werewolves change in night fights
 bool Property bForcePatho = false Auto Hidden           ; debug: next eligible partner is infected
+bool Property bPathoNotify = true Auto Hidden          ; 1.0.1: on-screen note when someone is infected
+bool Property bPathoProtectedOK = false Auto Hidden    ; 1.0.1: ON = the Protected followers list does not block infection
 Quest Property ODS_PathoQuest Auto
 
 Actor[] kPatho
@@ -8648,31 +8650,64 @@ Spell Function GrowlNPCSpell()
 EndFunction
 
 bool Function PathoEligible(Actor a)
-	If a == None || a == PlayerRef || a.IsDead() || IsMinor(a) || !IsHumanoid(a) || IsBeastForm(a) || IsSpawned(a)
-		return false
+	return PathoWhyNot(a) == ""
+EndFunction
+
+; 1.0.1: "" = can be infected, otherwise the reason (Papyrus log, and on screen with Debug notifications)
+string Function PathoWhyNot(Actor a)
+	If a == None || a == PlayerRef
+		return "not a partner"
+	EndIf
+	If a.IsDead()
+		return "dead"
+	EndIf
+	If IsMinor(a)
+		return "child"
+	EndIf
+	If !IsHumanoid(a)
+		return "not a humanoid race"
+	EndIf
+	If IsBeastForm(a)
+		return "in beast form"
+	EndIf
+	If IsSpawned(a)
+		return "spawned by this mod"
 	EndIf
 	Keyword npc = Keyword.GetKeyword("ActorTypeNPC")
 	If npc && !a.HasKeyword(npc)
-		return false
+		return "no ActorTypeNPC keyword"
 	EndIf
-	If a.IsEssential() || IsProtected(a)        ; essential / quest-flagged, and the MCM protected list
-		return false
+	bool close = IsFollowerActor(a) || IsSpouse(a)
+	If !bPathoAnyNPC && !close
+		return "not detected as a follower or spouse (turn on 'Any eligible NPC' to skip this check)"
 	EndIf
-	If !bPathoAnyNPC && !(IsFollowerActor(a) || IsSpouse(a))
-		return false
+	If a.IsEssential() && !close
+		return "essential"          ; 1.0.1: your own follower / spouse may be essential; sex never kills, so that no longer blocks it
 	EndIf
-	If PathoIndex(a) >= 0 || IsVampire(a) || PathoFactionBlocked(a)
-		return false
+	If IsProtected(a) && !(close && bPathoProtectedOK)
+		return "on the Protected followers list (or Serana protection)"
+	EndIf
+	If PathoIndex(a) >= 0
+		return "already infected by this mod"
+	EndIf
+	If IsVampire(a)
+		return "already a vampire (Vampire keyword or vampire race)"
+	EndIf
+	If PathoFactionBlocked(a)
+		return "Companions' Circle, Volkihar, Dawnguard, or already in the werewolf / vampire faction"
 	EndIf
 	Spell gs = GrowlNPCSpell()
 	If gs && a.HasSpell(gs)
-		return false
+		return "already has Growl's beastblood"
 	EndIf
 	int cap = iPathoCap
 	If cap > 10
 		cap = 10
 	EndIf
-	return PathoCount() < cap
+	If PathoCount() >= cap
+		return "limit reached (" + cap + " infected)"
+	EndIf
+	return ""
 EndFunction
 
 ; ---------- triggers: OnOStimThreadStart / OnOStimThreadEnd ----------
@@ -8686,8 +8721,10 @@ Function PathoSceneStart(int id)
 	EndIf
 	int kind = PlayerDiseaseKind()
 	If kind == 0
+		Log("pathogen: no lycanthropy or vampirism found on you (PlayerIsWerewolf " + GlobalNow(0x000ED06C) + ", PlayerIsVampire " + GlobalNow(0x000ED06D) + ") - nothing to pass on")
 		return
 	EndIf
+	Log("pathogen: scene " + id + " tracked (" + DiseaseWord(kind) + ", beast form " + PlayerIsBeast() + ")")
 	iPathoThread = id
 	iPathoThreadKind = kind
 	bPathoThreadBeast = PlayerIsBeast()
@@ -8714,10 +8751,18 @@ Function PathoSceneEnd(int id)
 	int i = 0
 	While i < acts.Length
 		Actor a = acts[i]
-		If a && a != PlayerRef && PathoEligible(a)
-			If bForcePatho || Utility.RandomFloat(0.0, 100.0) < ch
-				bForcePatho = false
-				PathoInfect(a, kind)
+		If a && a != PlayerRef
+			string why = PathoWhyNot(a)
+			If why != ""
+				Log("pathogen: " + a.GetDisplayName() + " can't be infected: " + why)
+			Else
+				float r = Utility.RandomFloat(0.0, 100.0)
+				If bForcePatho || r < ch
+					bForcePatho = false
+					PathoInfect(a, kind)
+				Else
+					Log("pathogen: " + a.GetDisplayName() + " not infected this time (rolled " + (r as int) + ", needed under " + (ch as int) + ")")
+				EndIf
 			EndIf
 		EndIf
 		i += 1
@@ -8759,6 +8804,9 @@ Function PathoInfect(Actor a, int kind)
 	EndIf
 	TalkNet(t, a, PlayerRef, true, true)
 	Log("pathogen: " + an + " infected with " + DiseaseWord(kind))
+	If bPathoNotify && !bDebug
+		Debug.Notification(an + " caught " + DiseaseWord(kind) + " from you.")
+	EndIf
 	If bMaster
 		ScheduleGameTime()
 	EndIf

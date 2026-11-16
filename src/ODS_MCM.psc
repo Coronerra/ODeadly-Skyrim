@@ -60,12 +60,12 @@ int oForceSavior
 int oForceBunnyFight
 
 int Function GetVersion()
-	return 11
+	return 12
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11)
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11), pathogen notify / protected options (v12)
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -350,6 +350,10 @@ bool Function GetB(string k)
 		return Main.bPathoAnyNPC
 	ElseIf k == "pathotf"
 		return Main.bPathoTransform
+	ElseIf k == "pathonote"
+		return Main.bPathoNotify
+	ElseIf k == "pathoprot"
+		return Main.bPathoProtectedOK
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -560,6 +564,10 @@ Function SetB(string k, bool v)
 		Main.bPathoAnyNPC = v
 	ElseIf k == "pathotf"
 		Main.bPathoTransform = v
+	ElseIf k == "pathonote"
+		Main.bPathoNotify = v
+	ElseIf k == "pathoprot"
+		Main.bPathoProtectedOK = v
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -1491,6 +1499,8 @@ Function PageMore()
 	AddT("Any eligible NPC (off = followers, spouse)", "pathoany", bp)
 	AddS("Most NPCs infected at once", "pathocap", bp)
 	AddT("Infected werewolves change in night fights", "pathotf", bp)
+	AddT("Tell me when someone is infected", "pathonote", bp)
+	AddT("Protected followers / spouse can still catch it", "pathoprot", bp)
 	AddTextOption("  Infected: " + Main.PathoListText(), "", OPTION_FLAG_DISABLED)
 	oPathoCureAll = AddTextOption("Cure everyone this mod infected", "", Flag(Main.PathoCount() > 0))
 	AddTextOption("  Growl (followers use its beastblood)", YesNo(Main.ModLoaded("Growl - Werebeasts of Skyrim.esp")), OPTION_FLAG_DISABLED)
@@ -2155,7 +2165,7 @@ string Function Hint(string k)
 	ElseIf k == "heatmax"
 		return "Most werewolves that can come (1-3, so up to 4 werewolves in the scene). Counts without installed scenes are never offered."
 	ElseIf k == "patho"
-		return "OFF by default. If you are a werewolf or vampire (vanilla, Growl, Sacrosanct) and finish an OStim scene with an adult human partner, you may pass it on. About 3 game days of incubation with symptoms; a Cure Disease potion (given to them or in their pack) stops it in that time. Then they are a werewolf or a vampire, and SkyrimNet tells them plainly it was you. Never children, essential or protected NPCs, the Companions' Circle, Volkihar or Dawnguard, or anyone already infected."
+		return "OFF by default. If you are a werewolf or vampire (vanilla, Growl, Sacrosanct) and finish an OStim scene with an adult human partner, you may pass it on. About 3 game days of incubation with symptoms; a Cure Disease potion (given to them or in their pack) stops it in that time. Then they are a werewolf or a vampire, and SkyrimNet tells them plainly it was you. Never children, essential NPCs who are not your follower or spouse, protected followers (unless you allow it below), the Companions' Circle, Volkihar or Dawnguard, or anyone already infected."
 	ElseIf k == "pathoch"
 		return "Chance per adult partner per scene. 0 = never."
 	ElseIf k == "pathobeastch"
@@ -2164,6 +2174,10 @@ string Function Hint(string k)
 		return "OFF (default): only your followers and your spouse. ON: any eligible adult NPC, up to the cap."
 	ElseIf k == "pathocap"
 		return "Most NPCs infected by this mod at the same time (incubating or turned). Default 5."
+	ElseIf k == "pathonote"
+		return "ON (default): a short note on screen when a partner catches it from you, for example 'Sevia caught lycanthropy from you.' With Debug notifications on you also see why someone could not be infected and each roll."
+	ElseIf k == "pathoprot"
+		return "OFF (default): followers on the Protected followers page are never infected. ON: your own followers and spouse on that list can still catch it from you (they stay protected from everything else). Essential followers and spouses can always catch it."
 	ElseIf k == "pathotf"
 		return "Infected werewolves turn into a werewolf in beast form when a fight starts at night, for about 30 seconds, then change back; 90 second cooldown. Never on furniture or a mount, and always changed back on load. Followers with Growl installed use Growl's own beastblood instead."
 	ElseIf k == "sat"
