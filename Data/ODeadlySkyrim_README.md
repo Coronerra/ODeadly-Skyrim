@@ -10,7 +10,7 @@ Skyrim SE / AE · ESL-flagged plugin · Adults only
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
 
-Version 1.0 (`ODeadly_Skyrim_1.0.zip`) adds three optional modules, all off by default: **Join in** (walk in on your spouse or a companion in a consensual scene and join them), **wild creatures** on the road (needs OCreatures), and **OStim Beast Form** support (werewolves at night, choices when you transform, and Bitch in Heat: other werewolves drawn to a werewolf scene). See [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form).
+Version 1.0 (`ODeadly_Skyrim_1.0.zip`) adds three optional modules, all off by default: **Join in** (walk in on your spouse or a companion in a consensual scene and join them), **wild creatures** on the road (needs OCreatures), **OStim Beast Form** support (werewolves at night, choices when you transform, and Bitch in Heat: other werewolves drawn to a werewolf scene), **Blood Born Pathogen** (a werewolf or vampire player can pass it on through sex) and **Saturalia** (needs the Saturalia Holiday Pack). See [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form).
 
 Version 0.9 added two optional wilderness-road events, both off by default: Savior Complex (a bandit is forcefully taking a traveler; you can watch, join in, or rescue them) and Killer Rabbit vs Vigilants of Stendarr (two Vigilants are losing to a Killer Rabbit; you can kill it and save them). The rabbit event needs Mihail's Killer Rabbit of Caerbannog. See [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants).
 
@@ -122,6 +122,8 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **SkyrimNet** (recommended): start narration, memories, rumours, blackmail, named places (beta 29+), and "would this character do it?" checks against their bio (beta 28+, needs a SkyrimNet decisions provider). Without SkyrimNet the engine still runs, using a built-in character filter instead of bios.
 - **OCreatures** + creature scene packs: unlocks the Creatures page, including the 1.0 wild creature road events. Locked off without it.
 - **OStim Beast Form** (1.0, tested against 0.8, either the Growl or the TWO edition): unlocks the Beast Form page (werewolves at night, choices when you transform). O'Deadly checks for the plugin and for Beast Form's own start scenes; without them the page is locked. None of its files are included.
+- **Saturalia Holiday Pack** (1.0, Creation Club `ccvsvsse001-winter.esl`): unlocks the Saturalia countdown and Agrane Peryval's gifts.
+- **Growl - Werebeasts of Skyrim** (1.0): followers infected with lycanthropy by Blood Born Pathogen get Growl's own follower beastblood. Detection of a werewolf / vampire player also works with vanilla and Sacrosanct.
 - **OCum**: messier memories.
 - **ZaZ Animation Pack**: jail scenes prefer restraint scenes; made-to-watch narration.
 - **OStimNet / OStim Navigator**: better scene tags.
@@ -165,7 +167,7 @@ Every module goes through the same steps, one event at a time:
 7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not. Pressing **E** on a victim always counts as a rescue and breaks the scene on purpose. To just talk to someone in a scene, use SkyrimNet's talk / voice input instead; it does not interrupt the scene.
 8. Afterwards: spawned actors leave and are cleaned up, a mod event fires (`ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`), SkyrimNet stores a memory. There are no forgive / confront menus: SkyrimNet and you decide what happens next.
 
-No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers (1.0 Bitch in Heat: the summoned werewolves only react to their own combat, hit and race events, plus one bounded walk-in / walk-away each; 1.0: after you transform into beast form, at most 12 single-update checks about 10 seconds apart, only while the Beast Form choices are on). The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
+No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers (1.0 Saturalia and Blood Born Pathogen incubation ride the same single game-time timer; infected NPCs only react to their own combat start, death and a Cure Disease potion being added, plus one single update to change back; Agrane's gift walk is one bounded walk per visit. 1.0 Bitch in Heat: the summoned werewolves only react to their own combat, hit and race events, plus one bounded walk-in / walk-away each; 1.0: after you transform into beast form, at most 12 single-update checks about 10 seconds apart, only while the Beast Form choices are on). The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
 
 If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use SkyrimNet named places. A tagged place wins over vanilla keywords, so you can mark a rented inn room as a player home, or tag a custom cell as a jail or barracks. Untagged spots fall back to normal Skyrim location keywords and cell names.
 
@@ -193,6 +195,8 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Werewolves at night (1.0) | OFF, locked without OStim Beast Form | 3% per night hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
 | Beast form choices (1.0) | OFF, locked without OStim Beast Form | 50% per transformation: take a beaten bandit, or claim a willing spouse / companion. |
 | Bitch in Heat (1.0) | OFF, locked without OStim Beast Form | 25% per scene between a male werewolf in beast form and a human with you in it: 1-3 more werewolves join (ask or automatic, max 3). |
+| Blood Born Pathogen (1.0) | OFF | 10% per partner (35% in beast / vampire lord form) when you are a werewolf or vampire. Followers and spouse only by default; any NPC option with a cap of 5. ~3 days incubation, Cure Disease stops it. |
+| Saturalia (1.0) | OFF, locked without the Saturalia Holiday Pack | Countdown 22-24 Evening Star; on the 25th Agrane Peryval hands out gifts in towns and inns (3 visits). |
 | Vampire seduction | OFF | |
 | Blackmail / public rumours | OFF | Need SkyrimNet. |
 | OCum memories | OFF, locked without OCum | |
@@ -353,7 +357,26 @@ Three new modules. Each one is **OFF by default**, has its own MCM toggles and c
 - You choose how many come (1-3), or let it pick for you (MCM: ask or automatic, plus a maximum). Only counts that have an installed scene for that cast are offered: Beast Form's multi-werewolf scenes and Werewolf and Vampire Lord OStim's two-, three- and four-werewolf scenes (female and male human versions). The human is always the centre; if your partner is not human (for example two werewolves), nothing is offered.
 - The newcomers are always in werewolf beast form (checked before they are used and again before the scene starts; otherwise the event is skipped). They are never hostile: they arrive from out of sight, walk in, the current scene ends and a bigger one starts with the same human, and afterwards they walk away and vanish once out of sight. They never attack you, your followers or anyone else before, during or after.
 
-Updating from 0.9: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged; 1.0 only adds new records (message boxes, the Bitch in Heat faction, list, switches and helper quest). All new options stay off until you turn them on. MCM `GetVersion` 10 (the pages rebuild, and a new "Beast Form" page appears). SkyrimNet pack 1.0.0 adds a second decision template (`would_consent`).
+### Blood Born Pathogen (MCM > More encounters)
+
+- **OFF by default**, own toggle and two chance sliders (10% per partner per scene, 35% while you are in werewolf or vampire lord form). Master switch and panic key apply. Adults only.
+- If you are a werewolf or a vampire (vanilla, Growl or Sacrosanct) and finish an OStim scene with an adult human partner, you can pass it on. By default only your followers and your spouse can catch it; an option allows any eligible NPC, with a cap (5 by default, at most 10).
+- Never children, essential or protected NPCs (including the MCM protected list), the Companions' Circle, the Volkihar clan or the Dawnguard, or anyone who already is a werewolf or vampire.
+- About 3 game days of incubation with symptom updates. A potion of Cure Disease, given to them (or already in their pack when the next update comes), stops it during that time.
+- **Lycanthropy:** they become a werewolf. In a fight at night they can turn into a werewolf in full beast form (Beast Form's body if you use it) for about 30 seconds, then change back, with a 90 second cooldown. Never while sitting, sleeping or riding, and anyone still changed is turned back on load and by the panic key. With Growl installed, a follower gets Growl's own beastblood instead and Growl handles their changes.
+- **Vampirism:** no race change. They join the vampire faction and the sun burns them.
+- SkyrimNet is told plainly at every step (infection, symptoms, turning, first change) that you, by name, passed it to them through sex, and it becomes part of their memories and bio, so they can bring it up with you.
+- MCM: a list of who is infected, and a button to cure everyone this mod infected.
+
+### Saturalia (MCM > More encounters, needs the Saturalia Holiday Pack)
+
+- **OFF by default**, locked without the Creation Club Saturalia Holiday Pack (`ccvsvsse001-winter.esl`). Not a master; none of its files are included.
+- 22, 23 and 24 Evening Star: once a day, SkyrimNet hears that Saturalia is 3, 2, then 1 day away (and on the 25th, that it is Saturalia).
+- 25 Evening Star, 08:00-21:00: a few times (3 by default) when you are out of combat in a town, city, settlement, inn or shop, Agrane Peryval, the merchant from the camp north of Windward Ruins, comes from just out of sight and hands 1-3 adults nearby a small gift (a sweetroll, mead, a gem or a Saturalia hat). SkyrimNet is told, so they can react.
+- At midnight (or on the next load after the 25th) he goes back to his camp. Works every year. Never during combat, never into jails, dungeons, castles or homes.
+- Uses the same timer the mod already has; nothing polls.
+
+Updating from 0.9: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged; 1.0 only adds new records (message boxes, the Bitch in Heat faction, list, switches and helper quest, and two helper quests for Saturalia and Blood Born Pathogen). All new options stay off until you turn them on. MCM `GetVersion` 11 (the pages rebuild, and a new "Beast Form" page appears). SkyrimNet pack 1.0.0 adds a second decision template (`would_consent`).
 
 ## New in 0.9 (Savior Complex and Killer Rabbit vs Vigilants)
 
@@ -464,7 +487,9 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 12. 1.0 wild creatures (OCreatures) and werewolves at night (OStim Beast Form): turn them on, then use Debug > "Wild creature" / "Werewolf (now if on a road)" on a wilderness road (werewolves need night). Confirm watch, rescue, the narration, and that the panic key removes the spawns.
 13. 1.0 beast form choices (OStim Beast Form): turn them on, press Debug > "Beast form choice", then transform (or press it while transformed). Confirm the take / claim box and that the scene opens on Beast Form's start scene.
 14. 1.0 Bitch in Heat (OStim Beast Form + multi-werewolf scenes): turn it on, press Debug > "Bitch in Heat", then start a beast-form scene with a human outdoors. Confirm the how-many box, that the newcomers are werewolves in beast form, never hostile, that the bigger scene starts with the same human, that they walk off and vanish afterwards, and that the panic key removes them.
-15. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+15. 1.0 Blood Born Pathogen: as a werewolf or vampire, turn it on (More encounters), press Debug > "Blood Born Pathogen" and finish a scene with a follower. Wait or sleep through about 3 game days and confirm the symptom narration names you, that a Cure Disease potion given during that time stops it, and (lycanthropy) that they change in a night fight and change back after about 30 seconds.
+16. 1.0 Saturalia (Saturalia Holiday Pack): turn it on, stand in a town or inn with adults around and press Debug > "Saturalia gift visit". Agrane should walk up from out of sight and hand out gifts, then be back at his camp a couple of game hours later.
+17. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
 ## Known limits
 
@@ -488,6 +513,8 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Wild creatures and werewolves need installed scenes for the exact pair; no scene means nothing happens and the spawns are removed. The werewolf is a vanilla werewolf template; if it does not come out in beast form on your setup, the event is skipped.
 - Beast form choices appear a few seconds after the transformation, once you are out of combat. Vanilla beast form has a timer; if you change back mid-scene, how that plays is up to OStim Beast Form.
 - Bitch in Heat needs a scene for that exact cast (werewolves first, the human last). The walk-in is capped at 25 seconds; after that OStim places everyone. The newcomers walk off after the scene and are removed once out of sight (at the latest after half a game hour).
+- Blood Born Pathogen: the werewolf change is a direct race change without a transformation animation, and how armor looks during it depends on your body and Beast Form setup. Vampires get no eye change and no vampire lord form. Followers with Growl use Growl's own beastblood. Up to 10 infected NPCs at a time.
+- Saturalia: Agrane is placed on the navmesh just out of sight; in small interiors he may appear in the next room. If a fight starts he stops handing out gifts.
 - Killer Rabbit vs Vigilants is locked without Mihail's The Killer Rabbit of Caerbannog. The rabbit is as strong as his race makes it; two generic Vigilants are expected to lose without help.
 
 ## Repository contents
@@ -511,6 +538,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Optional 0.3 listeners for Lirael's [OStim Kidnapped Redux](https://www.patreon.com/posts/175042213) (an OStim conversion of SexLab Kidnapped Redux by vinfamy) and Lirael's [ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196) use only their documented / public mod events. Thanks to [Lirael](https://www.patreon.com/LiraelAtelier) and vinfamy; none of their files are included and neither is a master.
 - Optional 0.4 Climax fauna support and the 0.9 Killer Rabbit vs Vigilants road event for Mihail's [The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) use only a runtime check for `mihailkillerbunny.esp` and his killer-rabbit race (vanilla hares are reskinned; his unique cave rabbit is never copied). Thanks to Mihail; none of his files are included, and his plugin is not a master.
 - Optional 1.0 support for OCreatures and OStim Beast Form uses only runtime plugin checks and their OStim scene IDs. Thanks to their authors; none of their files are included, and neither is a master.
+- Optional 1.0 Saturalia support uses only a runtime check for Bethesda's Creation Club Saturalia Holiday Pack and its merchant's reference; Blood Born Pathogen hands followers to Growl's own follower beastblood ability (by Simon Magus) when Growl is installed. None of their files are included, and neither is a master.
 - Optional 0.5 listener for [Baka Defeat – OStim Edition](https://www.patreon.com/posts/173783288) uses only its own mod events and a runtime check for `SexLabDefeat.esp`. OStim conversion by Lauffey, released on [Lirael Atelier's Patreon](https://www.patreon.com/LiraelAtelier); original SexLab Defeat by Goubo; Baka Edition by BakaFactory. Thanks to all of them; none of their files are included, and the plugin is not a master.
 
 ## Other work

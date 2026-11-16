@@ -79,7 +79,8 @@ main_props = [pobj('PlayerRef', 0x14),
     pobj('PlayerWerewolfFaction', 0x91822), pobj('PlayerFollowerFaction', 0x84D1B),
     pobj('ODS_HeatAllow1', OWN | 0x826), pobj('ODS_HeatAllow2', OWN | 0x827), pobj('ODS_HeatAllow3', OWN | 0x828),
     pobj('ODS_HeatChoice', OWN | 0x829), pobj('ODS_HeatQuest', OWN | 0x82A),
-    pobj('HeatWolf1Alias', OWN | 0x82A, 0), pobj('HeatWolf2Alias', OWN | 0x82A, 1), pobj('HeatWolf3Alias', OWN | 0x82A, 2)]
+    pobj('HeatWolf1Alias', OWN | 0x82A, 0), pobj('HeatWolf2Alias', OWN | 0x82A, 1), pobj('HeatWolf3Alias', OWN | 0x82A, 2)] + [  # 1.0 Saturalia / Blood Born Pathogen
+    pobj('ODS_SatQuest', OWN | 0x82B), pobj('SatAgraneAlias', OWN | 0x82B, 0), pobj('ODS_PathoQuest', OWN | 0x82C)]
 v_main = vmad_quest([script('ODS_Main', main_props)],
     [(aid, MAINQ, [script(sc, [])]) for aid, _, _, _, sc in aliases if sc])
 alias_subs = []
@@ -138,11 +139,25 @@ qheat = rec('QUST', HEATQ, [sub('EDID', z('ODS_HeatQuest')), sub('VMAD', v_heat)
     sub('DNAM', bytes.fromhex('00003cff0000000000000000')), sub('NEXT', b''),
     sub('ANAM', struct.pack('<I', 3))] + heat_alias_subs)
 heat_recs = 1 + 1 + 3 + 1 + 1
+# 1.0 Saturalia (0x82B) and Blood Born Pathogen (0x82C): appended quests, aliases filled at runtime
+SATQ, PATHOQ = OWN | 0x82B, OWN | 0x82C
+v_sat = vmad_quest([], [(0, SATQ, [script('ODS_SatAlias', [pobj('Main', MAINQ)])])])
+qsat = rec('QUST', SATQ, [sub('EDID', z('ODS_SatQuest')), sub('VMAD', v_sat), sub('FULL', z("O'Deadly Skyrim Saturalia")),
+    sub('DNAM', bytes.fromhex('00003cff0000000000000000')), sub('NEXT', b''),
+    sub('ANAM', struct.pack('<I', 1))] + alias(0, 'Agrane', STAGE))
+v_patho = vmad_quest([], [(i, PATHOQ, [script('ODS_PathoAlias', [pobj('Main', MAINQ)])]) for i in range(10)])
+patho_alias_subs = []
+for i in range(10):
+    patho_alias_subs += alias(i, 'Infected%d' % (i + 1), STAGE)
+qpatho = rec('QUST', PATHOQ, [sub('EDID', z('ODS_PathoQuest')), sub('VMAD', v_patho), sub('FULL', z("O'Deadly Skyrim bloodlines")),
+    sub('DNAM', bytes.fromhex('00003cff0000000000000000')), sub('NEXT', b''),
+    sub('ANAM', struct.pack('<I', 10))] + patho_alias_subs)
+heat_recs += 2
 nrec = 2 + len(fl) + 1 + len(msgs10) + heat_recs
-hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x82B)), sub('CNAM', z('That Guy (Coronerra)')),
+hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x82D)), sub('CNAM', z('That Guy (Coronerra)')),
     sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v1.0. By That Guy (Coronerra).")),
     sub('MAST', z('Skyrim.esm')), sub('DATA', struct.pack('<Q', 0))], flags=0x200)
 out = sys.argv[1] if len(sys.argv) > 1 else 'ODeadlySkyrim.esp'
-open(out, 'wb').write(hdr + grup('GLOB', heat_globs) + grup('FACT', [heat_fact]) + grup('QUST', [qmain, qmcm, qheat]) +
+open(out, 'wb').write(hdr + grup('GLOB', heat_globs) + grup('FACT', [heat_fact]) + grup('QUST', [qmain, qmcm, qheat, qsat, qpatho]) +
     grup('FLST', fl + [heat_pool]) + grup('MESG', [savior_msg] + msgs10 + [heat_msg]))
 print('wrote', out, 'records', nrec)

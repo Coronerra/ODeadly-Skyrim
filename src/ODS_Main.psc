@@ -535,6 +535,9 @@ Function OnGameLoaded()
 	InitArrays()
 	Register()
 	HeatOnLoad()         ; 1.0
+	PathoInitArrays()    ; 1.0 Blood Born Pathogen
+	PathoOnLoad()
+	SatOnLoad()          ; 1.0 Saturalia
 	If bRescueOn
 		RescueRelease(false)
 	EndIf
@@ -771,6 +774,8 @@ EndFunction
 Function AbortAll()
 	RescueRelease(false)
 	HeatAbort()          ; 1.0
+	SatSendHome()        ; 1.0 Saturalia: Agrane goes back to his camp
+	PathoRevertAll()     ; 1.0: nobody stays in beast form
 	bAftermathDone = true
 	int t = iThread
 	int t2 = iThread2
@@ -3683,6 +3688,7 @@ EndFunction
 
 ; ======================= OStim events =======================
 Event OnOStimThreadEnd(string eventName, string strArgs, float numArg, Form sender)
+	PathoSceneEnd(numArg as int)       ; 1.0 Blood Born Pathogen (off by default)
 	If fODefUntil > 0.0
 		ODefSceneEnded(strArgs)
 	EndIf
@@ -3734,6 +3740,7 @@ EndEvent
 
 ; another mod's OStim scene with the player: the spouse or a follower may walk in on it
 Event OnOStimThreadStart(string eventName, string strArgs, float numArg, Form sender)
+	PathoSceneStart(numArg as int)     ; 1.0 Blood Born Pathogen (off by default)
 	If bRescueOn
 		return       ; mid-battle: no walk-ins or distant watchers on top of a rescue
 	EndIf
@@ -4132,6 +4139,13 @@ Function RefreshTimers(Location akNew)
 	Else
 		fTravelDue = -1.0
 	EndIf
+	If SatWanted()          ; 1.0 Saturalia rides the same timer
+		If fSatDue < 0.0
+			fSatDue = now + 0.05 / 24.0
+		EndIf
+	ElseIf !bSatAway
+		fSatDue = -1.0
+	EndIf
 	ScheduleGameTime()
 EndFunction
 
@@ -4144,6 +4158,13 @@ Function ScheduleGameTime()
 	EndIf
 	If fTravelDue > 0.0 && (due < 0.0 || fTravelDue < due)
 		due = fTravelDue
+	EndIf
+	If fSatDue > 0.0 && (due < 0.0 || fSatDue < due)       ; 1.0 Saturalia
+		due = fSatDue
+	EndIf
+	float pd = PathoNextDue()                               ; 1.0 Blood Born Pathogen incubation
+	If pd > 0.0 && (due < 0.0 || pd < due)
+		due = pd
 	EndIf
 	If due > 0.0
 		float hrs = (due - now) * 24.0
@@ -4161,6 +4182,13 @@ Event OnUpdateGameTime()
 	EndIf
 	float now = Utility.GetCurrentGameTime()
 	int kind = 0
+	If fSatDue > 0.0 && now >= fSatDue          ; 1.0 Saturalia
+		SatTick()
+	EndIf
+	float pd = PathoNextDue()                   ; 1.0 Blood Born Pathogen
+	If pd > 0.0 && now >= pd
+		PathoTick()
+	EndIf
 	If fLingerDue > 0.0 && now >= fLingerDue
 		fLingerDue = -1.0
 		If bJailEnabled && InJailOrBarracks()
@@ -8108,4 +8136,950 @@ Function HeatOnLoad()
 	iHeatThread = -1
 	HeatDeleteAll()
 	HeatFinish()
+EndFunction
+
+; =====================================================================================
+; 1.0: Saturalia (soft: Saturalia Holiday Pack, ccvsvsse001-winter.esl). Off by default.
+; Runs on the existing single game-time timer (ScheduleGameTime); no new polling.
+; =====================================================================================
+bool Property bSaturalia = false Auto Hidden
+bool Property bSatCountdown = true Auto Hidden     ; 22-24 Evening Star: "Saturalia is N days away"
+bool Property bSatGifts = true Auto Hidden         ; 25 Evening Star: Agrane Peryval hands out gifts
+int Property iSatVisits = 3 Auto Hidden            ; gift visits on the day (1-5)
+bool Property bForceSat = false Auto Hidden        ; debug: next check makes a visit, date ignored
+Quest Property ODS_SatQuest Auto
+ReferenceAlias Property SatAgraneAlias Auto
+
+float fSatDue = -1.0
+int iSatCountKey = 0
+int iSatYear = -1
+int iSatVisitsDone = 0
+float fSatLastVisit = -1.0
+bool bSatAway = false
+bool bSatWalking = false
+float fSatWalkStart = -1.0
+Cell kSatHomeCell
+float fSatHomeX = 0.0
+float fSatHomeY = 0.0
+float fSatHomeZ = 0.0
+
+bool Function SatModOK()
+	return ModLoaded("ccvsvsse001-winter.esl")
+EndFunction
+
+Actor Function Agrane()
+	If !SatModOK()
+		return None
+	EndIf
+	return Game.GetFormFromFile(0x00000826, "ccvsvsse001-winter.esl") as Actor
+EndFunction
+
+bool Function SatWanted()
+	return bSaturalia && SatModOK() && (bSatCountdown || bSatGifts || bForceSat)
+EndFunction
+
+float Function GlobalNow(int fid)
+	GlobalVariable g = Game.GetFormFromFile(fid, "Skyrim.esm") as GlobalVariable
+	If g
+		return g.GetValue()
+	EndIf
+	return -1.0
+EndFunction
+
+; GameMonth (0x36) is zero-based (Evening Star = 11), GameDay (0x37) is the day of the month
+bool Function IsSatDay(int d)
+	return (GlobalNow(0x36) as int) == 11 && (GlobalNow(0x37) as int) == d
+EndFunction
+
+Function SatWorldEvent(string t)
+	If !SNetOK()
+		return
+	EndIf
+	SkyrimNetApi.RegisterShortLivedEvent("odeadly_saturalia", "world_event", t, "", 4320000, None, None)
+	If bSkyrimNetLog
+		SkyrimNetApi.RegisterPersistentEvent(t, None, None)
+	EndIf
+EndFunction
+
+Function SatTick()
+	fSatDue = -1.0
+	int m = GlobalNow(0x36) as int
+	int d = GlobalNow(0x37) as int
+	int y = GlobalNow(0x35) as int
+	float h = GlobalNow(0x38)
+	float now = Utility.GetCurrentGameTime()
+	bool day25 = m == 11 && d == 25
+	If bSatWalking && fSatWalkStart > 0.0 && now - fSatWalkStart > 1.5 / 24.0
+		SatVisitDone()          ; a walk that never finished
+	EndIf
+	If bSatAway && (!SatWanted() || (!day25 && !bForceSat))
+		Actor ag = Agrane()
+		If ag && ag.Is3DLoaded() && PlayerRef.HasLOS(ag) && h < 4.0 && SatWanted()
+			Log("saturalia: Agrane still in sight, sent home a little later")
+		Else
+			SatSendHome()
+		EndIf
+	EndIf
+	If !SatWanted()
+		return
+	EndIf
+	If bSatCountdown && m == 11 && d >= 22 && d <= 25
+		int k = y * 100 + d
+		If iSatCountKey != k
+			iSatCountKey = k
+			If d == 25
+				SatWorldEvent("Today is Saturalia, the midwinter festival of gifts and good cheer.")
+			ElseIf d == 24
+				SatWorldEvent("Saturalia is 1 day away. Tomorrow is Saturalia.")
+			Else
+				SatWorldEvent("Saturalia is " + (25 - d) + " days away.")
+			EndIf
+		EndIf
+	EndIf
+	If day25 && iSatYear != y
+		iSatYear = y
+		iSatVisitsDone = 0
+		fSatLastVisit = -1.0
+	EndIf
+	If bForceSat
+		SatTryVisit()
+	ElseIf day25 && bSatGifts && h >= 8.0 && h < 21.0 && iSatVisitsDone < iSatVisits
+		If fSatLastVisit < 0.0 || now - fSatLastVisit >= 2.5 / 24.0
+			SatTryVisit()
+		EndIf
+	EndIf
+	SatScheduleNext()
+EndFunction
+
+Function SatScheduleNext()
+	If !SatWanted() && !bSatAway
+		fSatDue = -1.0
+		return
+	EndIf
+	int m = GlobalNow(0x36) as int
+	int d = GlobalNow(0x37) as int
+	float h = GlobalNow(0x38)
+	float hrs = 6.0
+	If bSatAway && !(m == 11 && d == 25)
+		hrs = 2.0
+	ElseIf m == 11 && d == 25
+		If h >= 21.0 || iSatVisitsDone >= iSatVisits || !bSatGifts
+			hrs = 24.05 - h       ; just after midnight: he goes home
+		ElseIf h < 8.0
+			hrs = 8.0 - h + Utility.RandomFloat(0.0, 1.0)
+		Else
+			hrs = Utility.RandomFloat(1.5, 2.5)
+		EndIf
+	ElseIf m == 11 && d == 24
+		hrs = 24.05 - h
+		If hrs > 6.0
+			hrs = 6.0
+		EndIf
+	ElseIf m < 11 || d < 21
+		hrs = 12.0
+	EndIf
+	If hrs < 0.1
+		hrs = 0.1
+	EndIf
+	fSatDue = Utility.GetCurrentGameTime() + hrs / 24.0
+EndFunction
+
+; town, city or settlement outdoors; an inn or shop indoors. Never jails, dungeons, castles or homes.
+bool Function SatPlaceOK()
+	If PlayerRef.IsInCombat() || bBusy || OtherBusy(false) || bHeatOn || InJailOrBarracks()
+		return false
+	EndIf
+	Location loc = PlayerRef.GetCurrentLocation()
+	If loc == None
+		return false
+	EndIf
+	If HasKW(loc, "LocTypeJail") || HasKW(loc, "LocTypeDungeon") || HasKW(loc, "LocTypePlayerHouse") || HasKW(loc, "LocTypeCastle")
+		return false
+	EndIf
+	If PlayerRef.IsInInterior()
+		return HasKW(loc, "LocTypeInn") || HasKW(loc, "LocTypeStore")
+	EndIf
+	return TreeHasKW(loc, "LocTypeCity") || TreeHasKW(loc, "LocTypeTown") || TreeHasKW(loc, "LocTypeSettlement")
+EndFunction
+
+bool Function SatTargetOK(Actor a, Actor ag)
+	If a == None || a == PlayerRef || a == ag || a.IsDead() || a.IsDisabled() || a.IsInCombat() || a.IsUnconscious()
+		return false
+	EndIf
+	If a.IsHostileToActor(PlayerRef) || IsMinor(a) || !IsHumanoid(a) || IsBeastForm(a) || IsSpawned(a) || OActor.IsInOStim(a)
+		return false
+	EndIf
+	return a.GetSleepState() < 3
+EndFunction
+
+bool Function SatStillOK(Actor ag, Actor t)
+	return bMaster && bSaturalia && bSatWalking && ag && !ag.IsInCombat() && !PlayerRef.IsInCombat() && SatTargetOK(t, ag)
+EndFunction
+
+Form Function SatGift()
+	int r = Utility.RandomInt(0, 3)
+	Form f = None
+	If r == 3
+		f = Game.GetFormFromFile(0x00000806, "ccvsvsse001-winter.esl")     ; Saturalia hat
+	ElseIf r == 2
+		int g = Utility.RandomInt(0, 4)
+		If g == 0
+			f = Game.GetFormFromFile(0x00063B45, "Skyrim.esm")    ; garnet
+		ElseIf g == 1
+			f = Game.GetFormFromFile(0x00063B46, "Skyrim.esm")    ; amethyst
+		ElseIf g == 2
+			f = Game.GetFormFromFile(0x00063B42, "Skyrim.esm")    ; ruby
+		ElseIf g == 3
+			f = Game.GetFormFromFile(0x00063B44, "Skyrim.esm")    ; sapphire
+		Else
+			f = Game.GetFormFromFile(0x00063B43, "Skyrim.esm")    ; emerald
+		EndIf
+	ElseIf r == 1
+		If Utility.RandomInt(0, 1) == 0
+			f = Game.GetFormFromFile(0x00034C5D, "Skyrim.esm")    ; Nord mead
+		Else
+			f = Game.GetFormFromFile(0x0002C35A, "Skyrim.esm")    ; Black-Briar mead
+		EndIf
+	EndIf
+	If f == None
+		f = Game.GetFormFromFile(0x00064B3D, "Skyrim.esm")        ; sweetroll
+	EndIf
+	return f
+EndFunction
+
+Function SatTryVisit()
+	Actor ag = Agrane()
+	If ag == None || ag.IsDead() || ag.IsInCombat() || bSatWalking || ODS_SatQuest == None || SatAgraneAlias == None
+		return
+	EndIf
+	If !Ready() || !SatPlaceOK()
+		return
+	EndIf
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 2000.0, false, false, false)
+	If !near || near.Length == 0
+		return
+	EndIf
+	Actor[] picks = new Actor[3]
+	int want = Utility.RandomInt(1, 3)
+	int n = 0
+	int cnt = near.Length
+	int start = Utility.RandomInt(0, cnt - 1)
+	int i = 0
+	While i < cnt && n < want
+		Actor a = near[(start + i) % cnt]
+		If SatTargetOK(a, ag)
+			picks[n] = a
+			n += 1
+		EndIf
+		i += 1
+	EndWhile
+	If n == 0
+		return
+	EndIf
+	If !bSatAway
+		kSatHomeCell = ag.GetParentCell()      ; recorded before the first move
+		fSatHomeX = ag.GetPositionX()
+		fSatHomeY = ag.GetPositionY()
+		fSatHomeZ = ag.GetPositionZ()
+		bSatAway = true
+	EndIf
+	SatPlaceOutOfSight(ag)
+	If !ODS_SatQuest.IsRunning()
+		ODS_SatQuest.Start()
+	EndIf
+	SatAgraneAlias.ForceRefTo(ag)
+	bSatWalking = true
+	bForceSat = false
+	fSatWalkStart = Utility.GetCurrentGameTime()
+	fSatLastVisit = fSatWalkStart
+	iSatVisitsDone += 1
+	Log("saturalia: Agrane visits " + n + " people")
+	(SatAgraneAlias as ODS_SatAlias).Visit(picks)
+EndFunction
+
+; behind the player, just out of sight, snapped to the navmesh
+Function SatPlaceOutOfSight(Actor ag)
+	float dmin = 1200.0
+	float dmax = 1800.0
+	If PlayerRef.IsInInterior()
+		dmin = 500.0
+		dmax = 900.0
+	EndIf
+	int t = 0
+	While t < 4
+		float ang = PlayerRef.GetAngleZ() + 180.0 + Utility.RandomFloat(-60.0, 60.0) + (t * 45.0)
+		float dist = Utility.RandomFloat(dmin, dmax)
+		ag.MoveTo(PlayerRef, Math.sin(ang) * dist, Math.cos(ang) * dist, 0.0, false)
+		PO3_SKSEFunctions.MoveToNearestNavmeshLocation(ag)
+		If !PlayerRef.HasLOS(ag)
+			return
+		EndIf
+		t += 1
+	EndWhile
+EndFunction
+
+Function SatGive(Actor ag, Actor t)
+	Form g = SatGift()
+	If g == None || t == None
+		return
+	EndIf
+	t.AddItem(g, 1, true)
+	TalkNet("It is Saturalia. Agrane Peryval, the cheerful Breton merchant from the camp north of Windward Ruins, walks up to " + t.GetDisplayName() + " and hands them a Saturalia gift: " + g.GetName() + ".", ag, t, true, true)
+EndFunction
+
+Function SatVisitDone()
+	bSatWalking = false
+	fSatWalkStart = -1.0
+	Actor ag = Agrane()
+	If ag
+		ag.EvaluatePackage()
+	EndIf
+EndFunction
+
+; back to his camp: his editor location (the CC plugin's own placement)
+Function SatSendHome()
+	If !bSatAway && !bSatWalking
+		return
+	EndIf
+	ODS_SatAlias al = SatAgraneAlias as ODS_SatAlias
+	If al
+		al.Halt()
+	EndIf
+	Actor ag = Agrane()
+	If ag && !ag.IsDead()
+		ag.StopCombat()
+		ag.MoveToMyEditorLocation()
+		ag.EvaluatePackage()
+		Log("saturalia: Agrane back at camp (home cell " + kSatHomeCell + " @ " + fSatHomeX + "," + fSatHomeY + "," + fSatHomeZ + ")")
+	EndIf
+	If SatAgraneAlias
+		SatAgraneAlias.Clear()
+	EndIf
+	If ODS_SatQuest && ODS_SatQuest.IsRunning()
+		ODS_SatQuest.Stop()
+	EndIf
+	bSatAway = false
+	bSatWalking = false
+	fSatWalkStart = -1.0
+EndFunction
+
+Function SatOnLoad()
+	If bSatAway && (bSatWalking || !IsSatDay(25) || !SatWanted())
+		SatSendHome()
+	EndIf
+	If !SatWanted()
+		fSatDue = -1.0
+	EndIf
+EndFunction
+
+Function ForceSaturalia()
+	bForceSat = true
+	fSatDue = Utility.GetCurrentGameTime() + 0.02 / 24.0
+	If bMaster
+		ScheduleGameTime()
+	EndIf
+EndFunction
+
+; =====================================================================================
+; 1.0: Blood Born Pathogen. A werewolf / vampire player can pass it on through an OStim scene.
+; Off by default. Infected NPCs live in ODS_PathoQuest's ten aliases (event-only, no polling);
+; incubation runs on the existing game-time timer.
+; =====================================================================================
+bool Property bPatho = false Auto Hidden
+float Property fPathoChance = 10.0 Auto Hidden          ; % per partner per scene
+float Property fPathoBeastChance = 35.0 Auto Hidden     ; % while you are in werewolf / vampire lord form
+bool Property bPathoAnyNPC = false Auto Hidden          ; OFF: followers and spouses only
+int Property iPathoCap = 5 Auto Hidden                  ; most NPCs infected by this mod at once (1-10)
+bool Property bPathoTransform = true Auto Hidden        ; infected werewolves change in night fights
+bool Property bForcePatho = false Auto Hidden           ; debug: next eligible partner is infected
+Quest Property ODS_PathoQuest Auto
+
+Actor[] kPatho
+int[] iPathoKind          ; 1 lycanthropy, 2 vampirism
+int[] iPathoStage         ; 0-2 incubating, 3 turned
+float[] fPathoStart
+Race[] kPathoRace
+bool[] bPathoFirst
+bool[] bPathoChanged
+bool[] bPathoBusy
+float[] fPathoCD
+int[] iPathoMode          ; 0 ours, 1 Growl's own follower beastblood
+int iPathoThread = -1
+int iPathoThreadKind = 0
+bool bPathoThreadBeast = false
+Actor[] kPathoActs
+
+Function PathoInitArrays()
+	If kPatho == None
+		kPatho = new Actor[10]
+		iPathoKind = new int[10]
+		iPathoStage = new int[10]
+		fPathoStart = new float[10]
+		kPathoRace = new Race[10]
+		bPathoFirst = new bool[10]
+		bPathoChanged = new bool[10]
+		bPathoBusy = new bool[10]
+		fPathoCD = new float[10]
+		iPathoMode = new int[10]
+	EndIf
+EndFunction
+
+string Function PlayerName()
+	string n = PlayerRef.GetDisplayName()
+	If n == ""
+		n = PlayerRef.GetActorBase().GetName()
+	EndIf
+	return n
+EndFunction
+
+bool Function PlayerHasLycanthropy()
+	If IsWerewolfForm(PlayerRef)
+		return true
+	EndIf
+	If GlobalNow(0x000ED06C) >= 1.0          ; PlayerIsWerewolf (vanilla, Growl)
+		return true
+	EndIf
+	Spell s = Game.GetFormFromFile(0x00092C48, "Skyrim.esm") as Spell     ; vanilla Beast Form power
+	return s && PlayerRef.HasSpell(s)
+EndFunction
+
+bool Function PlayerHasVampirism()
+	If IsVampireLordForm(PlayerRef)
+		return true
+	EndIf
+	If GlobalNow(0x000ED06D) >= 1.0          ; PlayerIsVampire (vanilla, Sacrosanct)
+		return true
+	EndIf
+	return IsVampire(PlayerRef)
+EndFunction
+
+int Function PlayerDiseaseKind()
+	bool w = PlayerHasLycanthropy()
+	bool v = PlayerHasVampirism()
+	If w && v
+		If IsVampireLordForm(PlayerRef)
+			return 2
+		ElseIf IsWerewolfForm(PlayerRef)
+			return 1
+		EndIf
+		return Utility.RandomInt(1, 2)
+	ElseIf w
+		return 1
+	ElseIf v
+		return 2
+	EndIf
+	return 0
+EndFunction
+
+string Function DiseaseWord(int kind)
+	If kind == 2
+		return "vampirism"
+	EndIf
+	return "lycanthropy"
+EndFunction
+
+ODS_PathoAlias Function PathoAlias(int i)
+	If ODS_PathoQuest == None
+		return None
+	EndIf
+	return ODS_PathoQuest.GetAlias(i) as ODS_PathoAlias
+EndFunction
+
+int Function PathoIndex(Actor a)
+	PathoInitArrays()
+	If a == None
+		return -1
+	EndIf
+	return kPatho.Find(a)
+EndFunction
+
+int Function PathoCount()
+	PathoInitArrays()
+	int n = 0
+	int i = 0
+	While i < 10
+		If kPatho[i]
+			n += 1
+		EndIf
+		i += 1
+	EndWhile
+	return n
+EndFunction
+
+bool Function PathoFactionBlocked(Actor a)
+	Faction f = Game.GetFormFromFile(0x000FF234, "Skyrim.esm") as Faction      ; CompanionsCircle
+	If f && a.IsInFaction(f)
+		return true
+	EndIf
+	f = Game.GetFormFromFile(0x00109C71, "Skyrim.esm") as Faction             ; CompanionsCirclePlusKodlak
+	If f && a.IsInFaction(f)
+		return true
+	EndIf
+	f = Game.GetFormFromFile(0x00043594, "Skyrim.esm") as Faction             ; WerewolfFaction (already one)
+	If f && a.IsInFaction(f)
+		return true
+	EndIf
+	f = Game.GetFormFromFile(0x00027242, "Skyrim.esm") as Faction             ; VampireFaction (already one)
+	If f && a.IsInFaction(f)
+		return true
+	EndIf
+	If ModLoaded("Dawnguard.esm")
+		f = Game.GetFormFromFile(0x00003376, "Dawnguard.esm") as Faction      ; DLC1VampireFaction (Volkihar)
+		If f && a.IsInFaction(f)
+			return true
+		EndIf
+		f = Game.GetFormFromFile(0x00014217, "Dawnguard.esm") as Faction      ; DLC1DawnguardFaction
+		If f && a.IsInFaction(f)
+			return true
+		EndIf
+		f = Game.GetFormFromFile(0x00003375, "Dawnguard.esm") as Faction      ; DLC1HunterFaction
+		If f && a.IsInFaction(f)
+			return true
+		EndIf
+	EndIf
+	return false
+EndFunction
+
+Spell Function GrowlNPCSpell()
+	If !ModLoaded("Growl - Werebeasts of Skyrim.esp")
+		return None
+	EndIf
+	return Game.GetFormFromFile(0x0000AA06, "Growl - Werebeasts of Skyrim.esp") as Spell   ; HRI_Mortal_Spell_NPCCanMorph_Ab_Passives
+EndFunction
+
+bool Function PathoEligible(Actor a)
+	If a == None || a == PlayerRef || a.IsDead() || IsMinor(a) || !IsHumanoid(a) || IsBeastForm(a) || IsSpawned(a)
+		return false
+	EndIf
+	Keyword npc = Keyword.GetKeyword("ActorTypeNPC")
+	If npc && !a.HasKeyword(npc)
+		return false
+	EndIf
+	If a.IsEssential() || IsProtected(a)        ; essential / quest-flagged, and the MCM protected list
+		return false
+	EndIf
+	If !bPathoAnyNPC && !(IsFollowerActor(a) || IsSpouse(a))
+		return false
+	EndIf
+	If PathoIndex(a) >= 0 || IsVampire(a) || PathoFactionBlocked(a)
+		return false
+	EndIf
+	Spell gs = GrowlNPCSpell()
+	If gs && a.HasSpell(gs)
+		return false
+	EndIf
+	int cap = iPathoCap
+	If cap > 10
+		cap = 10
+	EndIf
+	return PathoCount() < cap
+EndFunction
+
+; ---------- triggers: OnOStimThreadStart / OnOStimThreadEnd ----------
+Function PathoSceneStart(int id)
+	If !bPatho || !bMaster || id < 0
+		return
+	EndIf
+	Actor[] acts = OThread.GetActors(id)
+	If !acts || acts.Find(PlayerRef) < 0
+		return
+	EndIf
+	int kind = PlayerDiseaseKind()
+	If kind == 0
+		return
+	EndIf
+	iPathoThread = id
+	iPathoThreadKind = kind
+	bPathoThreadBeast = PlayerIsBeast()
+	kPathoActs = acts
+EndFunction
+
+Function PathoSceneEnd(int id)
+	If id < 0 || id != iPathoThread
+		return
+	EndIf
+	int kind = iPathoThreadKind
+	Actor[] acts = kPathoActs
+	bool beast = bPathoThreadBeast || PlayerIsBeast()
+	iPathoThread = -1
+	iPathoThreadKind = 0
+	kPathoActs = None
+	If !bPatho || !bMaster || !acts || kind == 0
+		return
+	EndIf
+	float ch = fPathoChance
+	If beast
+		ch = fPathoBeastChance
+	EndIf
+	int i = 0
+	While i < acts.Length
+		Actor a = acts[i]
+		If a && a != PlayerRef && PathoEligible(a)
+			If bForcePatho || Utility.RandomFloat(0.0, 100.0) < ch
+				bForcePatho = false
+				PathoInfect(a, kind)
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+Function PathoInfect(Actor a, int kind)
+	PathoInitArrays()
+	int i = kPatho.Find(None)
+	If i < 0 || ODS_PathoQuest == None
+		return
+	EndIf
+	If !ODS_PathoQuest.IsRunning()
+		ODS_PathoQuest.Start()
+	EndIf
+	ODS_PathoAlias al = PathoAlias(i)
+	If al == None
+		return
+	EndIf
+	kPatho[i] = a
+	iPathoKind[i] = kind
+	iPathoStage[i] = 0
+	fPathoStart[i] = Utility.GetCurrentGameTime()
+	kPathoRace[i] = None
+	bPathoFirst[i] = false
+	bPathoChanged[i] = false
+	bPathoBusy[i] = false
+	fPathoCD[i] = 0.0
+	iPathoMode[i] = 0
+	al.ForceRefTo(a)
+	al.Watch(CurePotion())
+	string pn = PlayerName()
+	string an = a.GetDisplayName()
+	string t
+	If kind == 1
+		t = pn + " is a werewolf, and during sex " + pn + " infected " + an + " with lycanthropy. The beast blood is in " + an + " now. " + an + " knows it was " + pn + " who gave it to them through sex."
+	Else
+		t = pn + " is a vampire, and during sex " + pn + " infected " + an + " with vampirism (Sanguinare Vampiris). " + an + " knows it was " + pn + " who gave it to them through sex."
+	EndIf
+	TalkNet(t, a, PlayerRef, true, true)
+	Log("pathogen: " + an + " infected with " + DiseaseWord(kind))
+	If bMaster
+		ScheduleGameTime()
+	EndIf
+EndFunction
+
+Potion Function CurePotion()
+	return Game.GetFormFromFile(0x000AE723, "Skyrim.esm") as Potion      ; Potion of Cure Disease
+EndFunction
+
+float Function PathoNextDue()
+	If kPatho == None || !bMaster
+		return -1.0
+	EndIf
+	float due = -1.0
+	int i = 0
+	While i < 10
+		If kPatho[i] && iPathoStage[i] < 3
+			float d = fPathoStart[i] + (iPathoStage[i] + 1) as float
+			If due < 0.0 || d < due
+				due = d
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	return due
+EndFunction
+
+Function PathoTick()
+	PathoInitArrays()
+	float now = Utility.GetCurrentGameTime()
+	Potion cure = CurePotion()
+	int i = 0
+	While i < 10
+		Actor a = kPatho[i]
+		If a && iPathoStage[i] < 3
+			If a.IsDeleted() || a.IsDead()
+				PathoClear(i)
+			ElseIf cure && a.GetItemCount(cure) > 0
+				a.RemoveItem(cure, 1, true)
+				PathoCure(i)
+			ElseIf now >= fPathoStart[i] + (iPathoStage[i] + 1) as float
+				int s = iPathoStage[i]
+				While s < 3 && now >= fPathoStart[i] + (s + 1) as float
+					s += 1
+				EndWhile
+				iPathoStage[i] = s
+				If s >= 3
+					PathoTurn(i)
+				Else
+					PathoSymptom(i)
+				EndIf
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+Function PathoSymptom(int i)
+	Actor a = kPatho[i]
+	string pn = PlayerName()
+	string an = a.GetDisplayName()
+	string t
+	If iPathoKind[i] == 1
+		If iPathoStage[i] == 1
+			t = an + " has a fever, sweats through the night and keeps smelling blood and raw meat. It is the lycanthropy " + pn + " gave " + an + " through sex, taking hold."
+		Else
+			t = an + " dreamed of running on all fours and tearing into prey, and feels something wild clawing inside. The lycanthropy " + pn + " passed to " + an + " through sex has nearly finished with them."
+		EndIf
+	Else
+		If iPathoStage[i] == 1
+			t = an + " feels weak and cold, daylight stings their eyes and food tastes of ash. It is the vampirism " + pn + " gave " + an + " through sex, taking hold."
+		Else
+			t = an + " cannot keep food down, the sun burns their skin and they keep staring at people's throats. The vampirism " + pn + " passed to " + an + " through sex has nearly turned them."
+		EndIf
+	EndIf
+	TalkNet(t, a, PlayerRef, true, true)
+EndFunction
+
+Function PathoTurn(int i)
+	Actor a = kPatho[i]
+	string pn = PlayerName()
+	string an = a.GetDisplayName()
+	string t
+	If iPathoKind[i] == 1
+		Faction wf = Game.GetFormFromFile(0x00043594, "Skyrim.esm") as Faction
+		If wf
+			a.AddToFaction(wf)
+		EndIf
+		Spell gs = GrowlNPCSpell()
+		If gs && a.IsInFaction(CurrentFollowerFaction) && a.GetFactionRank(CurrentFollowerFaction) >= 0
+			a.AddSpell(gs, false)          ; Growl's own follower beastblood: Growl handles the changes
+			iPathoMode[i] = 1
+		EndIf
+		t = an + " is now a werewolf. " + pn + " infected " + an + " with lycanthropy through sex, and " + an + " knows it was " + pn + ". In a fight at night " + an + " can turn into a werewolf in full beast form."
+	Else
+		Faction vf = Game.GetFormFromFile(0x00027242, "Skyrim.esm") as Faction
+		If vf
+			a.AddToFaction(vf)
+		EndIf
+		Spell sun = Game.GetFormFromFile(0x000F5B5D, "Skyrim.esm") as Spell    ; crVampireSunDamage (NPC vampires)
+		If sun
+			a.AddSpell(sun, false)
+		EndIf
+		t = an + " is now a vampire. " + pn + " infected " + an + " with vampirism through sex, and " + an + " knows it was " + pn + ". Sunlight burns " + an + " now and they hunger for blood."
+	EndIf
+	TalkNet(t, a, PlayerRef, true, true)
+	If SNetOK()
+		SkyrimNetApi.UpdateActorDynamicBio(a)
+	EndIf
+	Log("pathogen: " + an + " turned (" + DiseaseWord(iPathoKind[i]) + ", mode " + iPathoMode[i] + ")")
+EndFunction
+
+Function PathoCure(int i)
+	Actor a = kPatho[i]
+	If a
+		TalkNet(a.GetDisplayName() + " drank a Cure Disease potion. The " + DiseaseWord(iPathoKind[i]) + " " + PlayerName() + " gave " + a.GetDisplayName() + " through sex is gone before it could take hold.", a, PlayerRef, true, true)
+	EndIf
+	PathoClear(i)
+EndFunction
+
+Function PathoClear(int i)
+	ODS_PathoAlias al = PathoAlias(i)
+	If al
+		al.Halt()
+		al.Clear()
+	EndIf
+	kPatho[i] = None
+	iPathoKind[i] = 0
+	iPathoStage[i] = 0
+	kPathoRace[i] = None
+	bPathoFirst[i] = false
+	bPathoChanged[i] = false
+	bPathoBusy[i] = false
+	iPathoMode[i] = 0
+EndFunction
+
+; alias: a Cure Disease potion was handed over during incubation
+Function PathoItem(int i, Actor a, Form item)
+	If i < 0 || i >= 10 || kPatho == None || kPatho[i] != a || a == None || iPathoStage[i] >= 3
+		return
+	EndIf
+	Potion cure = CurePotion()
+	If cure && item == cure && a.GetItemCount(cure) > 0
+		a.RemoveItem(cure, 1, true)
+		PathoCure(i)
+	EndIf
+EndFunction
+
+Function PathoDied(int i, Actor a)
+	If i >= 0 && i < 10 && kPatho && kPatho[i] == a
+		PathoClear(i)
+	EndIf
+EndFunction
+
+; alias: combat started. Our own werewolf change: night only, ~30 s, then forced back; 90 s cooldown.
+Function PathoCombat(int i, Actor a, int st)
+	If st == 0 || i < 0 || i >= 10 || kPatho == None || a == None || kPatho[i] != a
+		return
+	EndIf
+	If !bPatho || !bMaster || !bPathoTransform || iPathoKind[i] != 1 || iPathoStage[i] < 3 || iPathoMode[i] != 0
+		return
+	EndIf
+	If bPathoBusy[i] || bPathoChanged[i] || IsBeastForm(a) || !IsNight()
+		return
+	EndIf
+	If Utility.GetCurrentRealTime() < fPathoCD[i]
+		return
+	EndIf
+	If a.IsDead() || a.IsBleedingOut() || a.GetSitState() != 0 || a.GetSleepState() != 0 || a.IsOnMount() || OActor.IsInOStim(a) || IsStaged(a)
+		return
+	EndIf
+	Spell gs = GrowlNPCSpell()
+	If gs && a.HasSpell(gs)
+		return            ; Growl owns this one
+	EndIf
+	Race w = WerewolfRace()
+	ODS_PathoAlias al = PathoAlias(i)
+	If w == None || al == None
+		return
+	EndIf
+	bPathoBusy[i] = true
+	kPathoRace[i] = a.GetRace()
+	bPathoChanged[i] = true
+	a.SetRace(w)
+	al.RevertIn(30.0)
+	If !bPathoFirst[i]
+		bPathoFirst[i] = true
+		string pn = PlayerName()
+		string an = a.GetDisplayName()
+		TalkNet(an + " just turned into a werewolf for the first time, in full beast form, in the middle of a fight. The lycanthropy came from " + pn + ", who infected " + an + " through sex, and " + an + " knows it.", a, PlayerRef, true, true)
+	EndIf
+EndFunction
+
+Function PathoRevert(int i)
+	If i < 0 || i >= 10 || kPatho == None
+		return
+	EndIf
+	Actor a = kPatho[i]
+	If a && bPathoChanged[i]
+		Race r = kPathoRace[i]
+		If r && IsWerewolfForm(a)
+			a.SetRace(r)
+			a.EvaluatePackage()
+		EndIf
+	EndIf
+	bPathoChanged[i] = false
+	bPathoBusy[i] = false
+	fPathoCD[i] = Utility.GetCurrentRealTime() + 90.0
+EndFunction
+
+Function PathoRevertAll()
+	If kPatho == None
+		return
+	EndIf
+	int i = 0
+	While i < 10
+		If bPathoChanged[i]
+			PathoRevert(i)
+		EndIf
+		bPathoBusy[i] = false
+		fPathoCD[i] = 0.0
+		i += 1
+	EndWhile
+EndFunction
+
+; game loaded: nobody stays stuck in beast form; aliases watch again
+Function PathoOnLoad()
+	iPathoThread = -1
+	kPathoActs = None
+	If kPatho == None
+		return
+	EndIf
+	PathoRevertAll()
+	Potion cure = CurePotion()
+	bool any = false
+	int i = 0
+	While i < 10
+		If kPatho[i]
+			any = true
+		EndIf
+		i += 1
+	EndWhile
+	If any && ODS_PathoQuest
+		If !ODS_PathoQuest.IsRunning()
+			ODS_PathoQuest.Start()
+		EndIf
+		i = 0
+		While i < 10
+			ODS_PathoAlias al = PathoAlias(i)
+			If kPatho[i] && al
+				If al.GetActorReference() != kPatho[i]
+					al.ForceRefTo(kPatho[i])
+				EndIf
+				al.Watch(cure)
+			EndIf
+			i += 1
+		EndWhile
+	EndIf
+EndFunction
+
+; MCM: take everything this mod gave back (also before uninstalling)
+Function PathoCureAll()
+	If kPatho == None
+		return
+	EndIf
+	PathoRevertAll()
+	Faction wf = Game.GetFormFromFile(0x00043594, "Skyrim.esm") as Faction
+	Faction vf = Game.GetFormFromFile(0x00027242, "Skyrim.esm") as Faction
+	Spell sun = Game.GetFormFromFile(0x000F5B5D, "Skyrim.esm") as Spell
+	Spell gs = GrowlNPCSpell()
+	int i = 0
+	While i < 10
+		Actor a = kPatho[i]
+		If a && iPathoStage[i] >= 3
+			If iPathoKind[i] == 1
+				If wf
+					a.RemoveFromFaction(wf)
+				EndIf
+				If gs && iPathoMode[i] == 1
+					a.RemoveSpell(gs)
+				EndIf
+			Else
+				If vf
+					a.RemoveFromFaction(vf)
+				EndIf
+				If sun
+					a.RemoveSpell(sun)
+				EndIf
+			EndIf
+		EndIf
+		If a
+			PathoClear(i)
+		EndIf
+		i += 1
+	EndWhile
+	If ODS_PathoQuest && ODS_PathoQuest.IsRunning()
+		ODS_PathoQuest.Stop()
+	EndIf
+EndFunction
+
+string Function PathoListText()
+	If kPatho == None
+		return "nobody"
+	EndIf
+	string s = ""
+	int i = 0
+	While i < 10
+		If kPatho[i]
+			If s != ""
+				s += ", "
+			EndIf
+			string st = "turned"
+			If iPathoStage[i] < 3
+				st = "incubating"
+			EndIf
+			s += kPatho[i].GetDisplayName() + " (" + DiseaseWord(iPathoKind[i]) + ", " + st + ")"
+		EndIf
+		i += 1
+	EndWhile
+	If s == ""
+		return "nobody"
+	EndIf
+	return s
 EndFunction

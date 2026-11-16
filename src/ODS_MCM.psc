@@ -60,12 +60,12 @@ int oForceSavior
 int oForceBunnyFight
 
 int Function GetVersion()
-	return 10
+	return 11
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10)
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11)
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -338,6 +338,18 @@ bool Function GetB(string k)
 		return Main.bHeat
 	ElseIf k == "heatask"
 		return Main.bHeatAsk
+	ElseIf k == "sat"
+		return Main.bSaturalia
+	ElseIf k == "satcount"
+		return Main.bSatCountdown
+	ElseIf k == "satgifts"
+		return Main.bSatGifts
+	ElseIf k == "patho"
+		return Main.bPatho
+	ElseIf k == "pathoany"
+		return Main.bPathoAnyNPC
+	ElseIf k == "pathotf"
+		return Main.bPathoTransform
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -536,6 +548,18 @@ Function SetB(string k, bool v)
 		Main.bHeat = v
 	ElseIf k == "heatask"
 		Main.bHeatAsk = v
+	ElseIf k == "sat"
+		Main.bSaturalia = v
+	ElseIf k == "satcount"
+		Main.bSatCountdown = v
+	ElseIf k == "satgifts"
+		Main.bSatGifts = v
+	ElseIf k == "patho"
+		Main.bPatho = v
+	ElseIf k == "pathoany"
+		Main.bPathoAnyNPC = v
+	ElseIf k == "pathotf"
+		Main.bPathoTransform = v
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -631,6 +655,14 @@ float Function GetF(string k)
 		return Main.fHeatChance
 	ElseIf k == "heatmax"
 		return Main.iHeatMax as float
+	ElseIf k == "satvisits"
+		return Main.iSatVisits as float
+	ElseIf k == "pathoch"
+		return Main.fPathoChance
+	ElseIf k == "pathobeastch"
+		return Main.fPathoBeastChance
+	ElseIf k == "pathocap"
+		return Main.iPathoCap as float
 	ElseIf k == "faunach"
 		return Main.fFaunaChance
 	ElseIf k == "faunarabbits"
@@ -734,6 +766,14 @@ Function SetF(string k, float v)
 		Main.fHeatChance = v
 	ElseIf k == "heatmax"
 		Main.iHeatMax = v as int
+	ElseIf k == "satvisits"
+		Main.iSatVisits = v as int
+	ElseIf k == "pathoch"
+		Main.fPathoChance = v
+	ElseIf k == "pathobeastch"
+		Main.fPathoBeastChance = v
+	ElseIf k == "pathocap"
+		Main.iPathoCap = v as int
 	ElseIf k == "faunach"
 		Main.fFaunaChance = v
 	ElseIf k == "faunarabbits"
@@ -819,13 +859,13 @@ string Function FmtOf(string k)
 		return "{0} s"
 	ElseIf k == "range" || k == "guardrange" || k == "radius"
 		return "{0} units"
-	ElseIf k == "groupmax" || k == "morningdrinks" || k == "faunarabbits" || k == "heatmax"
+	ElseIf k == "groupmax" || k == "morningdrinks" || k == "faunarabbits" || k == "heatmax" || k == "satvisits" || k == "pathocap"
 		return "{0}"
 	ElseIf k == "drunkmult"
 		return "x{1}"
 	ElseIf k == "ovratk" || k == "ovrcht"
 		return "{1}"
-	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach" || k == "joinch" || k == "beastch" || k == "heatch"
+	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach" || k == "joinch" || k == "beastch" || k == "heatch" || k == "pathoch" || k == "pathobeastch"
 		return "{0}%"
 	EndIf
 	return "{1}%"
@@ -963,6 +1003,23 @@ Function SliderSpec(string k)
 		mx = 3.0
 		st = 1.0
 		df = 3.0
+	ElseIf k == "satvisits"
+		mn = 1.0
+		mx = 5.0
+		st = 1.0
+		df = 3.0
+	ElseIf k == "pathoch" || k == "pathobeastch"
+		mx = 100.0
+		st = 1.0
+		df = 10.0
+		If k == "pathobeastch"
+			df = 35.0
+		EndIf
+	ElseIf k == "pathocap"
+		mn = 1.0
+		mx = 10.0
+		st = 1.0
+		df = 5.0
 	ElseIf k == "crwildch"
 		mx = 25.0
 		df = 2.0
@@ -1052,6 +1109,9 @@ Function ResetIds()
 	oForceWolf = -100
 	oForceBeast = -100
 	oForceHeat = -100
+	oForceSat = -100
+	oForcePatho = -100
+	oPathoCureAll = -100
 	oForceBetrayal = -100
 	oForceVampire = -100
 	oForceDefeat = -100
@@ -1423,6 +1483,27 @@ Function PageMore()
 	AddT("Vampirism afterwards (unless immune)", "darkinfect", d)
 	AddTextOption("  Blood and OStim (feeding)", YesNo(Main.BaOOK()), OPTION_FLAG_DISABLED)
 	AddTextOption("  Sacrosanct", YesNo(Main.SacrosanctOK()), OPTION_FLAG_DISABLED)
+	AddHeaderOption("Blood Born Pathogen")
+	AddT("Pass lycanthropy / vampirism on through sex", "patho")
+	int bp = Flag(Main.bPatho)
+	AddS("Chance per partner", "pathoch", bp)
+	AddS("Chance in werewolf / vampire lord form", "pathobeastch", bp)
+	AddT("Any eligible NPC (off = followers, spouse)", "pathoany", bp)
+	AddS("Most NPCs infected at once", "pathocap", bp)
+	AddT("Infected werewolves change in night fights", "pathotf", bp)
+	AddTextOption("  Infected: " + Main.PathoListText(), "", OPTION_FLAG_DISABLED)
+	oPathoCureAll = AddTextOption("Cure everyone this mod infected", "", Flag(Main.PathoCount() > 0))
+	AddTextOption("  Growl (followers use its beastblood)", YesNo(Main.ModLoaded("Growl - Werebeasts of Skyrim.esp")), OPTION_FLAG_DISABLED)
+	AddHeaderOption("Saturalia")
+	bool satok = Main.SatModOK()
+	If !satok
+		AddTextOption("Saturalia Holiday Pack not installed: locked off", "", OPTION_FLAG_DISABLED)
+	EndIf
+	AddT("Saturalia countdown and gifts", "sat", Flag(satok))
+	int sf = Flag(satok && Main.bSaturalia)
+	AddT("Countdown (22-24 Evening Star)", "satcount", sf)
+	AddT("Agrane Peryval's gifts (25 Evening Star)", "satgifts", sf)
+	AddS("Gift visits on the day", "satvisits", Flag(satok && Main.bSaturalia && Main.bSatGifts))
 	AddHeaderOption("Climax fauna (easter egg)")
 	RefreshFaunaOpts()
 	int fm = Main.iFaunaMode
@@ -1526,6 +1607,8 @@ Function PageDebug()
 	oForceWolf = AddTextOption("Werewolf (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bWolfNight && Main.BFScenesOK()))
 	oForceBeast = AddTextOption("Beast form choice (now / next transform)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bBeastOffer && Main.BFScenesOK()))
 	oForceHeat = AddTextOption("Bitch in Heat (next werewolf scene)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bHeat && Main.BFScenesOK()))
+	oForceSat = AddTextOption("Saturalia gift visit (date ignored)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bSaturalia && Main.SatModOK()))
+	oForcePatho = AddTextOption("Blood Born Pathogen (next scene)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bPatho))
 	oForceVampire = AddTextOption("Vampire", "", f)
 	oForceDefeat = AddTextOption("Defeat (next bleedout)", "", f)
 	AddHeaderOption("0.2 modules")
@@ -1634,6 +1717,15 @@ Event OnOptionSelect(int o)
 		If k == "crwild" && Main.bCrWild && Main.bMaster
 			Main.DetectCreatures()
 		EndIf
+		If k == "sat" || k == "satcount" || k == "satgifts"
+			If Main.bMaster
+				Main.RefreshTimers(Game.GetPlayer().GetCurrentLocation())
+			EndIf
+			ForcePageReset()
+		EndIf
+		If k == "patho"
+			ForcePageReset()
+		EndIf
 		If k == "jail" || k == "travel" || k == "cr" || k == "crwild" || k == "wolfnight"
 			If Main.bMaster
 				Main.RefreshTimers(Game.GetPlayer().GetCurrentLocation())
@@ -1706,6 +1798,17 @@ Event OnOptionSelect(int o)
 	ElseIf o == oForceHeat
 		Main.bForceHeat = true
 		ShowMessage("The next OStim scene with you between a male werewolf in beast form and a human, outdoors and away from towns, will call the other werewolves (no chance roll). It still needs an installed multi-werewolf scene.", false)
+	ElseIf o == oForceSat
+		Main.ForceSaturalia()
+		ShowMessage("Agrane Peryval will try a gift visit within the next game hour (date ignored). You need to be in a town, city, settlement, inn or shop, out of combat, with adults nearby. He goes home a couple of game hours later (on 25 Evening Star: at midnight).", false)
+	ElseIf o == oForcePatho
+		Main.bForcePatho = true
+		ShowMessage("The next eligible partner at the end of an OStim scene with you (while you are a werewolf or vampire) is infected, no chance roll. Incubation still takes about 3 game days.", false)
+	ElseIf o == oPathoCureAll
+		If ShowMessage("Cure everyone O'Deadly Skyrim infected? Factions and abilities it added are removed.", true, "Cure", "Cancel")
+			Main.PathoCureAll()
+			ForcePageReset()
+		EndIf
 	ElseIf o == oForceBetrayal
 		SetForce(Main.K_BETRAYAL, "follower betrayal")
 	ElseIf o == oForceVampire
@@ -2051,6 +2154,26 @@ string Function Hint(string k)
 		return "ON (default): a box asks how many werewolves you let come (only counts with installed scenes are offered). OFF: a random supported count, up to the maximum."
 	ElseIf k == "heatmax"
 		return "Most werewolves that can come (1-3, so up to 4 werewolves in the scene). Counts without installed scenes are never offered."
+	ElseIf k == "patho"
+		return "OFF by default. If you are a werewolf or vampire (vanilla, Growl, Sacrosanct) and finish an OStim scene with an adult human partner, you may pass it on. About 3 game days of incubation with symptoms; a Cure Disease potion (given to them or in their pack) stops it in that time. Then they are a werewolf or a vampire, and SkyrimNet tells them plainly it was you. Never children, essential or protected NPCs, the Companions' Circle, Volkihar or Dawnguard, or anyone already infected."
+	ElseIf k == "pathoch"
+		return "Chance per adult partner per scene. 0 = never."
+	ElseIf k == "pathobeastch"
+		return "Chance per partner while you are in werewolf or vampire lord form."
+	ElseIf k == "pathoany"
+		return "OFF (default): only your followers and your spouse. ON: any eligible adult NPC, up to the cap."
+	ElseIf k == "pathocap"
+		return "Most NPCs infected by this mod at the same time (incubating or turned). Default 5."
+	ElseIf k == "pathotf"
+		return "Infected werewolves turn into a werewolf in beast form when a fight starts at night, for about 30 seconds, then change back; 90 second cooldown. Never on furniture or a mount, and always changed back on load. Followers with Growl installed use Growl's own beastblood instead."
+	ElseIf k == "sat"
+		return "OFF by default. Needs the Saturalia Holiday Pack (Creation Club). 22-24 Evening Star: SkyrimNet hears that Saturalia is close. 25 Evening Star: Agrane Peryval, the merchant from the camp north of Windward Ruins, may find you a few times in a town, settlement, inn or shop and hand small gifts to adults nearby. At midnight he goes back to his camp. Every year."
+	ElseIf k == "satcount"
+		return "Once a day on 22, 23 and 24 Evening Star, a SkyrimNet world event: Saturalia is 3, 2, 1 day(s) away."
+	ElseIf k == "satgifts"
+		return "On 25 Evening Star (08:00-21:00), out of combat in a town, settlement, inn or shop: Agrane walks up and gives 1-3 adults nearby a sweetroll, mead, a gem or a Saturalia hat."
+	ElseIf k == "satvisits"
+		return "How many times he can find you on the day (at least ~2.5 game hours apart)."
 	ElseIf k == "fauna"
 		return "Easter egg, Off by default. After your climax, a ring of rabbits may appear and come for you, with a cloud of butterflies. The third option uses Mihail's Killer Rabbit of Caerbannog when that mod is installed; his files are not included. The master switch and panic key stop it too."
 	EndIf
@@ -2091,3 +2214,6 @@ int oForceCrWild
 int oForceWolf
 int oForceBeast
 int oForceHeat
+int oForceSat
+int oForcePatho
+int oPathoCureAll
