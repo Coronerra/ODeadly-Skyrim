@@ -60,12 +60,12 @@ int oForceSavior
 int oForceBunnyFight
 
 int Function GetVersion()
-	return 9
+	return 10
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form"
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10)
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -334,6 +334,10 @@ bool Function GetB(string k)
 		return Main.bBeastPreySpawn
 	ElseIf k == "beastclaim"
 		return Main.bBeastClaim
+	ElseIf k == "heat"
+		return Main.bHeat
+	ElseIf k == "heatask"
+		return Main.bHeatAsk
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -528,6 +532,10 @@ Function SetB(string k, bool v)
 		Main.bBeastPreySpawn = v
 	ElseIf k == "beastclaim"
 		Main.bBeastClaim = v
+	ElseIf k == "heat"
+		Main.bHeat = v
+	ElseIf k == "heatask"
+		Main.bHeatAsk = v
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -619,6 +627,10 @@ float Function GetF(string k)
 		return Main.fWolfNightChance
 	ElseIf k == "beastch"
 		return Main.fBeastOfferChance
+	ElseIf k == "heatch"
+		return Main.fHeatChance
+	ElseIf k == "heatmax"
+		return Main.iHeatMax as float
 	ElseIf k == "faunach"
 		return Main.fFaunaChance
 	ElseIf k == "faunarabbits"
@@ -718,6 +730,10 @@ Function SetF(string k, float v)
 		Main.fWolfNightChance = v
 	ElseIf k == "beastch"
 		Main.fBeastOfferChance = v
+	ElseIf k == "heatch"
+		Main.fHeatChance = v
+	ElseIf k == "heatmax"
+		Main.iHeatMax = v as int
 	ElseIf k == "faunach"
 		Main.fFaunaChance = v
 	ElseIf k == "faunarabbits"
@@ -803,13 +819,13 @@ string Function FmtOf(string k)
 		return "{0} s"
 	ElseIf k == "range" || k == "guardrange" || k == "radius"
 		return "{0} units"
-	ElseIf k == "groupmax" || k == "morningdrinks" || k == "faunarabbits"
+	ElseIf k == "groupmax" || k == "morningdrinks" || k == "faunarabbits" || k == "heatmax"
 		return "{0}"
 	ElseIf k == "drunkmult"
 		return "x{1}"
 	ElseIf k == "ovratk" || k == "ovrcht"
 		return "{1}"
-	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach" || k == "joinch" || k == "beastch"
+	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach" || k == "joinch" || k == "beastch" || k == "heatch"
 		return "{0}%"
 	EndIf
 	return "{1}%"
@@ -938,6 +954,15 @@ Function SliderSpec(string k)
 		If k == "beastch"
 			df = 50.0
 		EndIf
+	ElseIf k == "heatch"
+		mx = 100.0
+		st = 5.0
+		df = 25.0
+	ElseIf k == "heatmax"
+		mn = 1.0
+		mx = 3.0
+		st = 1.0
+		df = 3.0
 	ElseIf k == "crwildch"
 		mx = 25.0
 		df = 2.0
@@ -1026,6 +1051,7 @@ Function ResetIds()
 	oForceCrWild = -100
 	oForceWolf = -100
 	oForceBeast = -100
+	oForceHeat = -100
 	oForceBetrayal = -100
 	oForceVampire = -100
 	oForceDefeat = -100
@@ -1353,6 +1379,12 @@ Function PageBeast()
 	AddT("Take a beaten bandit", "beastprey", Flag(o))
 	AddT("  Nobody beaten: a bandit ambush", "beastpreyspawn", Flag(o && Main.bBeastPrey))
 	AddT("Claim a willing spouse / companion", "beastclaim", Flag(o))
+	AddHeaderOption("Bitch in Heat")
+	AddT("Enable Bitch in Heat", "heat", Flag(bf))
+	bool h = bf && Main.bHeat
+	AddS("Chance per werewolf scene", "heatch", Flag(h))
+	AddT("Ask how many (off = automatic)", "heatask", Flag(h))
+	AddS("Most werewolves that come", "heatmax", Flag(h))
 EndFunction
 
 ; 0.2 modules, one column, top to bottom. The climax fauna easter egg is deliberately the last module.
@@ -1493,6 +1525,7 @@ Function PageDebug()
 	oForceCrWild = AddTextOption("Wild creature (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.AnyCrWildOK()))
 	oForceWolf = AddTextOption("Werewolf (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bWolfNight && Main.BFScenesOK()))
 	oForceBeast = AddTextOption("Beast form choice (now / next transform)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bBeastOffer && Main.BFScenesOK()))
+	oForceHeat = AddTextOption("Bitch in Heat (next werewolf scene)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bHeat && Main.BFScenesOK()))
 	oForceVampire = AddTextOption("Vampire", "", f)
 	oForceDefeat = AddTextOption("Defeat (next bleedout)", "", f)
 	AddHeaderOption("0.2 modules")
@@ -1670,6 +1703,9 @@ Event OnOptionSelect(int o)
 		Main.ForceBeastOffer()
 		ShowMessage("Beast form choice forced (no chance roll). In werewolf or vampire lord form it appears a few seconds after this menu closes; otherwise on your next transformation. It still needs someone to take or claim and an installed Beast Form scene.", false)
 		ForcePageReset()
+	ElseIf o == oForceHeat
+		Main.bForceHeat = true
+		ShowMessage("The next OStim scene with you between a male werewolf in beast form and a human, outdoors and away from towns, will call the other werewolves (no chance roll). It still needs an installed multi-werewolf scene.", false)
 	ElseIf o == oForceBetrayal
 		SetForce(Main.K_BETRAYAL, "follower betrayal")
 	ElseIf o == oForceVampire
@@ -2007,6 +2043,14 @@ string Function Hint(string k)
 		return "Werewolf form in the wilderness with nobody beaten nearby: a bandit who ambushed you lies beaten at your feet."
 	ElseIf k == "beastclaim"
 		return "Your spouse, or a companion who is willing (SkyrimNet's decision model from their bio when available, else relationship rank), gives themselves to the beast. Consensual."
+	ElseIf k == "heat"
+		return "OFF by default. Needs OStim Beast Form and multi-werewolf scenes (Beast Form, Werewolf and Vampire Lord OStim). When an OStim scene with you starts between a male werewolf in beast form and a human (you or your partner), outdoors and away from towns, the howls and scent can draw other werewolves to join. They arrive in beast form, are never hostile, the scene grows to include them with the same human at the centre, and afterwards they walk away and vanish out of sight. SkyrimNet is told plainly. Never children."
+	ElseIf k == "heatch"
+		return "Chance per eligible scene. 0 = never."
+	ElseIf k == "heatask"
+		return "ON (default): a box asks how many werewolves you let come (only counts with installed scenes are offered). OFF: a random supported count, up to the maximum."
+	ElseIf k == "heatmax"
+		return "Most werewolves that can come (1-3, so up to 4 werewolves in the scene). Counts without installed scenes are never offered."
 	ElseIf k == "fauna"
 		return "Easter egg, Off by default. After your climax, a ring of rabbits may appear and come for you, with a cloud of butterflies. The third option uses Mihail's Killer Rabbit of Caerbannog when that mod is installed; his files are not included. The master switch and panic key stop it too."
 	EndIf
@@ -2046,3 +2090,4 @@ EndEvent
 int oForceCrWild
 int oForceWolf
 int oForceBeast
+int oForceHeat

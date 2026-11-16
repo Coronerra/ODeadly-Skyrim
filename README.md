@@ -10,7 +10,7 @@ Skyrim SE / AE · ESL-flagged plugin · Adults only
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
 
-Version 1.0 (`ODeadly_Skyrim_1.0.zip`) adds three optional modules, all off by default: **Join in** (walk in on your spouse or a companion in a consensual scene and join them), **wild creatures** on the road (needs OCreatures), and **OStim Beast Form** support (werewolves at night, and choices when you transform). See [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form).
+Version 1.0 (`ODeadly_Skyrim_1.0.zip`) adds three optional modules, all off by default: **Join in** (walk in on your spouse or a companion in a consensual scene and join them), **wild creatures** on the road (needs OCreatures), and **OStim Beast Form** support (werewolves at night, choices when you transform, and Bitch in Heat: other werewolves drawn to a werewolf scene). See [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form).
 
 Version 0.9 added two optional wilderness-road events, both off by default: Savior Complex (a bandit is forcefully taking a traveler; you can watch, join in, or rescue them) and Killer Rabbit vs Vigilants of Stendarr (two Vigilants are losing to a Killer Rabbit; you can kill it and save them). The rabbit event needs Mihail's Killer Rabbit of Caerbannog. See [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants).
 
@@ -165,7 +165,7 @@ Every module goes through the same steps, one event at a time:
 7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not. Pressing **E** on a victim always counts as a rescue and breaks the scene on purpose. To just talk to someone in a scene, use SkyrimNet's talk / voice input instead; it does not interrupt the scene.
 8. Afterwards: spawned actors leave and are cleaned up, a mod event fires (`ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`), SkyrimNet stores a memory. There are no forgive / confront menus: SkyrimNet and you decide what happens next.
 
-No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers (1.0: after you transform into beast form, at most 12 single-update checks about 10 seconds apart, only while the Beast Form choices are on). The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
+No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers (1.0 Bitch in Heat: the summoned werewolves only react to their own combat, hit and race events, plus one bounded walk-in / walk-away each; 1.0: after you transform into beast form, at most 12 single-update checks about 10 seconds apart, only while the Beast Form choices are on). The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
 
 If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use SkyrimNet named places. A tagged place wins over vanilla keywords, so you can mark a rented inn room as a player home, or tag a custom cell as a jail or barracks. Untagged spots fall back to normal Skyrim location keywords and cell names.
 
@@ -192,6 +192,7 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Wild creatures (1.0) | OFF, locked without OCreatures | 2% per game hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
 | Werewolves at night (1.0) | OFF, locked without OStim Beast Form | 3% per night hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
 | Beast form choices (1.0) | OFF, locked without OStim Beast Form | 50% per transformation: take a beaten bandit, or claim a willing spouse / companion. |
+| Bitch in Heat (1.0) | OFF, locked without OStim Beast Form | 25% per scene between a male werewolf in beast form and a human with you in it: 1-3 more werewolves join (ask or automatic, max 3). |
 | Vampire seduction | OFF | |
 | Blackmail / public rumours | OFF | Need SkyrimNet. |
 | OCum memories | OFF, locked without OCum | |
@@ -345,7 +346,14 @@ Three new modules. Each one is **OFF by default**, has its own MCM toggles and c
 - Scenes start through OStim on Beast Form's own start scenes, so Beast Form's menu takes it from there. If the plugin or its start scenes are missing, none of these options appear.
 - No join-in for any beast or creature scene.
 
-Updating from 0.9: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged; 1.0 only adds four message boxes. All new options stay off until you turn them on. MCM `GetVersion` 9 (the pages rebuild, and a new "Beast Form" page appears). SkyrimNet pack 1.0.0 adds a second decision template (`would_consent`).
+### Bitch in Heat (MCM > Beast Form)
+
+- **OFF by default**, own toggle and chance (25% per eligible scene), behind the master switch and the panic key. Adults only.
+- When an OStim scene with you starts between a male werewolf in beast form and a human (either of you can be the werewolf), outdoors and away from towns, the howls and the scent can draw other werewolves in the area to join. SkyrimNet is told plainly what drew them and what happens.
+- You choose how many come (1-3), or let it pick for you (MCM: ask or automatic, plus a maximum). Only counts that have an installed scene for that cast are offered: Beast Form's multi-werewolf scenes and Werewolf and Vampire Lord OStim's two-, three- and four-werewolf scenes (female and male human versions). The human is always the centre; if your partner is not human (for example two werewolves), nothing is offered.
+- The newcomers are always in werewolf beast form (checked before they are used and again before the scene starts; otherwise the event is skipped). They are never hostile: they arrive from out of sight, walk in, the current scene ends and a bigger one starts with the same human, and afterwards they walk away and vanish once out of sight. They never attack you, your followers or anyone else before, during or after.
+
+Updating from 0.9: overwrite the old files; settings carry over. Existing plugin records and FormIDs are unchanged; 1.0 only adds new records (message boxes, the Bitch in Heat faction, list, switches and helper quest). All new options stay off until you turn them on. MCM `GetVersion` 10 (the pages rebuild, and a new "Beast Form" page appears). SkyrimNet pack 1.0.0 adds a second decision template (`would_consent`).
 
 ## New in 0.9 (Savior Complex and Killer Rabbit vs Vigilants)
 
@@ -455,7 +463,8 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 11. 1.0 Join in: turn it on (Relationships page) along with cheating spouse, shared room or bathing, and force one of those with your spouse / a companion nearby. Confirm the Watch / Join in / Stop them box, that joining starts a three-person scene (or a take-over), and the SkyrimNet memory.
 12. 1.0 wild creatures (OCreatures) and werewolves at night (OStim Beast Form): turn them on, then use Debug > "Wild creature" / "Werewolf (now if on a road)" on a wilderness road (werewolves need night). Confirm watch, rescue, the narration, and that the panic key removes the spawns.
 13. 1.0 beast form choices (OStim Beast Form): turn them on, press Debug > "Beast form choice", then transform (or press it while transformed). Confirm the take / claim box and that the scene opens on Beast Form's start scene.
-14. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+14. 1.0 Bitch in Heat (OStim Beast Form + multi-werewolf scenes): turn it on, press Debug > "Bitch in Heat", then start a beast-form scene with a human outdoors. Confirm the how-many box, that the newcomers are werewolves in beast form, never hostile, that the bigger scene starts with the same human, that they walk off and vanish afterwards, and that the panic key removes them.
+15. Check the Papyrus log for `[ODeadlySkyrim]` lines.
 
 ## Known limits
 
@@ -478,6 +487,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Join in needs an OStim scene for the three of you (or, for a take-over, for you and your spouse / companion). Without one you keep watching.
 - Wild creatures and werewolves need installed scenes for the exact pair; no scene means nothing happens and the spawns are removed. The werewolf is a vanilla werewolf template; if it does not come out in beast form on your setup, the event is skipped.
 - Beast form choices appear a few seconds after the transformation, once you are out of combat. Vanilla beast form has a timer; if you change back mid-scene, how that plays is up to OStim Beast Form.
+- Bitch in Heat needs a scene for that exact cast (werewolves first, the human last). The walk-in is capped at 25 seconds; after that OStim places everyone. The newcomers walk off after the scene and are removed once out of sight (at the latest after half a game hour).
 - Killer Rabbit vs Vigilants is locked without Mihail's The Killer Rabbit of Caerbannog. The rabbit is as strong as his race makes it; two generic Vigilants are expected to lose without help.
 
 ## Repository contents

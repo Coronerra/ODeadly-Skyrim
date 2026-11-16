@@ -74,7 +74,12 @@ main_props = [pobj('PlayerRef', 0x14),
     pobj('FadeToBlackHoldIMod', 0xF756E), pobj('FadeToBlackBackIMod', 0xF756F),
     pobj('Gold001', 0xF)] + [pobj(ed, OWN | lid) for ed, lid, _ in pools] + [pobj('ODS_SaviorChoice', OWN | 0x81F)] + [  # 1.0 (new FormIDs appended)
     pobj('ODS_JoinChoice', OWN | 0x820), pobj('ODS_WildChoice', OWN | 0x821),
-    pobj('ODS_BeastPreyChoice', OWN | 0x822), pobj('ODS_BeastClaimChoice', OWN | 0x823)]
+    pobj('ODS_BeastPreyChoice', OWN | 0x822), pobj('ODS_BeastClaimChoice', OWN | 0x823)] + [  # 1.0 Bitch in Heat
+    pobj('ODS_PoolHeatWolf', OWN | 0x825), pobj('ODS_HeatPackFaction', OWN | 0x824),
+    pobj('PlayerWerewolfFaction', 0x91822), pobj('PlayerFollowerFaction', 0x84D1B),
+    pobj('ODS_HeatAllow1', OWN | 0x826), pobj('ODS_HeatAllow2', OWN | 0x827), pobj('ODS_HeatAllow3', OWN | 0x828),
+    pobj('ODS_HeatChoice', OWN | 0x829), pobj('ODS_HeatQuest', OWN | 0x82A),
+    pobj('HeatWolf1Alias', OWN | 0x82A, 0), pobj('HeatWolf2Alias', OWN | 0x82A, 1), pobj('HeatWolf3Alias', OWN | 0x82A, 2)]
 v_main = vmad_quest([script('ODS_Main', main_props)],
     [(aid, MAINQ, [script(sc, [])]) for aid, _, _, _, sc in aliases if sc])
 alias_subs = []
@@ -87,12 +92,16 @@ v_mcm = vmad_quest([script('ODS_MCM', [pobj('Main', MAINQ)])], [(0, MCMQ, [scrip
 qmcm = rec('QUST', MCMQ, [sub('EDID', z('ODS_MCMQuest')), sub('VMAD', v_mcm), sub('FULL', z("O'Deadly Skyrim MCM")),
     sub('DNAM', bytes.fromhex('110132ff0000000000000000')), sub('FLTR', z('ODeadlySkyrim\\')), sub('NEXT', b''),
     sub('ANAM', struct.pack('<I', 1))] + alias(0, 'PlayerAlias', 0, 0x14))
-def mesg(fid, edid, desc, buttons, box=True):
+def ctda_global_eq1(gfid):  # condition: GetGlobalValue(gfid) == 1.0 (function 74), run on subject
+    return sub('CTDA', struct.pack('<B3xfHHIIIIi', 0x00, 1.0, 74, 0, gfid, 0, 0, 0, -1))
+def mesg(fid, edid, desc, buttons, box=True, conds=None):
     flags = 1 if box else 0
     subs_ = [sub('EDID', z(edid)), sub('DESC', z(desc)), sub('INAM', struct.pack('<I', 0)),
              sub('DNAM', struct.pack('<I', flags)), sub('TNAM', struct.pack('<I', 0))]
-    for b in buttons:
+    for i, b in enumerate(buttons):
         subs_.append(sub('ITXT', z(b)))
+        if conds and conds[i] is not None:
+            subs_.append(ctda_global_eq1(conds[i]))
     return rec('MESG', fid, subs_)
 
 savior_msg = mesg(OWN | 0x81F, 'ODS_SaviorChoice',
@@ -105,10 +114,35 @@ msgs10 = [
     mesg(OWN | 0x822, 'ODS_BeastPreyChoice', 'The beast in you wants them. Take them?', ('Take them', 'Let them go')),
     mesg(OWN | 0x823, 'ODS_BeastClaimChoice', 'They are willing. Claim them?', ('Claim them', 'Not now')),
 ]
-nrec = 2 + len(fl) + 1 + len(msgs10)
-hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x824)), sub('CNAM', z('That Guy (Coronerra)')),
+# 1.0 "Bitch in Heat" (appended 0x824-0x82A)
+heat_fact = rec('FACT', OWN | 0x824, [sub('EDID', z('ODS_HeatPackFaction')),
+    sub('XNAM', struct.pack('<IiI', 0xDB1, 0, 3)),      # PlayerFaction: friend (never ally)
+    sub('XNAM', struct.pack('<IiI', 0x5C84E, 0, 3)),    # CurrentFollowerFaction: friend
+    sub('XNAM', struct.pack('<IiI', 0x84D1B, 0, 3)),    # PlayerFollowerFaction: friend
+    sub('XNAM', struct.pack('<IiI', 0x91822, 0, 3)),    # PlayerWerewolfFaction: friend
+    sub('DATA', struct.pack('<I', 1)),                  # hidden from PC
+    sub('CRVA', bytes.fromhex('01010000000000000000000000000000'))])
+heat_pool = rec('FLST', OWN | 0x825, [sub('EDID', z('ODS_PoolHeatWolf'))] +
+    [sub('LNAM', struct.pack('<I', x)) for x in (0x23ABC, 0xA092B, 0xA092C, 0xA092D, 0xA092E, 0xA092F)])  # EncWerewolf01-06, WerewolfBeastRace
+def glob(fid, edid): return rec('GLOB', fid, [sub('EDID', z(edid)), sub('FNAM', b's'), sub('FLTV', struct.pack('<f', 0.0))])
+heat_globs = [glob(OWN | 0x826, 'ODS_HeatAllow1'), glob(OWN | 0x827, 'ODS_HeatAllow2'), glob(OWN | 0x828, 'ODS_HeatAllow3')]
+heat_msg = mesg(OWN | 0x829, 'ODS_HeatChoice',
+    'The howls and the scent carry far. Other werewolves are answering. How many do you let come?',
+    ('One more', 'Two more', 'Three more', 'Not now'), conds=(OWN | 0x826, OWN | 0x827, OWN | 0x828, None))
+HEATQ = OWN | 0x82A
+v_heat = vmad_quest([], [(i, HEATQ, [script('ODS_HeatWolfAlias', [pobj('Main', MAINQ)])]) for i in range(3)])
+heat_alias_subs = []
+for i in range(3):
+    heat_alias_subs += alias(i, 'HeatWolf%d' % (i + 1), STAGE)
+qheat = rec('QUST', HEATQ, [sub('EDID', z('ODS_HeatQuest')), sub('VMAD', v_heat), sub('FULL', z("O'Deadly Skyrim heat pack")),
+    sub('DNAM', bytes.fromhex('00003cff0000000000000000')), sub('NEXT', b''),
+    sub('ANAM', struct.pack('<I', 3))] + heat_alias_subs)
+heat_recs = 1 + 1 + 3 + 1 + 1
+nrec = 2 + len(fl) + 1 + len(msgs10) + heat_recs
+hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x82B)), sub('CNAM', z('That Guy (Coronerra)')),
     sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v1.0. By That Guy (Coronerra).")),
     sub('MAST', z('Skyrim.esm')), sub('DATA', struct.pack('<Q', 0))], flags=0x200)
 out = sys.argv[1] if len(sys.argv) > 1 else 'ODeadlySkyrim.esp'
-open(out, 'wb').write(hdr + grup('QUST', [qmain, qmcm]) + grup('FLST', fl) + grup('MESG', [savior_msg] + msgs10))
+open(out, 'wb').write(hdr + grup('GLOB', heat_globs) + grup('FACT', [heat_fact]) + grup('QUST', [qmain, qmcm, qheat]) +
+    grup('FLST', fl + [heat_pool]) + grup('MESG', [savior_msg] + msgs10 + [heat_msg]))
 print('wrote', out, 'records', nrec)

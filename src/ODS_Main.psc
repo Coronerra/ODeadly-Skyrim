@@ -534,6 +534,7 @@ EndFunction
 Function OnGameLoaded()
 	InitArrays()
 	Register()
+	HeatOnLoad()         ; 1.0
 	If bRescueOn
 		RescueRelease(false)
 	EndIf
@@ -769,6 +770,7 @@ EndFunction
 
 Function AbortAll()
 	RescueRelease(false)
+	HeatAbort()          ; 1.0
 	bAftermathDone = true
 	int t = iThread
 	int t2 = iThread2
@@ -3685,6 +3687,9 @@ Event OnOStimThreadEnd(string eventName, string strArgs, float numArg, Form send
 		ODefSceneEnded(strArgs)
 	EndIf
 	int id = numArg as int
+	If id >= 0 && id == iHeatThread
+		HeatSceneEnded()       ; 1.0: the werewolves walk off (our own encounter still ends below)
+	EndIf
 	If bSaviorJoining
 		return
 	EndIf
@@ -3733,8 +3738,12 @@ Event OnOStimThreadStart(string eventName, string strArgs, float numArg, Form se
 		return       ; mid-battle: no walk-ins or distant watchers on top of a rescue
 	EndIf
 	int id = numArg as int
+	If bHeatOn || id == iHeatThread
+		return       ; 1.0: the heat scene itself
+	EndIf
 	CaughtCheck(id)
 	WatchCheck(id)
+	HeatCheck(id)      ; 1.0 Bitch in Heat (off by default)
 EndEvent
 
 Function CaughtCheck(int id)
@@ -7427,4 +7436,676 @@ bool Function StageBeastClaim(int ep)
 	AddAttacker(PlayerRef)
 	AddVictim(mate)
 	return StartEncounter(false, "odangerous,consensual,beastform,claim", ep)
+EndFunction
+
+; =====================================================================================
+; ======================= 1.0: "Bitch in Heat" (OStim Beast Form) =======================
+; When an OStim scene with the player starts between a male werewolf in beast form and a human
+; adult, the howls and scent can draw 1-3 more werewolves. OFF by default; master switch, panic
+; key and the no-children rule apply. Summoned werewolves are vanilla EncWerewolf01-06 bases
+; (WerewolfBeastRace in Skyrim.esm), checked for that race before they are used and again right
+; before the scene starts; they are calmed BEFORE they are enabled, never hostile, then walk off
+; and are deleted out of sight. Declared at the end of the script (save-safe).
+; =====================================================================================
+bool Property bHeat = false Auto Hidden
+float Property fHeatChance = 25.0 Auto Hidden
+bool Property bHeatAsk = true Auto Hidden          ; ask how many (else automatic)
+int Property iHeatMax = 3 Auto Hidden              ; most werewolves summoned (1-3)
+bool Property bForceHeat = false Auto Hidden       ; debug: next eligible scene, no chance roll
+FormList Property ODS_PoolHeatWolf Auto            ; EncWerewolf01-06 (Skyrim.esm, WerewolfBeastRace)
+Faction Property ODS_HeatPackFaction Auto          ; friend (never ally) to the player and followers
+Faction Property PlayerWerewolfFaction Auto
+Faction Property PlayerFollowerFaction Auto
+GlobalVariable Property ODS_HeatAllow1 Auto        ; MESG button conditions
+GlobalVariable Property ODS_HeatAllow2 Auto
+GlobalVariable Property ODS_HeatAllow3 Auto
+Message Property ODS_HeatChoice Auto               ; One more / Two more / Three more / Not now
+Quest Property ODS_HeatQuest Auto                  ; holds the summoned werewolves in guarded aliases
+ReferenceAlias Property HeatWolf1Alias Auto
+ReferenceAlias Property HeatWolf2Alias Auto
+ReferenceAlias Property HeatWolf3Alias Auto
+
+bool bHeatOn = false
+int iHeatThread = -1
+int iHeatEp = 0
+int iHeatLeft = 0
+bool bHeatOwnsBusy = false
+Actor[] kHeatWolves
+Actor kHeatHuman
+Actor kHeatBeast
+ObjectReference kHeatMarker
+int iHeatCount = 0
+
+ODS_HeatWolfAlias Function HeatAlias(int i)
+	If i == 0
+		return HeatWolf1Alias as ODS_HeatWolfAlias
+	ElseIf i == 1
+		return HeatWolf2Alias as ODS_HeatWolfAlias
+	EndIf
+	return HeatWolf3Alias as ODS_HeatWolfAlias
+EndFunction
+
+; ---------- scenes (actor order: werewolves first, the human last = the centre) ----------
+string Function HeatCandidate(bool female, int n, int i)
+	If female
+		If n == 1
+			If i == 0
+				return "WVLWWWerewolfHubFMMC2"
+			ElseIf i == 1
+				return "OBFWerewolfIdleFMM"
+			ElseIf i == 2
+				return "WVLAnubswwf-1"
+			ElseIf i == 3
+				return "WVLBWWB3pCG-1"
+			ElseIf i == 4
+				return "WVLBWWB3pDP2-1"
+			ElseIf i == 5
+				return "WVLBWWB3pHoldDP-1"
+			ElseIf i == 6
+				return "BillyyWerewolfHubFMM"
+			ElseIf i == 7
+				return "OCrWerewolfIdleFMM"
+			EndIf
+		ElseIf n == 2
+			If i == 0
+				return "WVLWWWerewolfHubFMMMC3"
+			ElseIf i == 1
+				return "OBFWerewolfIdleFMMM"
+			ElseIf i == 2
+				return "WVLBWWB4pGB1-1"
+			ElseIf i == 3
+				return "BillyyWerewolfHubFMMM"
+			ElseIf i == 4
+				return "OCrWerewolfIdleFMMM"
+			EndIf
+		ElseIf n == 3
+			If i == 0
+				return "WVLWWWerewolfHubFMMMMC4"
+			ElseIf i == 1
+				return "OBFWerewolfIdleFMMMM"
+			ElseIf i == 2
+				return "WVLBWWB5pGB1-1"
+			ElseIf i == 3
+				return "BillyyWerewolfHubFMMMM"
+			ElseIf i == 4
+				return "OCrWerewolfIdleFMMMM"
+			EndIf
+		EndIf
+	Else
+		If n == 1
+			If i == 0
+				return "WVLWWMWerewolfHubMMMC2"
+			ElseIf i == 1
+				return "WVLIdleWWMWerewolfMMMC2"
+			ElseIf i == 2
+				return "WVLAnubswwfM-1"
+			ElseIf i == 3
+				return "WVLBWWB3pCGM-1"
+			ElseIf i == 4
+				return "WVLBWWB3pDP2M-1"
+			EndIf
+		ElseIf n == 2
+			If i == 0
+				return "WVLWWMWerewolfHubMMMMC3"
+			ElseIf i == 1
+				return "WVLIdleWWMWerewolfMMMMC3"
+			ElseIf i == 2
+				return "WVLBWWB4pGB1M-1"
+			EndIf
+		ElseIf n == 3
+			If i == 0
+				return "WVLWWMWerewolfHubMMMMMC4"
+			ElseIf i == 1
+				return "WVLIdleWWMWerewolfMMMMMC4"
+			ElseIf i == 2
+				return "WVLBWWB5pGB1M-1"
+			EndIf
+		EndIf
+	EndIf
+	return ""
+EndFunction
+
+; installed for this many summoned werewolves (n+1 werewolves + 1 human)?
+bool Function HeatCountOK(bool female, int n)
+	int i = 0
+	While i < 8
+		string id = HeatCandidate(female, n, i)
+		If id != "" && OMetaData.GetActorCount(id) == n + 2
+			return true
+		EndIf
+		i += 1
+	EndWhile
+	return false
+EndFunction
+
+; the real cast: first listed scene OStim accepts for these actors, else any scene for them
+string Function HeatPickScene(Actor[] acts, bool female, int n)
+	int i = 0
+	While i < 8
+		string id = HeatCandidate(female, n, i)
+		If id != "" && OMetaData.GetActorCount(id) == acts.Length
+			string[] ok = OLibrary.GetScenesInRange(id, acts, 1)
+			If ok && ok.Length > 0
+				return id
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	string r = OLibrary.GetRandomSceneWithAnySceneTagCSV(acts, "werewolf,beast,creature")
+	If r == ""
+		r = OLibrary.GetRandomScene(acts)
+	EndIf
+	return r
+EndFunction
+
+; ---------- the guard: non-hostile, never an ally, never a teammate ----------
+Function HeatPacify(Actor w)
+	If w == None
+		return
+	EndIf
+	w.RemoveFromAllFactions()                  ; drops WerewolfFaction / CreatureFaction
+	If ODS_HeatPackFaction
+		w.AddToFaction(ODS_HeatPackFaction)
+	EndIf
+	w.SetActorValue("Aggression", 0.0)         ; unaggressive: never starts a fight
+	w.SetActorValue("Confidence", 0.0)         ; cowardly: walks away from one instead
+	w.SetActorValue("Assistance", 0.0)         ; helps nobody, so never joins your fights
+	w.IgnoreFriendlyHits(true)
+	w.SetPlayerTeammate(false)
+	w.StopCombat()
+	w.StopCombatAlarm()
+EndFunction
+
+Function HeatFactionSetup()
+	If ODS_HeatPackFaction == None
+		return
+	EndIf
+	; mutual "friend" (not ally): nobody fights, and the werewolves never assist in combat
+	ODS_HeatPackFaction.SetAlly(PlayerFaction, true, true)
+	If CurrentFollowerFaction
+		ODS_HeatPackFaction.SetAlly(CurrentFollowerFaction, true, true)
+	EndIf
+	If PlayerFollowerFaction
+		ODS_HeatPackFaction.SetAlly(PlayerFollowerFaction, true, true)
+	EndIf
+	If PlayerWerewolfFaction
+		ODS_HeatPackFaction.SetAlly(PlayerWerewolfFaction, true, true)
+	EndIf
+EndFunction
+
+; alias events: combat start or a hit -> calm again at once
+Function HeatCalmWolf(Actor w)
+	If w == None || kHeatWolves == None || kHeatWolves.Find(w) < 0
+		return
+	EndIf
+	HeatPacify(w)
+	PlayerRef.StopCombatAlarm()
+	Actor[] near = OActorUtil.GetActorsInRangeV2(w, 3000.0, false, false, false)
+	int i = 0
+	While i < near.Length
+		If near[i] && (near[i] == PlayerRef || IsFollowerActor(near[i])) && near[i].GetCombatTarget() == w
+			near[i].StopCombat()
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+; a summoned werewolf that is not in beast form is never used: drop it
+Function HeatRaceChanged(Actor w)
+	If w == None || kHeatWolves == None || kHeatWolves.Find(w) < 0
+		return
+	EndIf
+	If !IsWerewolfForm(w)
+		Log("heat: a summoned werewolf left beast form - removed")
+		int i = kHeatWolves.Find(w)
+		kHeatWolves[i] = None
+		w.Disable(false)
+		w.Delete()
+		ODS_HeatWolfAlias al = HeatAlias(i)
+		If al
+			al.Clear()
+		EndIf
+		If iHeatLeft > 0
+			iHeatLeft -= 1
+			If iHeatLeft == 0 && iHeatThread < 0
+				HeatFinish()
+			EndIf
+		EndIf
+	EndIf
+EndFunction
+
+; spawn one werewolf, disabled, just out of sight behind the player; verified and calmed before Enable
+Actor Function HeatSpawnWolf(Actor anchor, int ep)
+	If ODS_PoolHeatWolf == None || ODS_PoolHeatWolf.GetSize() == 0
+		return None
+	EndIf
+	int t = 0
+	While t < 4 && Alive(ep)
+		Actor a = anchor.PlaceAtMe(ODS_PoolHeatWolf.GetAt(Utility.RandomInt(0, ODS_PoolHeatWolf.GetSize() - 1)), 1, false, true) as Actor
+		If a
+			If IsWerewolfForm(a) && a.GetLeveledActorBase().GetSex() == 0 && !IsMinor(a)
+				float ang = PlayerRef.GetAngleZ() + 180.0 + Utility.RandomFloat(-50.0, 50.0)
+				float dist = Utility.RandomFloat(1500.0, 2200.0)
+				a.SetPosition(PlayerRef.GetPositionX() + Math.sin(ang) * dist, PlayerRef.GetPositionY() + Math.cos(ang) * dist, PlayerRef.GetPositionZ())
+				PO3_SKSEFunctions.MoveToNearestNavmeshLocation(a)
+				HeatPacify(a)          ; before it ever gets an AI tick
+				return a
+			EndIf
+			Log("heat: spawn was not a male werewolf in beast form - discarded")
+			a.Delete()
+		EndIf
+		t += 1
+	EndWhile
+	return None
+EndFunction
+
+bool Function HeatPlaceOK()
+	If !IsOutdoors()
+		return false
+	EndIf
+	Location loc = PlayerRef.GetCurrentLocation()
+	return !(TreeHasKW(loc, "LocTypeCity") || TreeHasKW(loc, "LocTypeTown"))
+EndFunction
+
+; ---------- trigger: OnOStimThreadStart ----------
+Function HeatCheck(int id)
+	If !bHeat || !Ready() || bHeatOn || bRescueOn || id < 0 || !BFScenesOK()
+		return
+	EndIf
+	If ODS_HeatQuest == None || ODS_HeatQuest.IsRunning() || ODS_PoolHeatWolf == None
+		return
+	EndIf
+	If bBusy && id != iThread
+		return
+	EndIf
+	Actor[] acts = OThread.GetActors(id)
+	If !acts || acts.Length != 2 || acts.Find(PlayerRef) < 0
+		return
+	EndIf
+	Actor beast = None
+	Actor human = None
+	If IsWerewolfForm(acts[0]) && !IsBeastForm(acts[1])
+		beast = acts[0]
+		human = acts[1]
+	ElseIf IsWerewolfForm(acts[1]) && !IsBeastForm(acts[0])
+		beast = acts[1]
+		human = acts[0]
+	EndIf
+	If beast == None || human == None || IsMinor(beast) || IsMinor(human) || !IsHumanoid(human)
+		return
+	EndIf
+	If beast.GetLeveledActorBase().GetSex() != 0
+		return      ; the werewolf places in these scenes are male
+	EndIf
+	If !HeatPlaceOK()
+		return
+	EndIf
+	If !bForceHeat && Utility.RandomFloat(0.0, 100.0) >= fHeatChance
+		return
+	EndIf
+	bool female = human.GetLeveledActorBase().GetSex() == 1
+	int cap = iHeatMax
+	If cap > 3
+		cap = 3
+	ElseIf cap < 1
+		cap = 1
+	EndIf
+	bool ok1 = cap >= 1 && HeatCountOK(female, 1)
+	bool ok2 = cap >= 2 && HeatCountOK(female, 2)
+	bool ok3 = cap >= 3 && HeatCountOK(female, 3)
+	If !ok1 && !ok2 && !ok3
+		Log("heat: no installed multi-werewolf scene for this human")
+		return
+	EndIf
+	bForceHeat = false
+	int n = 0
+	If bHeatAsk && ODS_HeatChoice
+		ODS_HeatAllow1.SetValue(ok1 as float)
+		ODS_HeatAllow2.SetValue(ok2 as float)
+		ODS_HeatAllow3.SetValue(ok3 as float)
+		int c = ODS_HeatChoice.Show()
+		If c == 0 && ok1
+			n = 1
+		ElseIf c == 1 && ok2
+			n = 2
+		ElseIf c == 2 && ok3
+			n = 3
+		EndIf
+	Else
+		int[] pick = new int[3]
+		int k = 0
+		If ok1
+			pick[k] = 1
+			k += 1
+		EndIf
+		If ok2
+			pick[k] = 2
+			k += 1
+		EndIf
+		If ok3
+			pick[k] = 3
+			k += 1
+		EndIf
+		n = pick[Utility.RandomInt(0, k - 1)]
+	EndIf
+	If n <= 0 || !Ready() || !OThread.IsRunning(id)
+		return
+	EndIf
+	HeatRun(id, beast, human, n, female)
+EndFunction
+
+Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
+	bHeatOn = true
+	iHeatEp = iEpoch
+	int ep = iHeatEp
+	bHeatOwnsBusy = !bBusy
+	bBusy = true
+	kHeatBeast = beast
+	kHeatHuman = human
+	kHeatWolves = new Actor[3]
+	iHeatCount = 0
+	HeatFactionSetup()
+	ODS_HeatQuest.Start()
+	int w8 = 0
+	While !ODS_HeatQuest.IsRunning() && w8 < 10
+		Utility.Wait(0.2)
+		w8 += 1
+	EndWhile
+	If !ODS_HeatQuest.IsRunning()
+		Log("heat: helper quest did not start")
+		HeatFinish()
+		return
+	EndIf
+	int i = 0
+	While i < n && Alive(ep)
+		Actor w = HeatSpawnWolf(human, ep)
+		If w == None
+			Log("heat: could not get a werewolf in beast form - event skipped")
+			HeatDeleteAll()
+			HeatFinish()
+			return
+		EndIf
+		kHeatWolves[i] = w
+		iHeatCount += 1
+		HeatAlias(i).ForceRefTo(w)
+		w.Enable(false)
+		HeatPacify(w)
+		i += 1
+	EndWhile
+	If !Alive(ep)
+		HeatDeleteAll()
+		HeatFinish()
+		return
+	EndIf
+	string where = WhereName()
+	string bn = beast.GetDisplayName()
+	string hn = human.GetDisplayName()
+	string cnt = HeatNumber(n)
+	If beast == PlayerRef
+		bn = PlayerRef.GetDisplayName() + ", a werewolf in full beast form,"
+	Else
+		bn = bn + ", a werewolf in full beast form,"
+	EndIf
+	TalkNet("Near " + where + ", the howls and the scent of " + bn + " rutting with " + hn + " have drawn " + cnt + " other werewolves in the area. They come out of the wilds in full beast form to join in, and " + hn + " is about to be fucked by " + HeatNumber(n + 1) + " werewolves at once.", beast, human, true, false)
+	ShowMsg("Howls answer from the wilds...")
+	i = 0
+	While i < n
+		HeatAlias(i).Approach(human)
+		i += 1
+	EndWhile
+	; bounded walk-in: up to 25 s, then OStim places everyone anyway
+	int waited = 0
+	bool near = false
+	While waited < 25 && !near && Alive(ep) && OThread.IsRunning(id)
+		Utility.Wait(1.0)
+		waited += 1
+		near = true
+		i = 0
+		While i < n
+			If kHeatWolves[i] == None || kHeatWolves[i].GetDistance(human) > 450.0
+				near = false
+			EndIf
+			i += 1
+		EndWhile
+	EndWhile
+	If !Alive(ep)
+		HeatDeleteAll()
+		HeatFinish()
+		return
+	EndIf
+	; final guarantee before the scene: every werewolf still alive, in beast form, calm
+	Actor[] acts = NewActorArray(n + 2)
+	acts[0] = beast
+	i = 0
+	While i < n
+		Actor w = kHeatWolves[i]
+		If w == None || w.IsDead() || !IsWerewolfForm(w)
+			Log("heat: a summoned werewolf is not usable - they leave")
+			HeatLeave()
+			return
+		EndIf
+		HeatPacify(w)
+		acts[i + 1] = w
+		i += 1
+	EndWhile
+	acts[n + 1] = human
+	If !OThread.IsRunning(id)
+		Log("heat: the first scene already ended - they leave")
+		HeatLeave()
+		return
+	EndIf
+	string sc = HeatPickScene(acts, female, n)
+	If sc == ""
+		Log("heat: OStim has no scene for this cast - they leave")
+		HeatLeave()
+		return
+	EndIf
+	bool own = id == iThread
+	If own
+		bSaviorJoining = true      ; our own encounter continues in the bigger scene
+		iThread = -1
+	EndIf
+	OThread.Stop(id)
+	Utility.Wait(0.8)
+	If own
+		bSaviorJoining = false
+	EndIf
+	If !Alive(ep)
+		HeatDeleteAll()
+		HeatFinish()
+		return
+	EndIf
+	int b = OThreadBuilder.Create(acts)
+	int t = -1
+	If b >= 0
+		OThreadBuilder.SetStartingAnimation(b, sc)
+		If own
+			float mn = fMinDuration
+			float mx = fMaxDuration
+			If mx < mn
+				mx = mn
+			EndIf
+			OThreadBuilder.SetDuration(b, Utility.RandomFloat(mn, mx))
+		EndIf
+		OThreadBuilder.UndressActors(b)
+		OThreadBuilder.NoFurniture(b)
+		OThreadBuilder.SetMetadataCSV(b, "odangerous,beastform,heat")
+		iHeatThread = -2           ; the start event of our own scene is ignored
+		t = OThreadBuilder.Start(b)
+	EndIf
+	iHeatThread = t
+	If t < 0
+		Log("heat: the bigger scene did not start - they leave")
+		If own
+			bAftermathDone = false
+			RegisterForSingleUpdate(2.0)
+		EndIf
+		HeatLeave()
+		return
+	EndIf
+	If own
+		iThread = t
+		kSceneActs = acts
+		sScene1 = sc
+	EndIf
+	Log("heat: " + n + " werewolves joined, scene " + sc + " thread " + t)
+EndFunction
+
+string Function HeatNumber(int n)
+	If n == 1
+		return "one"
+	ElseIf n == 2
+		return "two"
+	ElseIf n == 3
+		return "three"
+	ElseIf n == 4
+		return "four"
+	EndIf
+	return "several"
+EndFunction
+
+; OnOStimThreadEnd for the heat scene
+Function HeatSceneEnded()
+	iHeatThread = -1
+	If bSkyrimNetLog && SNetOK() && kHeatHuman && iHeatCount > 0
+		string bn = "a werewolf"
+		If kHeatBeast
+			bn = kHeatBeast.GetDisplayName()
+		EndIf
+		SkyrimNetApi.RegisterPersistentEvent("Near " + WhereName() + ", the howls and the scent of " + bn + " in full beast form rutting with " + kHeatHuman.GetDisplayName() + " drew " + HeatNumber(iHeatCount) + " other werewolves out of the wilds. They joined in, and " + kHeatHuman.GetDisplayName() + " was fucked by " + HeatNumber(iHeatCount + 1) + " werewolves at once. Afterwards the pack slipped away into the wilds without harming anyone.", kHeatBeast, kHeatHuman)
+	EndIf
+	HeatLeave()
+EndFunction
+
+; after the scene (or a failed start): calm again, walk away, deleted once out of sight
+Function HeatLeave()
+	If bHeatOwnsBusy
+		bHeatOwnsBusy = false
+		If iThread < 0
+			bBusy = false
+		EndIf
+	EndIf
+	If kHeatWolves == None
+		HeatFinish()
+		return
+	EndIf
+	Form xm = Game.GetFormFromFile(0x0000003B, "Skyrim.esm")
+	If xm && kHeatMarker == None
+		float ang = PlayerRef.GetAngleZ() + 180.0
+		kHeatMarker = PlayerRef.PlaceAtMe(xm, 1, false, false)
+		kHeatMarker.SetPosition(PlayerRef.GetPositionX() + Math.sin(ang) * 4000.0, PlayerRef.GetPositionY() + Math.cos(ang) * 4000.0, PlayerRef.GetPositionZ())
+	EndIf
+	iHeatLeft = 0
+	int i = 0
+	While i < 3
+		Actor w = kHeatWolves[i]
+		If w && !w.IsDeleted()
+			HeatPacify(w)
+			iHeatLeft += 1
+			If kHeatMarker
+				HeatAlias(i).Leave(kHeatMarker)
+			Else
+				HeatAlias(i).Leave(w)
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	If iHeatLeft == 0
+		HeatFinish()
+	EndIf
+EndFunction
+
+; alias: walked away (or the safety timer / death). Deleted only out of sight unless forced.
+Function HeatWolfGone(ODS_HeatWolfAlias al, bool force)
+	Actor w = al.GetActorReference()
+	If w
+		If !force && !w.IsDead()
+			int n = 0
+			While n < 10 && w.GetDistance(PlayerRef) < 2500.0 && PlayerRef.HasLOS(w)
+				Utility.Wait(2.0)
+				n += 1
+			EndWhile
+		EndIf
+		If kHeatWolves
+			int i = kHeatWolves.Find(w)
+			If i >= 0
+				kHeatWolves[i] = None
+			EndIf
+		EndIf
+		w.Disable(true)
+		w.Delete()
+	EndIf
+	al.Clear()
+	If iHeatLeft > 0
+		iHeatLeft -= 1
+	EndIf
+	If iHeatLeft <= 0 && iHeatThread < 0
+		HeatFinish()
+	EndIf
+EndFunction
+
+Function HeatDeleteAll()
+	If kHeatWolves
+		int i = 0
+		While i < 3
+			Actor w = kHeatWolves[i]
+			kHeatWolves[i] = None
+			If w
+				w.Disable(false)
+				w.Delete()
+			EndIf
+			HeatAlias(i).Clear()
+			i += 1
+		EndWhile
+	EndIf
+	iHeatLeft = 0
+EndFunction
+
+Function HeatFinish()
+	If bHeatOwnsBusy
+		bHeatOwnsBusy = false
+		If iThread < 0
+			bBusy = false
+		EndIf
+	EndIf
+	If kHeatMarker
+		kHeatMarker.Delete()
+		kHeatMarker = None
+	EndIf
+	If ODS_HeatQuest && ODS_HeatQuest.IsRunning()
+		ODS_HeatQuest.Stop()
+	EndIf
+	kHeatWolves = None
+	kHeatHuman = None
+	kHeatBeast = None
+	iHeatThread = -1
+	iHeatCount = 0
+	bHeatOn = false
+EndFunction
+
+; panic / master off: stop the scene, remove the werewolves at once
+Function HeatAbort()
+	If !bHeatOn && iHeatThread < 0
+		return
+	EndIf
+	int t = iHeatThread
+	iHeatThread = -1
+	If t >= 0 && OThread.IsRunning(t)
+		OThread.Stop(t)
+	EndIf
+	HeatDeleteAll()
+	HeatFinish()
+EndFunction
+
+; game loaded: a heat event that is not in its scene any more is cleaned up at once
+Function HeatOnLoad()
+	If !bHeatOn
+		return
+	EndIf
+	If iHeatThread >= 0 && OThread.IsRunning(iHeatThread)
+		return
+	EndIf
+	iHeatThread = -1
+	HeatDeleteAll()
+	HeatFinish()
 EndFunction
