@@ -2,6 +2,18 @@
 
 By That Guy (Coronerra).
 
+## 1.0.1
+
+Blood Born Pathogen fix. Scripts only (`ODS_Main`, `ODS_MCM`); plugin, records, FormIDs and the SkyrimNet pack are unchanged.
+
+- **Infection reasons:** the Papyrus log now records why a partner could not be infected (child, not a humanoid, in beast form, not detected as a follower or spouse, essential, on the Protected followers list, already infected, already a vampire, Companions' Circle / Volkihar / Dawnguard / werewolf or vampire faction, Growl beastblood, limit reached), each chance roll, scenes that are tracked, and when no lycanthropy or vampirism is found on you (with the `PlayerIsWerewolf` / `PlayerIsVampire` values). With Debug notifications on, they also show on screen.
+- **"Tell me when someone is infected"** (MCM > More encounters, **ON by default**): a short on-screen note, for example "Lydia caught lycanthropy from you."
+- **Essential no longer blocks your own followers or spouse.** Other essential NPCs are still never infected.
+- **"Protected followers / spouse can still catch it"** (**OFF by default**): your own followers and spouse on the Protected followers page can catch it from you; they stay protected from everything else.
+- MCM `GetVersion` 12 (pages rebuild). New settings are added at the end of `ODS_Main`.
+
+Updating from 1.0: overwrite the old files. In-place and save-safe; settings carry over.
+
 ## 1.0
 
 Five new modules. Each is **OFF by default**, with its own MCM toggles and chance slider; master switch, panic key and the no-children rule apply. OCreatures, OStim Beast Form, Growl and the Saturalia Holiday Pack are soft-detected (never masters, no files included).

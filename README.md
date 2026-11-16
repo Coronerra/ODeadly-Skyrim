@@ -2,13 +2,15 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v1.0**
+**v1.0.1**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0)** · [Changelog](CHANGELOG.md) · [Earlier v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v1.0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.1)** · [Changelog](CHANGELOG.md) · [Earlier v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0) · [v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
+
+Version 1.0.1 (`ODeadly_Skyrim_1.0.1.zip`) is a Blood Born Pathogen fix: the log (and Debug notifications) now say why a partner could not be infected, an on-screen notice tells you when someone catches it (on by default), essential no longer blocks your own followers and spouse, and a new toggle lets protected followers / your spouse still catch it (off by default). Save-safe in-place update from 1.0. See [New in 1.0.1](#new-in-101-blood-born-pathogen-fix).
 
 Version 1.0 (`ODeadly_Skyrim_1.0.zip`) adds three optional modules, all off by default: **Join in** (walk in on your spouse or a companion in a consensual scene and join them), **wild creatures** on the road (needs OCreatures), **OStim Beast Form** support (werewolves at night, choices when you transform, and Bitch in Heat: other werewolves drawn to a werewolf scene), **Blood Born Pathogen** (a werewolf or vampire player can pass it on through sex) and **Saturalia** (needs the Saturalia Holiday Pack). See [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form).
 
@@ -325,6 +327,16 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
 
+## New in 1.0.1 (Blood Born Pathogen fix)
+
+- **Why not?** The Papyrus log now says why a partner could not be infected (for example: on the Protected followers list, not detected as a follower or spouse, already a werewolf or vampire, limit reached), each chance roll, and when you have no lycanthropy or vampirism it can find. With Debug notifications on (MCM > Debug) you also see these on screen.
+- **"Tell me when someone is infected"** (MCM > More encounters, **ON by default**): a short on-screen note when a partner catches it from you.
+- **Essential followers and spouses can catch it.** Being essential no longer blocks your own followers or your spouse (sex never kills anyone). Other essential NPCs are still never infected.
+- **"Protected followers / spouse can still catch it"** (**OFF by default**): with it on, your own followers and spouse on the Protected followers page can catch it from you, and stay protected from everything else.
+- MCM `GetVersion` 12 (the pages rebuild). Scripts only: plugin, records and FormIDs unchanged, and the SkyrimNet pack is unchanged.
+
+Updating from 1.0: overwrite the old files (in-place, save-safe); settings carry over and the two new options start at their defaults.
+
 ## New in 1.0 (join in, wild creatures, OStim Beast Form)
 
 Three new modules. Each one is **OFF by default**, has its own MCM toggles and chance slider, needs the master switch, is stopped by the panic key, and never involves children in any role. OCreatures and OStim Beast Form are detected at runtime; neither is a master and none of their files are included.
@@ -361,12 +373,12 @@ Three new modules. Each one is **OFF by default**, has its own MCM toggles and c
 
 - **OFF by default**, own toggle and two chance sliders (10% per partner per scene, 35% while you are in werewolf or vampire lord form). Master switch and panic key apply. Adults only.
 - If you are a werewolf or a vampire (vanilla, Growl or Sacrosanct) and finish an OStim scene with an adult human partner, you can pass it on. By default only your followers and your spouse can catch it; an option allows any eligible NPC, with a cap (5 by default, at most 10).
-- Never children, essential or protected NPCs (including the MCM protected list), the Companions' Circle, the Volkihar clan or the Dawnguard, or anyone who already is a werewolf or vampire.
+- Never children, essential NPCs who are not your follower or spouse, protected NPCs (including the MCM protected list, unless you turn on "Protected followers / spouse can still catch it", 1.0.1), the Companions' Circle, the Volkihar clan or the Dawnguard, or anyone who already is a werewolf or vampire.
 - About 3 game days of incubation with symptom updates. A potion of Cure Disease, given to them (or already in their pack when the next update comes), stops it during that time.
 - **Lycanthropy:** they become a werewolf. In a fight at night they can turn into a werewolf in full beast form (Beast Form's body if you use it) for about 30 seconds, then change back, with a 90 second cooldown. Never while sitting, sleeping or riding, and anyone still changed is turned back on load and by the panic key. With Growl installed, a follower gets Growl's own beastblood instead and Growl handles their changes.
 - **Vampirism:** no race change. They join the vampire faction and the sun burns them.
 - SkyrimNet is told plainly at every step (infection, symptoms, turning, first change) that you, by name, passed it to them through sex, and it becomes part of their memories and bio, so they can bring it up with you.
-- MCM: a list of who is infected, and a button to cure everyone this mod infected.
+- MCM: a list of who is infected, and a button to cure everyone this mod infected. From 1.0.1: an on-screen notice when someone is infected (on by default), and the reason in the Papyrus log when someone could not be.
 
 ### Saturalia (MCM > More encounters, needs the Saturalia Holiday Pack)
 
@@ -527,7 +539,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_1.0.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_1.0.1.zip`)
 
 ## Credits
 

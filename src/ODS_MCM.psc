@@ -2175,7 +2175,7 @@ string Function Hint(string k)
 	ElseIf k == "pathocap"
 		return "Most NPCs infected by this mod at the same time (incubating or turned). Default 5."
 	ElseIf k == "pathonote"
-		return "ON (default): a short note on screen when a partner catches it from you, for example 'Sevia caught lycanthropy from you.' With Debug notifications on you also see why someone could not be infected and each roll."
+		return "ON (default): a short note on screen when a partner catches it from you, for example 'Lydia caught lycanthropy from you.' With Debug notifications on you also see why someone could not be infected and each roll."
 	ElseIf k == "pathoprot"
 		return "OFF (default): followers on the Protected followers page are never infected. ON: your own followers and spouse on that list can still catch it from you (they stay protected from everything else). Essential followers and spouses can always catch it."
 	ElseIf k == "pathotf"
