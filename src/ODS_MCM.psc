@@ -1,5 +1,5 @@
 Scriptname ODS_MCM extends SKI_ConfigBase
-{O'Deadly Skyrim v1.0 MCM (SkyUI). By That Guy (Coronerra).}
+{O'Deadly Skyrim v1.1.7 MCM (SkyUI). By That Guy (Coronerra).}
 
 ODS_Main Property Main Auto
 
@@ -60,12 +60,12 @@ int oForceSavior
 int oForceBunnyFight
 
 int Function GetVersion()
-	return 12
+	return 14
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11), pathogen notify / protected options (v12)
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11), pathogen notify / protected options (v12), pathogen diagnostics + log file (v13), 1.1 pathogen for everyone + SkyrimNet beast forms + blood gift (v14)
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -274,6 +274,8 @@ bool Function GetB(string k)
 		return Main.bDebug
 	ElseIf k == "debugtools"
 		return Main.bDebugTools
+	ElseIf k == "logfile"
+		return Main.bLogFile
 	ElseIf k == "morning"
 		return Main.bMorningAfter
 	ElseIf k == "morningspawn"
@@ -354,6 +356,18 @@ bool Function GetB(string k)
 		return Main.bPathoNotify
 	ElseIf k == "pathoprot"
 		return Main.bPathoProtectedOK
+	ElseIf k == "pathonpcs"
+		return Main.bPathoNPCs
+	ElseIf k == "pathoplayer"
+		return Main.bPathoPlayerCatch
+	ElseIf k == "pathoalways"
+		return Main.bPathoAlways
+	ElseIf k == "pathosnet"
+		return Main.bPathoSNetForms
+	ElseIf k == "sacrace"
+		return Main.bSacRace
+	ElseIf k == "vlf"
+		return Main.bVLFollowers
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -486,6 +500,9 @@ Function SetB(string k, bool v)
 		Main.bDebug = v
 	ElseIf k == "debugtools"
 		Main.bDebugTools = v
+	ElseIf k == "logfile"
+		Main.bLogFile = v
+		Main.LogToggled()      ; 1.1.2: header + startup block right away
 	ElseIf k == "morning"
 		Main.bMorningAfter = v
 	ElseIf k == "morningspawn"
@@ -568,6 +585,18 @@ Function SetB(string k, bool v)
 		Main.bPathoNotify = v
 	ElseIf k == "pathoprot"
 		Main.bPathoProtectedOK = v
+	ElseIf k == "pathonpcs"
+		Main.bPathoNPCs = v
+	ElseIf k == "pathoplayer"
+		Main.bPathoPlayerCatch = v
+	ElseIf k == "pathoalways"
+		Main.bPathoAlways = v
+	ElseIf k == "pathosnet"
+		Main.bPathoSNetForms = v
+	ElseIf k == "sacrace"
+		Main.bSacRace = v
+	ElseIf k == "vlf"
+		Main.bVLFollowers = v
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -661,14 +690,20 @@ float Function GetF(string k)
 		return Main.fBeastOfferChance
 	ElseIf k == "heatch"
 		return Main.fHeatChance
-	ElseIf k == "heatmax"
-		return Main.iHeatMax as float
+	ElseIf k == "heatjoin"
+		return Main.iHeatJoin as float
 	ElseIf k == "satvisits"
 		return Main.iSatVisits as float
 	ElseIf k == "pathoch"
 		return Main.fPathoChance
 	ElseIf k == "pathobeastch"
 		return Main.fPathoBeastChance
+	ElseIf k == "pathowwch"
+		return Main.fPathoWWChance
+	ElseIf k == "pathovlch"
+		return Main.fPathoVLChance
+	ElseIf k == "pathobearch"
+		return Main.fPathoBearChance
 	ElseIf k == "pathocap"
 		return Main.iPathoCap as float
 	ElseIf k == "faunach"
@@ -772,14 +807,20 @@ Function SetF(string k, float v)
 		Main.fBeastOfferChance = v
 	ElseIf k == "heatch"
 		Main.fHeatChance = v
-	ElseIf k == "heatmax"
-		Main.iHeatMax = v as int
+	ElseIf k == "heatjoin"
+		Main.iHeatJoin = v as int
 	ElseIf k == "satvisits"
 		Main.iSatVisits = v as int
 	ElseIf k == "pathoch"
 		Main.fPathoChance = v
 	ElseIf k == "pathobeastch"
 		Main.fPathoBeastChance = v
+	ElseIf k == "pathowwch"
+		Main.fPathoWWChance = v
+	ElseIf k == "pathovlch"
+		Main.fPathoVLChance = v
+	ElseIf k == "pathobearch"
+		Main.fPathoBearChance = v
 	ElseIf k == "pathocap"
 		Main.iPathoCap = v as int
 	ElseIf k == "faunach"
@@ -867,13 +908,13 @@ string Function FmtOf(string k)
 		return "{0} s"
 	ElseIf k == "range" || k == "guardrange" || k == "radius"
 		return "{0} units"
-	ElseIf k == "groupmax" || k == "morningdrinks" || k == "faunarabbits" || k == "heatmax" || k == "satvisits" || k == "pathocap"
+	ElseIf k == "groupmax" || k == "morningdrinks" || k == "faunarabbits" || k == "heatjoin" || k == "satvisits" || k == "pathocap"
 		return "{0}"
 	ElseIf k == "drunkmult"
 		return "x{1}"
 	ElseIf k == "ovratk" || k == "ovrcht"
 		return "{1}"
-	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach" || k == "joinch" || k == "beastch" || k == "heatch" || k == "pathoch" || k == "pathobeastch"
+	ElseIf k == "beast" || k == "robpct" || k == "caughtch" || k == "defeatch" || k == "rescuech" || k == "robscene" || k == "blackmailch" || k == "morningch" || k == "bathch" || k == "watchch" || k == "faunach" || k == "joinch" || k == "beastch" || k == "heatch" || k == "pathoch" || k == "pathobeastch" || k == "pathowwch" || k == "pathovlch" || k == "pathobearch"
 		return "{0}%"
 	EndIf
 	return "{1}%"
@@ -1006,28 +1047,28 @@ Function SliderSpec(string k)
 		mx = 100.0
 		st = 5.0
 		df = 25.0
-	ElseIf k == "heatmax"
-		mn = 1.0
+	ElseIf k == "heatjoin"
+		mn = 0.0
 		mx = 3.0
 		st = 1.0
-		df = 3.0
+		df = 0.0
 	ElseIf k == "satvisits"
 		mn = 1.0
 		mx = 5.0
 		st = 1.0
 		df = 3.0
-	ElseIf k == "pathoch" || k == "pathobeastch"
+	ElseIf k == "pathoch" || k == "pathobeastch" || k == "pathowwch" || k == "pathovlch" || k == "pathobearch"
 		mx = 100.0
 		st = 1.0
 		df = 10.0
-		If k == "pathobeastch"
+		If k != "pathoch"
 			df = 35.0
 		EndIf
 	ElseIf k == "pathocap"
 		mn = 1.0
 		mx = 10.0
 		st = 1.0
-		df = 5.0
+		df = 10.0
 	ElseIf k == "crwildch"
 		mx = 25.0
 		df = 2.0
@@ -1098,6 +1139,7 @@ Function ResetIds()
 	nS = 0
 	oMaster = -100
 	oPanicKey = -100
+	oGiftKey = -100
 	oMsg = -100
 	oGender = -100
 	oFauna = -100
@@ -1450,9 +1492,9 @@ Function PageBeast()
 	AddHeaderOption("Bitch in Heat")
 	AddT("Enable Bitch in Heat", "heat", Flag(bf))
 	bool h = bf && Main.bHeat
-	AddS("Chance per werewolf scene", "heatch", Flag(h))
-	AddT("Ask how many (off = automatic)", "heatask", Flag(h))
-	AddS("Most werewolves that come", "heatmax", Flag(h))
+	AddS("Chance per beast-form scene", "heatch", Flag(h))
+	AddS("How many join (0 = random 1-3)", "heatjoin", Flag(h))
+	AddTextOption("  Werebears use werewolf scenes (Beast Form)", YesNo(Main.HeatBearAsWolf()), OPTION_FLAG_DISABLED)
 EndFunction
 
 ; 0.2 modules, one column, top to bottom. The climax fauna easter egg is deliberately the last module.
@@ -1494,16 +1536,30 @@ Function PageMore()
 	AddHeaderOption("Blood Born Pathogen")
 	AddT("Pass lycanthropy / vampirism on through sex", "patho")
 	int bp = Flag(Main.bPatho)
-	AddS("Chance per partner", "pathoch", bp)
-	AddS("Chance in werewolf / vampire lord form", "pathobeastch", bp)
+	AddS("Chance: werewolf / vampire in human form", "pathoch", bp)
+	AddS("Chance: werewolf in beast form", "pathowwch", bp)
+	AddS("Chance: vampire lord", "pathovlch", bp)
+	AddS("Chance: werebear", "pathobearch", bp)
+	AddT("Always infect (no chance roll)", "pathoalways", bp)
 	AddT("Any eligible NPC (off = followers, spouse)", "pathoany", bp)
-	AddS("Most NPCs infected at once", "pathocap", bp)
-	AddT("Infected werewolves change in night fights", "pathotf", bp)
+	AddT("NPC scenes without you spread it too", "pathonpcs", bp)
+	AddT("You can catch it from a partner", "pathoplayer", bp)
+	AddS("World cap: most NPCs infected at once", "pathocap", bp)
+	AddT("Infected werewolves / werebears change in night fights", "pathotf", bp)
+	AddT("SkyrimNet: turned NPCs change at will", "pathosnet", bp)
+	oGiftKey = AddKeyMapOption("Blood gift key (look at someone)", Main.iBloodGiftKey, OPTION_FLAG_WITH_UNMAP + bp)
 	AddT("Tell me when someone is infected", "pathonote", bp)
 	AddT("Protected followers / spouse can still catch it", "pathoprot", bp)
 	AddTextOption("  Infected: " + Main.PathoListText(), "", OPTION_FLAG_DISABLED)
+	AddTextOption("  Turned NPCs look normal until they change", "", OPTION_FLAG_DISABLED)
 	oPathoCureAll = AddTextOption("Cure everyone this mod infected", "", Flag(Main.PathoCount() > 0))
 	AddTextOption("  Growl (followers use its beastblood)", YesNo(Main.ModLoaded("Growl - Werebeasts of Skyrim.esp")), OPTION_FLAG_DISABLED)
+	If Main.GrowlOK()
+		AddTextOption("  Growl totem", Main.GrowlTotemText(), OPTION_FLAG_DISABLED)
+	EndIf
+	AddTextOption("  Sacrosanct (NPC vampires its way)", YesNo(Main.SacrosanctOK()), OPTION_FLAG_DISABLED)
+	AddT("Sacrosanct: turned vampires get its vampire race", "sacrace", Flag(Main.bPatho && Main.SacrosanctOK()))
+	AddT("Existing vampire followers can become Vampire Lords", "vlf", Flag(Main.ModLoaded("Dawnguard.esm")))
 	AddHeaderOption("Saturalia")
 	bool satok = Main.SatModOK()
 	If !satok
@@ -1597,7 +1653,24 @@ Function PageDebug()
 	AddHeaderOption("Debug")
 	AddT("Enable debug tools", "debugtools")
 	AddT("Debug notifications", "debug")
+	AddT("Write log file", "logfile")
+	AddTextOption("Log file", "SKSE/Plugins/ODeadlySkyrim.log", OPTION_FLAG_DISABLED)
 	AddTextOption("Pending force", ForceName(), OPTION_FLAG_DISABLED)
+	AddHeaderOption("Blood Born Pathogen")
+	AddTextOption("Debug force armed", YesNo(Main.bForcePatho), OPTION_FLAG_DISABLED)
+	string pl = Main.sPathoLast
+	If pl == ""
+		pl = "nothing yet"
+	EndIf
+	oPathoLast = AddTextOption("Last result", "", OPTION_FLAG_DISABLED)
+	AddTextOption("  " + StringUtil.Substring(pl, 0, 60), "", OPTION_FLAG_DISABLED)
+	If StringUtil.GetLength(pl) > 60
+		AddTextOption("  " + StringUtil.Substring(pl, 60, 60), "", OPTION_FLAG_DISABLED)
+	EndIf
+	If StringUtil.GetLength(pl) > 120
+		AddTextOption("  " + StringUtil.Substring(pl, 120, 60), "", OPTION_FLAG_DISABLED)
+	EndIf
+	AddTextOption("  Infected: " + Main.PathoListText(), "", OPTION_FLAG_DISABLED)
 	oForceClear = AddTextOption("Clear pending force", "", Flag(Main.iForceMode > 0))
 	SetCursorPosition(1)
 	AddHeaderOption("Force on next sleep / wait (1h+)")
@@ -1616,7 +1689,7 @@ Function PageDebug()
 	oForceCrWild = AddTextOption("Wild creature (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.AnyCrWildOK()))
 	oForceWolf = AddTextOption("Werewolf (now if on a road)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bWolfNight && Main.BFScenesOK()))
 	oForceBeast = AddTextOption("Beast form choice (now / next transform)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bBeastOffer && Main.BFScenesOK()))
-	oForceHeat = AddTextOption("Bitch in Heat (next werewolf scene)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bHeat && Main.BFScenesOK()))
+	oForceHeat = AddTextOption("Bitch in Heat (next beast-form scene)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bHeat && Main.OStimOK()))
 	oForceSat = AddTextOption("Saturalia gift visit (date ignored)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bSaturalia && Main.SatModOK()))
 	oForcePatho = AddTextOption("Blood Born Pathogen (next scene)", "", Flag(Main.bDebugTools && Main.bMaster && Main.bPatho))
 	oForceVampire = AddTextOption("Vampire", "", f)
@@ -1733,8 +1806,16 @@ Event OnOptionSelect(int o)
 			EndIf
 			ForcePageReset()
 		EndIf
-		If k == "patho"
+		If k == "patho" || k == "pathosnet"
+			Main.PathoSyncGlobals()     ; 1.1: SkyrimNet reads these
 			ForcePageReset()
+		EndIf
+		If k == "vlf"
+			If !Main.bVLFollowers
+				Main.VLFRevertAll()
+			EndIf
+			Main.PathoSyncGlobals()
+			Main.VLFScan()              ; 1.1.5: marks vampire followers nearby for SkyrimNet
 		EndIf
 		If k == "jail" || k == "travel" || k == "cr" || k == "crwild" || k == "wolfnight"
 			If Main.bMaster
@@ -1807,13 +1888,15 @@ Event OnOptionSelect(int o)
 		ForcePageReset()
 	ElseIf o == oForceHeat
 		Main.bForceHeat = true
-		ShowMessage("The next OStim scene with you between a male werewolf in beast form and a human, outdoors and away from towns, will call the other werewolves (no chance roll). It still needs an installed multi-werewolf scene.", false)
+		ShowMessage("The next OStim scene with you between a male in full beast form (werewolf, werebear or vampire lord) and a human, outdoors and away from towns, will call more of them (no chance roll). It still needs installed scenes for them.", false)
 	ElseIf o == oForceSat
 		Main.ForceSaturalia()
 		ShowMessage("Agrane Peryval will try a gift visit within the next game hour (date ignored). You need to be in a town, city, settlement, inn or shop, out of combat, with adults nearby. He goes home a couple of game hours later (on 25 Evening Star: at midnight).", false)
 	ElseIf o == oForcePatho
 		Main.bForcePatho = true
-		ShowMessage("The next eligible partner at the end of an OStim scene with you (while you are a werewolf or vampire) is infected, no chance roll. Incubation still takes about 3 game days.", false)
+		Main.sPathoLast = "debug force armed, waiting for a scene with you"
+		ShowMessage("This only skips the chance roll. At the end of your next OStim scene (while you are a werewolf or vampire), the first partner who passes every eligibility check is infected. A partner who fails a check is NOT infected and the force stays armed; the reason is shown on screen, on this page (Last result) and in ODeadlySkyrim.log. 1.1.1: from a werewolf, werebear or vampire lord they turn at once at the end of the scene; from a vampire in human form it is still the slow disease (about 3 game days).", false)
+		ForcePageReset()
 	ElseIf o == oPathoCureAll
 		If ShowMessage("Cure everyone O'Deadly Skyrim infected? Factions and abilities it added are removed.", true, "Cure", "Cancel")
 			Main.PathoCureAll()
@@ -1854,7 +1937,7 @@ Event OnOptionSelect(int o)
 EndEvent
 
 Event OnOptionKeyMapChange(int o, int keyCode, string conflictControl, string conflictName)
-	If o != oPanicKey
+	If o != oPanicKey && o != oGiftKey
 		return
 	EndIf
 	If conflictControl != "" && keyCode > 0
@@ -1866,7 +1949,15 @@ Event OnOptionKeyMapChange(int o, int keyCode, string conflictControl, string co
 			return
 		EndIf
 	EndIf
-	Main.iPanicKey = keyCode
+	If o == oGiftKey
+		If keyCode > 0 && keyCode == Main.iPanicKey
+			ShowMessage("That is the panic key.", false)
+			return
+		EndIf
+		Main.iBloodGiftKey = keyCode
+	Else
+		Main.iPanicKey = keyCode
+	EndIf
 	Main.RegisterPanicKey()
 	SetKeyMapOptionValue(o, keyCode)
 	ForcePageReset()
@@ -2157,29 +2248,47 @@ string Function Hint(string k)
 	ElseIf k == "beastclaim"
 		return "Your spouse, or a companion who is willing (SkyrimNet's decision model from their bio when available, else relationship rank), gives themselves to the beast. Consensual."
 	ElseIf k == "heat"
-		return "OFF by default. Needs OStim Beast Form and multi-werewolf scenes (Beast Form, Werewolf and Vampire Lord OStim). When an OStim scene with you starts between a male werewolf in beast form and a human (you or your partner), outdoors and away from towns, the howls and scent can draw other werewolves to join. They arrive in beast form, are never hostile, the scene grows to include them with the same human at the centre, and afterwards they walk away and vanish out of sight. SkyrimNet is told plainly. Never children."
+		return "OFF by default. Needs OStim Beast Form. When an OStim scene with you starts between a male in FULL beast form (werewolf, werebear or vampire lord; human-form werewolves and vampires do not count) and a human (you or your partner), outdoors and away from towns, more of them come. Werewolves join one group scene (Werewolf and Vampire Lord OStim 0.3.1 / Beast Form scenes); werebears join it too when Beast Form's 'werebears use werewolf scenes' is on, otherwise they take turns; vampire lords take turns in pair scenes. A male human centre only with WVL's male partner scenes. They arrive already changed, are never hostile, and afterwards walk away and vanish out of sight. SkyrimNet is told plainly. Never children."
 	ElseIf k == "heatch"
 		return "Chance per eligible scene. 0 = never."
-	ElseIf k == "heatask"
-		return "ON (default): a box asks how many werewolves you let come (only counts with installed scenes are offered). OFF: a random supported count, up to the maximum."
-	ElseIf k == "heatmax"
-		return "Most werewolves that can come (1-3, so up to 4 werewolves in the scene). Counts without installed scenes are never offered."
+	ElseIf k == "heatjoin"
+		return "1.1.6. How many come, chosen here ahead of time (werewolves, werebears and vampire lords alike): 1, 2 or 3, or 0 = random 1-3 (default). There is no box in game, so nothing pops up over OStim's own menu. If that count has no installed scene for the cast, the nearest count that has one is used (logged)."
 	ElseIf k == "patho"
-		return "OFF by default. If you are a werewolf or vampire (vanilla, Growl, Sacrosanct) and finish an OStim scene with an adult human partner, you may pass it on. About 3 game days of incubation with symptoms; a Cure Disease potion (given to them or in their pack) stops it in that time. Then they are a werewolf or a vampire, and SkyrimNet tells them plainly it was you. Never children, essential NPCs who are not your follower or spouse, protected followers (unless you allow it below), the Companions' Circle, Volkihar or Dawnguard, or anyone already infected."
-	ElseIf k == "pathoch"
-		return "Chance per adult partner per scene. 0 = never."
+		return "OFF by default. 1.1: anyone who finishes an OStim scene with a werewolf, vampire lord or werebear (or a werewolf / vampire in human form) may catch it: your partners, you, and NPCs in their own scenes. If you are a werewolf or vampire (vanilla, Growl, Sacrosanct), you may pass it on. 1.1.1: lycanthropy (werewolf, werebear) and vampirism from a vampire lord turn them at once when the scene ends, no incubation. Only a vampire in human form passes the slow disease (about 3 game days with symptoms; a Cure Disease potion stops it). SkyrimNet tells them plainly who gave it to them, and how. They look normal until they change: in a fight at night, or (SkyrimNet) when asked or when it fits; a vampire gets sun damage. Never children, essential NPCs who are not your follower or spouse, protected followers (unless you allow it below), anyone already a werewolf, vampire or vampire lord (Serana, Harkon, the Circle, Volkihar, Dawnguard, Growl beastblood), or anyone already infected."
 	ElseIf k == "pathobeastch"
 		return "Chance per partner while you are in werewolf or vampire lord form."
+	ElseIf k == "pathowwch"
+		return "1.1. Chance per partner per scene when someone in it is a werewolf in beast form. Default 35."
+	ElseIf k == "pathovlch"
+		return "1.1. Chance per partner per scene when someone in it is in vampire lord form (they pass on vampirism). Default 35."
+	ElseIf k == "pathobearch"
+		return "1.1. Chance per partner per scene when someone in it is a werebear (Dragonborn race, e.g. Growl). Default 35."
+	ElseIf k == "pathonpcs"
+		return "1.1. ON (default): an OStim scene between NPCs (OStimNet, other mods) where one is a werewolf, vampire or werebear can pass it on too, with the same chances, filters and world cap. OFF: only scenes with you."
+	ElseIf k == "pathoalways"
+		return "1.1.1. OFF (default). ON: every eligible partner of a werewolf, werebear or vampire lord is turned when the scene ends, no chance roll (a werewolf in human form counts; a vampire in human form still rolls). Immunity, children, the followers / spouse filter, 'You can catch it' and the world cap still apply."
+	ElseIf k == "pathoplayer"
+		return "1.1. ON (default): you can catch it from a partner who is a werewolf, vampire lord, werebear or vampire. 1.1.1: from a werewolf or werebear you turn at once (vanilla Beast Form power); from a vampire lord you become a vampire at once (VampireChange, Sacrosanct-aware, plus the Vampire Lord power); from a vampire in human form it is the vanilla Sanguinare Vampiris. Never if you already are one."
+	ElseIf k == "sacrace"
+		return "1.1.5. OFF (default). Needs Sacrosanct. ON: an NPC this mod turns into a vampire also gets Sacrosanct's matching vampire race (NordRace -> NordRaceVampire and so on). Skipped (and logged) when the NPC's own skin has no body for that race. Taken back by 'Cure everyone'. With Sacrosanct, turned vampires always get its NPC treatment (VampireVampirism, sun damage, resistances, drain by level) without the Foster Childe message."
+	ElseIf k == "vlf"
+		return "1.1.5. OFF (default). Needs Dawnguard and SkyrimNet. ON: followers who already are vampires (Serana and others) can change into a vampire lord through SkyrimNet when you ask or when it fits, and back when asked. A follower with their own body skin wears the vampire lord skin while changed."
+	ElseIf k == "pathosnet"
+		return "1.1. ON (default), needs SkyrimNet: NPCs this mod turned know it and can change into their beast form (werewolf, vampire lord, werebear) when you ask or when it fits, and change back when asked. Changed for a fight: back after the fight. Otherwise no timer: they stay until asked."
+	ElseIf k == "pathoch"
+		return "Chance per adult partner per scene when the carrier is in human form: you (a werewolf or vampire), an NPC this mod turned, a Circle member or a vampire. 0 = never."
 	ElseIf k == "pathoany"
 		return "OFF (default): only your followers and your spouse. ON: any eligible adult NPC, up to the cap."
 	ElseIf k == "pathocap"
-		return "Most NPCs infected by this mod at the same time (incubating or turned). Default 5."
+		return "World cap: most NPCs infected by this mod at the same time (incubating or turned). Default 10. Checked first: with the cap reached, scenes are not even tracked (only you can still catch it)."
+	ElseIf k == "logfile"
+		return "ON (default): O'Deadly writes its own log, Data/SKSE/Plugins/ODeadlySkyrim.log (MO2: overwrite/SKSE/Plugins). Each game load starts with a header and what was found and what is on; then one line per event and why one was skipped. Attach it to bug reports. Restarts after 10 game loads. Needs PapyrusUtil (without it nothing is written)."
 	ElseIf k == "pathonote"
-		return "ON (default): a short note on screen when a partner catches it from you, for example 'Lydia caught lycanthropy from you.' With Debug notifications on you also see why someone could not be infected and each roll."
+		return "ON (default): a short note on screen when a partner catches it from you, for example 'Lydia caught lycanthropy from you.' With Debug notifications on, or while the debug force is armed, you also see why someone could not be infected and each roll. MCM > Debug shows the last result."
 	ElseIf k == "pathoprot"
 		return "OFF (default): followers on the Protected followers page are never infected. ON: your own followers and spouse on that list can still catch it from you (they stay protected from everything else). Essential followers and spouses can always catch it."
 	ElseIf k == "pathotf"
-		return "Infected werewolves turn into a werewolf in beast form when a fight starts at night, for about 30 seconds, then change back; 90 second cooldown. Never on furniture or a mount, and always changed back on load. Followers with Growl installed use Growl's own beastblood instead."
+		return "Infected werewolves and werebears change into beast form when a fight starts at night and change back once the fight is over (1.1: no timer); 90 second cooldown. Never on furniture or a mount. Followers with Growl installed use Growl's own beastblood instead."
 	ElseIf k == "sat"
 		return "OFF by default. Needs the Saturalia Holiday Pack (Creation Club). 22-24 Evening Star: SkyrimNet hears that Saturalia is close. 25 Evening Star: Agrane Peryval, the merchant from the camp north of Windward Ruins, may find you a few times in a town, settlement, inn or shop and hand small gifts to adults nearby. At midnight he goes back to his camp. Every year."
 	ElseIf k == "satcount"
@@ -2195,8 +2304,16 @@ string Function Hint(string k)
 EndFunction
 
 Event OnOptionHighlight(int o)
-	If o == oMaster
+	If o == oMsg
+		SetInfoText("How O'Deadly shows its short messages: message box, corner notification (default) or none. 1.1.7: anything that happens as an OStim scene starts (Bitch in Heat, Caught, Watched from a distance) is never a message box, so nothing sits on top of OStim's menu; with 'Message box' those still show as corner notifications.")
+		return
+	EndIf
+	If o == oPathoLast
+		SetInfoText(Main.sPathoLast)
+	ElseIf o == oMaster
 		SetInfoText("Master switch for everything in this mod. OFF (default) = nothing ever happens. Turning it OFF works like the panic key.")
+	ElseIf o == oGiftKey
+		SetInfoText("1.1. Look at an adult NPC and press it: if you are a werewolf, vampire or werebear, a box asks whether to give them your blood gift. No chance roll; they turn at once (with Growl, a werewolf gift uses Growl's companion beastblood). The followers-only switch does not apply (it is a deliberate gift), the world cap and every immunity still do. Never children.")
 	ElseIf o == oPanicKey
 		SetInfoText("One press: stops any scene this mod started, removes spawned actors, gives stolen gold back, and turns the whole mod OFF until you turn it on again.")
 	ElseIf o == oJailHere
@@ -2231,3 +2348,9 @@ int oForceHeat
 int oForceSat
 int oForcePatho
 int oPathoCureAll
+
+; 1.0.2 (appended)
+int oPathoLast
+
+; 1.1 (appended)
+int oGiftKey

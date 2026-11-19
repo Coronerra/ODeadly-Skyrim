@@ -1,0 +1,36 @@
+# O'Deadly Skyrim 1.1.5: a follower who already is a vampire (Serana and others) changes into a
+# vampire lord. MCM "Existing vampire followers can become Vampire Lords" (off by default).
+# Back with TransformBack. No timer.
+name: BecomeVampireLord
+description: >-
+  Change into your vampire lord form: a huge winged vampire lord. Use it when {{ player.name }}
+  asks you to, or on your own when it truly fits: a fight or a threat, a hunt, a show of what you
+  are, or a moment of dark desire. Not in a normal, calm conversation unless asked.
+
+questEditorId: ODS_MainQuest
+scriptName: ODS_Main
+executionFunctionName: SNBecomeVampireLord
+
+# Function SNBecomeVampireLord(Actor a)
+parameterMapping:
+  - type: speaker
+
+eligibilityRules:
+  - conditions:
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "none", "ODS_VLFOn", 0]
+        comparisonOperator: "=="
+        expectedValue: 1
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "currentActor", "ODS_VLF", 0]
+        comparisonOperator: "=="
+        expectedValue: 1
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "currentActor", "ODS_BeastForm", 0]
+        comparisonOperator: "=="
+        expectedValue: 0
+    logicalOperator: AND
+    required: true
+
+eventString: "{{ actor_name }} changed into a vampire lord."
+defaultPriority: 4

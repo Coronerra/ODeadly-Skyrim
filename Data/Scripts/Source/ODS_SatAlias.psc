@@ -15,7 +15,8 @@ EndFunction
 
 Function Halt()
 	bGo = false
-	kTargets = None
+	Actor[] noTargets          ; 1.1.1: assigning None to an array fails at run time
+	kTargets = noTargets
 	UnregisterForUpdate()
 EndFunction
 

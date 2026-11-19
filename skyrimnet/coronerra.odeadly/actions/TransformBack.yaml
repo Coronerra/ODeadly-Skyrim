@@ -1,0 +1,25 @@
+# O'Deadly Skyrim 1.1: a changed NPC this mod turned changes back to their normal self.
+name: TransformBack
+description: >-
+  Change back from your beast form to your normal self. Use it when {{ player.name }} asks you to,
+  or when you decide the beast is no longer needed.
+
+questEditorId: ODS_MainQuest
+scriptName: ODS_Main
+executionFunctionName: SNTransformBack
+
+# Function SNTransformBack(Actor akSpeaker)
+parameterMapping:
+  - type: speaker
+
+eligibilityRules:
+  - conditions:
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "currentActor", "ODS_BeastForm", 0]
+        comparisonOperator: "=="
+        expectedValue: 1
+    logicalOperator: AND
+    required: true
+
+eventString: "{{ actor_name }} changed back from beast form to their normal self."
+defaultPriority: 4

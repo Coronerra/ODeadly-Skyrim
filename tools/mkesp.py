@@ -80,7 +80,8 @@ main_props = [pobj('PlayerRef', 0x14),
     pobj('ODS_HeatAllow1', OWN | 0x826), pobj('ODS_HeatAllow2', OWN | 0x827), pobj('ODS_HeatAllow3', OWN | 0x828),
     pobj('ODS_HeatChoice', OWN | 0x829), pobj('ODS_HeatQuest', OWN | 0x82A),
     pobj('HeatWolf1Alias', OWN | 0x82A, 0), pobj('HeatWolf2Alias', OWN | 0x82A, 1), pobj('HeatWolf3Alias', OWN | 0x82A, 2)] + [  # 1.0 Saturalia / Blood Born Pathogen
-    pobj('ODS_SatQuest', OWN | 0x82B), pobj('SatAgraneAlias', OWN | 0x82B, 0), pobj('ODS_PathoQuest', OWN | 0x82C)]
+    pobj('ODS_SatQuest', OWN | 0x82B), pobj('SatAgraneAlias', OWN | 0x82B, 0), pobj('ODS_PathoQuest', OWN | 0x82C)] + [  # 1.1
+    pobj('ODS_BloodGiftChoice', OWN | 0x82D)]
 v_main = vmad_quest([script('ODS_Main', main_props)],
     [(aid, MAINQ, [script(sc, [])]) for aid, _, _, _, sc in aliases if sc])
 alias_subs = []
@@ -128,7 +129,7 @@ heat_pool = rec('FLST', OWN | 0x825, [sub('EDID', z('ODS_PoolHeatWolf'))] +
 def glob(fid, edid): return rec('GLOB', fid, [sub('EDID', z(edid)), sub('FNAM', b's'), sub('FLTV', struct.pack('<f', 0.0))])
 heat_globs = [glob(OWN | 0x826, 'ODS_HeatAllow1'), glob(OWN | 0x827, 'ODS_HeatAllow2'), glob(OWN | 0x828, 'ODS_HeatAllow3')]
 heat_msg = mesg(OWN | 0x829, 'ODS_HeatChoice',
-    'The howls and the scent carry far. Other werewolves are answering. How many do you let come?',
+    'The calls and the scent carry far. Others of their kind are answering. How many do you let come?',
     ('One more', 'Two more', 'Three more', 'Not now'), conds=(OWN | 0x826, OWN | 0x827, OWN | 0x828, None))
 HEATQ = OWN | 0x82A
 v_heat = vmad_quest([], [(i, HEATQ, [script('ODS_HeatWolfAlias', [pobj('Main', MAINQ)])]) for i in range(3)])
@@ -153,11 +154,16 @@ qpatho = rec('QUST', PATHOQ, [sub('EDID', z('ODS_PathoQuest')), sub('VMAD', v_pa
     sub('DNAM', bytes.fromhex('00003cff0000000000000000')), sub('NEXT', b''),
     sub('ANAM', struct.pack('<I', 10))] + patho_alias_subs)
 heat_recs += 2
+# 1.1: blood gift box (appended 0x82D)
+gift_msg = mesg(OWN | 0x82D, 'ODS_BloodGiftChoice',
+    'Give them your blood gift? They become what you are: a werewolf, a werebear or a vampire. There is no chance roll.',
+    ('Give it', 'Not now'))
+heat_recs += 1
 nrec = 2 + len(fl) + 1 + len(msgs10) + heat_recs
-hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x82D)), sub('CNAM', z('That Guy (Coronerra)')),
-    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v1.0. By That Guy (Coronerra).")),
+hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x82E)), sub('CNAM', z('That Guy (Coronerra)')),
+    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v1.1. By That Guy (Coronerra).")),
     sub('MAST', z('Skyrim.esm')), sub('DATA', struct.pack('<Q', 0))], flags=0x200)
 out = sys.argv[1] if len(sys.argv) > 1 else 'ODeadlySkyrim.esp'
 open(out, 'wb').write(hdr + grup('GLOB', heat_globs) + grup('FACT', [heat_fact]) + grup('QUST', [qmain, qmcm, qheat, qsat, qpatho]) +
-    grup('FLST', fl + [heat_pool]) + grup('MESG', [savior_msg] + msgs10 + [heat_msg]))
+    grup('FLST', fl + [heat_pool]) + grup('MESG', [savior_msg] + msgs10 + [heat_msg, gift_msg]))
 print('wrote', out, 'records', nrec)

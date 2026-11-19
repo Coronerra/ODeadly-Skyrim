@@ -1,0 +1,44 @@
+# O'Deadly Skyrim 1.1: the speaker accepts the player's blood gift (no chance roll; they turn at once).
+# Offered only while the pathogen module is on and the player is a werewolf, vampire or werebear.
+# ODS_Main still checks the world cap and every immunity (children always refused).
+name: AcceptBloodGift
+description: >-
+  Accept {{ player.name }}'s blood gift and become what {{ player.name }} is: a werewolf, a
+  werebear or a vampire. Use it only when {{ player.name }} has clearly offered their blood gift
+  to you and you truly want it.
+
+questEditorId: ODS_MainQuest
+scriptName: ODS_Main
+executionFunctionName: SNAcceptBloodGift
+
+# Function SNAcceptBloodGift(Actor akSpeaker)
+parameterMapping:
+  - type: speaker
+
+eligibilityRules:
+  - conditions:
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "none", "ODS_PathoOn", 0]
+        comparisonOperator: "=="
+        expectedValue: 1
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "none", "ODS_PlayerBlood", 0]
+        comparisonOperator: ">"
+        expectedValue: 0
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "currentActor", "ODS_BeastKind", 0]
+        comparisonOperator: "=="
+        expectedValue: 0
+      - decoratorName: papyrus_util
+        arguments: ["GetIntValue", "currentActor", "ODS_PathoIn", 0]
+        comparisonOperator: "=="
+        expectedValue: 0
+      - decoratorName: is_in_combat
+        arguments: ["currentActor"]
+        comparisonOperator: "=="
+        expectedValue: false
+    logicalOperator: AND
+    required: true
+
+eventString: "{{ actor_name }} accepted {{ player.name }}'s blood gift."
+defaultPriority: 3

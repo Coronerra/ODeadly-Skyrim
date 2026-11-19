@@ -2,15 +2,31 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v1.0.1**
+**v1.1.7**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v1.0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.1)** · [Changelog](CHANGELOG.md) · [Earlier v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0) · [v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v1.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1)** · [Changelog](CHANGELOG.md) · [Earlier v1.0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.2) · [v1.0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.1) · [v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0) · [v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
 
-Version 1.0.1 (`ODeadly_Skyrim_1.0.1.zip`) is a Blood Born Pathogen fix: the log (and Debug notifications) now say why a partner could not be infected, an on-screen notice tells you when someone catches it (on by default), essential no longer blocks your own followers and spouse, and a new toggle lets protected followers / your spouse still catch it (off by default). Save-safe in-place update from 1.0. See [New in 1.0.1](#new-in-101-blood-born-pathogen-fix).
+Version 1.1.7 (`ODeadly_Skyrim_1.1.7.zip`) keeps every O'Deadly message at OStim scene start out of the way: "X has seen you…" (Caught) and "You feel eyes on you…" (Watched from a distance) are now always corner notifications, never a message box, whatever the MCM message style.
+
+Version 1.1.6 (`ODeadly_Skyrim_1.1.6.zip`) removes Bitch in Heat's in-game "how many?" box, which popped up at the same time as OStim's own menu. You now set how many join in the MCM ahead of time (1, 2, 3 or random), for werewolves, werebears and vampire lords alike.
+
+Version 1.1.5 (`ODeadly_Skyrim_1.1.5.zip`) widens Bitch in Heat to werebears and vampire lords (mixed packs, or taking turns where no group scenes exist) and adds the new Werewolf and Vampire Lord OStim 0.3.1 three-actor scenes. It also follows Growl's werebear totem, gives turned NPC vampires Sacrosanct's treatment when Sacrosanct is installed, and lets existing vampire followers (Serana and others) become vampire lords through SkyrimNet (off by default). Only OStim Beast Form is needed; Growl and Sacrosanct are detected, never required. See [New in 1.1.5](#new-in-115-bitch-in-heat-for-every-beast-growl-and-sacrosanct).
+
+Version 1.1.4 (`ODeadly_Skyrim_1.1.4.zip`) lets O'Deadly change followers with Growl's beastblood through SkyrimNet too, and gives any NPC it infected the beast body whenever they are in beast form, whichever mod changed them (Growl included).
+
+Version 1.1.3 (`ODeadly_Skyrim_1.1.3.zip`) fixes NPCs with their own skin (most custom followers) showing only a head in werewolf, werebear or vampire lord form: the beast skin is swapped in while they are changed and their own skin is given back afterwards. Followers with Growl's beastblood are left to Growl.
+
+Version 1.1.2 (`ODeadly_Skyrim_1.1.2.zip`) gives O'Deadly a proper log file for bug reports: every game load writes a header plus what was found and what is switched on, then one line per event and the reason an event was skipped. See [Troubleshooting / log files](#troubleshooting--log-files).
+
+Version 1.1.1 (`ODeadly_Skyrim_1.1.1.zip`) fixes Blood Born Pathogen never running in game (1.1) and makes werewolf, werebear and vampire lord blood turn people at once, no incubation. Version 1.1 opens Blood Born Pathogen to everyone: anyone who has sex with a werewolf, vampire lord or werebear may catch it (you too, and NPCs in their own scenes), with a chance per form and a world cap (default 10). NPCs this mod turned can change into their beast form and back through SkyrimNet, and there is a blood gift (SkyrimNet or a key). See [New in 1.1](#new-in-11-blood-born-pathogen-for-everyone-beast-forms-through-skyrimnet-blood-gift).
+
+Version 1.0.2 (`ODeadly_Skyrim_1.0.2.zip`) makes Blood Born Pathogen problems visible: while the debug force is armed, the reason a partner could not be infected is shown on screen, MCM > Debug shows the last result, and everything O'Deadly logs also goes to its own `ODeadlySkyrim.log` (no Papyrus logging needed). See [New in 1.0.2](#new-in-102-blood-born-pathogen-diagnostics).
+
+Version 1.0.1 is a Blood Born Pathogen fix: the log (and Debug notifications) now say why a partner could not be infected, an on-screen notice tells you when someone catches it (on by default), essential no longer blocks your own followers and spouse, and a new toggle lets protected followers / your spouse still catch it (off by default). Save-safe in-place update from 1.0. See [New in 1.0.1](#new-in-101-blood-born-pathogen-fix).
 
 Version 1.0 (`ODeadly_Skyrim_1.0.zip`) adds three optional modules, all off by default: **Join in** (walk in on your spouse or a companion in a consensual scene and join them), **wild creatures** on the road (needs OCreatures), **OStim Beast Form** support (werewolves at night, choices when you transform, and Bitch in Heat: other werewolves drawn to a werewolf scene), **Blood Born Pathogen** (a werewolf or vampire player can pass it on through sex) and **Saturalia** (needs the Saturalia Holiday Pack). See [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form).
 
@@ -57,6 +73,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
+- [New in 1.1.5](#new-in-115-bitch-in-heat-for-every-beast-growl-and-sacrosanct)
 - [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form)
 - [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants)
 - [New in 0.8](#new-in-08-nobody-stays-in-bed-pose)
@@ -125,7 +142,7 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **OCreatures** + creature scene packs: unlocks the Creatures page, including the 1.0 wild creature road events. Locked off without it.
 - **OStim Beast Form** (1.0, tested against 0.8, either the Growl or the TWO edition): unlocks the Beast Form page (werewolves at night, choices when you transform). O'Deadly checks for the plugin and for Beast Form's own start scenes; without them the page is locked. None of its files are included.
 - **Saturalia Holiday Pack** (1.0, Creation Club `ccvsvsse001-winter.esl`): unlocks the Saturalia countdown and Agrane Peryval's gifts.
-- **Growl - Werebeasts of Skyrim** (1.0): followers infected with lycanthropy by Blood Born Pathogen get Growl's own follower beastblood. Detection of a werewolf / vampire player also works with vanilla and Sacrosanct.
+- **Growl - Werebeasts of Skyrim** (1.0): followers infected with lycanthropy by Blood Born Pathogen get Growl's own follower beastblood. 1.1.5: Growl's werebear totem decides whether Growl's fight changes make them werewolves or werebears; O'Deadly still does SkyrimNet changes and the body. Detection of a werewolf / vampire player also works with vanilla and Sacrosanct.
 - **OCum**: messier memories.
 - **ZaZ Animation Pack**: jail scenes prefer restraint scenes; made-to-watch narration.
 - **OStimNet / OStim Navigator**: better scene tags.
@@ -134,7 +151,7 @@ It should run on **Skyrim Special Edition and Anniversary Edition (1.6.x)**, inc
 - **iActions** (0.2): its alcohol list (including its `extra_alcohol.json`) is used to count your drinks, and NPCs it marks as drunk, plastered or blacked out are preferred for the morning after. Without it, vanilla and DLC drinks are recognised.
 - **Dirt and Blood** or **Bathing in Skyrim** (0.2): needed for the Bathing module. Only a real wash counts, never swimming or rain. With both installed, one wash still gives one roll.
 - **Blood and OStim** (0.2): the Dark Gift becomes a feeding scene.
-- **Sacrosanct** (0.2): the Dark Gift turns you through Sacrosanct's own vampirism.
+- **Sacrosanct** (0.2): the Dark Gift turns you through Sacrosanct's own vampirism. 1.1.5: NPCs turned by Blood Born Pathogen get Sacrosanct's NPC vampire treatment (no Foster Childe message), with an optional race change.
 - **JContainers**: only used to read iActions' `extra_alcohol.json` directly.
 - **[OStim Kidnapped Redux](https://www.patreon.com/posts/175042213)** (0.3, [Lirael's](https://www.patreon.com/LiraelAtelier) OStim conversion of vinfamy's SexLab Kidnapped Redux): SkyrimNet hears when you are taken, slip an ambush, escape, are let go or are sold. O'Deadly holds its own encounters while you are held.
 - **[ODefeat Reforged](https://www.patreon.com/LiraelAtelier/posts/odefeat-reforged-164815196)** (0.3, by [Lirael](https://www.patreon.com/LiraelAtelier)): SkyrimNet hears when you are defeated and what happens next. A downed player is left to ODefeat Reforged; O'Deadly's Defeat module keeps handling followers.
@@ -169,7 +186,7 @@ Every module goes through the same steps, one event at a time:
 7. Hit or activate an attacker (or activate a victim) to stop it. Attackers may turn on you; cheating partners do not. Pressing **E** on a victim always counts as a rescue and breaks the scene on purpose. To just talk to someone in a scene, use SkyrimNet's talk / voice input instead; it does not interrupt the scene.
 8. Afterwards: spawned actors leave and are cleaned up, a mod event fires (`ODeadlySkyrim_Done(Int kind, Form victim, Form attacker, Bool spawned, Bool intervened, Bool consensual)`), SkyrimNet stores a memory. There are no forgive / confront menus: SkyrimNet and you decide what happens next.
 
-No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers (1.0 Saturalia and Blood Born Pathogen incubation ride the same single game-time timer; infected NPCs only react to their own combat start, death and a Cure Disease potion being added, plus one single update to change back; Agrane's gift walk is one bounded walk per visit. 1.0 Bitch in Heat: the summoned werewolves only react to their own combat, hit and race events, plus one bounded walk-in / walk-away each; 1.0: after you transform into beast form, at most 12 single-update checks about 10 seconds apart, only while the Beast Form choices are on). The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
+No polling: everything runs from game events (sleep, wait menu, location change, bleedout, OStim events, drink and magic-effect events while the related 0.2 module is on, mod events from the bath mods, the panic key) plus one-shot timers (1.0 Saturalia and Blood Born Pathogen incubation ride the same single game-time timer; infected NPCs only react to their own combat start, death and a Cure Disease potion being added, plus one single update after a fight they changed for (1.1: no timed change back); Agrane's gift walk is one bounded walk per visit. 1.0 Bitch in Heat: the summoned werewolves only react to their own combat, hit and race events, plus one bounded walk-in / walk-away each; 1.0: after you transform into beast form, at most 12 single-update checks about 10 seconds apart, only while the Beast Form choices are on). The only waits are short and bounded (for example, a bath that rolled a hit waits for the wash to finish, at most 150 seconds).
 
 If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use SkyrimNet named places. A tagged place wins over vanilla keywords, so you can mark a rented inn room as a player home, or tag a custom cell as a jail or barracks. Untagged spots fall back to normal Skyrim location keywords and cell names.
 
@@ -196,8 +213,8 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Wild creatures (1.0) | OFF, locked without OCreatures | 2% per game hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
 | Werewolves at night (1.0) | OFF, locked without OStim Beast Form | 3% per night hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
 | Beast form choices (1.0) | OFF, locked without OStim Beast Form | 50% per transformation: take a beaten bandit, or claim a willing spouse / companion. |
-| Bitch in Heat (1.0) | OFF, locked without OStim Beast Form | 25% per scene between a male werewolf in beast form and a human with you in it: 1-3 more werewolves join (ask or automatic, max 3). |
-| Blood Born Pathogen (1.0) | OFF | 10% per partner (35% in beast / vampire lord form) when you are a werewolf or vampire. Followers and spouse only by default; any NPC option with a cap of 5. ~3 days incubation, Cure Disease stops it. |
+| Bitch in Heat (1.0) | OFF, locked without OStim Beast Form | 25% per scene between a male in full beast form (werewolf, werebear or vampire lord, 1.1.5) and a human with you in it: 1-3 more join (1.1.6: set in the MCM ahead of time, "How many join", default random 1-3; no in-game box). |
+| Blood Born Pathogen (1.0, 1.1) | OFF | Anyone in a scene with a werewolf, vampire lord or werebear: 35% per form in beast form, 10% from a carrier in human form. Followers and spouse only by default (any NPC option); world cap 10; NPC scenes and you catching it ON. 1.1.1: turns at once from a werewolf, werebear or vampire lord; 'Always infect (no chance roll)' OFF; ~3 days incubation only from a human-form vampire (Cure Disease stops it). SkyrimNet beast forms ON. |
 | Saturalia (1.0) | OFF, locked without the Saturalia Holiday Pack | Countdown 22-24 Evening Star; on the 25th Agrane Peryval hands out gifts in towns and inns (3 visits). |
 | Vampire seduction | OFF | |
 | Blackmail / public rumours | OFF | Need SkyrimNet. |
@@ -327,6 +344,60 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
 
+## New in 1.1.5 (Bitch in Heat for every beast, Growl and Sacrosanct)
+
+Only **OStim Beast Form** is needed. **Growl** and **Sacrosanct** are detected and used when present, never required; the log's startup block says whether each was found.
+
+### Bitch in Heat
+- **Trigger:** one of the two actors in an OStim scene with you is a male in **full beast form**: werewolf, werebear or vampire lord. A werewolf or vampire in human form does not count. Wilderness only, adults only, you in the scene. The human at the centre is female, or male when Werewolf and Vampire Lord OStim's male partner scenes are installed.
+- **Werewolves:** 1-3 more join one group scene. New from Werewolf and Vampire Lord OStim 0.3.1: the three-actor Billyy scenes Dog Spit, Hang 2 and Stand Spit (and their male-centre versions, plus Hold DP M). The older scenes are still used; OCreatures is the last resort.
+- **Werebears** (Dragonborn's werebears): with Beast Form's "werebears use werewolf scenes" on, they join the werewolf group scenes and packs can be mixed (werewolves and werebears together). With it off they take turns in pair scenes.
+- **Vampire lords** (Dawnguard): there are no group scenes for them, so they take turns in Werewolf and Vampire Lord OStim's vampire lord pair scenes. They never share a scene with werewolves.
+- The newcomers arrive already changed, are never hostile and don't run timers. When it's over they walk away and vanish out of sight. When they take turns, each one waits his turn nearby. SkyrimNet is told plainly what came and what happened.
+- The how-many box now reads "Others of their kind are answering" (text only; same record and FormID). 1.1.6: the box is no longer shown at all.
+
+### Growl
+- Followers who get Growl's beastblood change in fights the way Growl decides: a werebear with Growl's werebear totem, otherwise a werewolf (Circle members always werewolves). O'Deadly still makes the SkyrimNet changes (in the beast they caught) and swaps in the beast body for everyone. Without Growl, O'Deadly owns the werewolf and werebear fight changes. Every decision is logged.
+
+### Sacrosanct
+- An NPC turned into a vampire always gets the vampire faction, NPC sun damage and VampireVampirism. With Sacrosanct installed they also get its NPC treatment (resistances, poison resistance, a drain that grows with level), without the Foster Childe message.
+- **"Sacrosanct: turned vampires get its vampire race"** (MCM > More encounters > Blood Born Pathogen, OFF by default): also changes them to Sacrosanct's matching vampire race. This is skipped (and logged) if the NPC's own skin has no body for that race. "Cure everyone" takes all of it back.
+
+### Existing vampire followers as vampire lords
+- **"Existing vampire followers can become Vampire Lords"** (same page, OFF by default, needs Dawnguard and SkyrimNet). Followers who already are vampires (Serana and others) can change into a vampire lord when you ask or when it fits, using SkyrimNet's new **BecomeVampireLord** action, and back with **TransformBack**. A follower with their own body skin wears the vampire lord skin while changed. The panic key and master switch change them back.
+
+Updating from 1.1.4: overwrite the old files. In-place and save-safe. The plugin keeps all records and FormIDs; only the text of the Bitch in Heat message box changed.
+
+## New in 1.1 (Blood Born Pathogen for everyone, beast forms through SkyrimNet, blood gift)
+
+Blood Born Pathogen (MCM > More encounters, still **OFF by default**) now works for everyone in an OStim scene, not only for your partners.
+
+- **Anyone can catch it.** When an OStim scene ends and someone in it is a werewolf, a vampire lord or a werebear (or a werewolf / vampire in human form: you, an NPC this mod turned, a Circle member, a vampire), the others may catch it: your partners, **you**, and NPCs in scenes of their own (OStimNet and other mods; "NPC scenes without you spread it too", ON by default). Each person rolls once, against the strongest carrier in the scene.
+- **Chance per form:** werewolf in beast form, vampire lord, werebear (35% each by default), and one chance for a carrier in human form (10%).
+- **World cap**, default **10** (MCM slider, 1-10), checked first: with the cap reached, scenes are not even tracked (only you can still catch it).
+- **Immune:** anyone already a werewolf, vampire or vampire lord (Serana, Harkon, the Companions' Circle, Volkihar, Dawnguard, the werewolf and vampire factions, Growl beastblood holders), anyone in beast form, and anyone already infected. **Children are always refused.** The followers / spouse only switch, essential and Protected followers rules work as before.
+- **You can catch it** ("You can catch it from a partner", ON by default): 1.1.1: from a werewolf or werebear you turn at once and get the vanilla Beast Form power (with Growl, pick the werebear path in Growl); from a vampire lord you become a vampire at once (VampireChange, Sacrosanct-aware) with the Vampire Lord power; from a vampire in human form you get the vanilla Sanguinare Vampiris.
+- **Werebears:** infected NPCs can carry werebear blood (Dragonborn's werebear race; Growl's werebears count). Turned werebears change into a werebear in night fights like werewolves.
+- **SkyrimNet beast forms** ("SkyrimNet: turned NPCs change at will", ON by default): NPCs this mod turned know what they are, who gave it to them and whether they are in beast form right now. Two SkyrimNet actions: **TransformToBeast** (werewolf, vampire lord or werebear, whatever their blood is) when you ask or when it fits, and **TransformBack** when asked. There is **no timer**: an NPC who changed because you asked (or because they chose to) stays changed until they change back. An NPC who changed for a fight changes back once the fight is over.
+- **Blood gift (no roll):** through SkyrimNet, an NPC can accept your blood gift (**AcceptBloodGift**) when you offer it, and an NPC this mod turned can give you theirs (**GiveBloodGift**) when you ask. Or bind the new **Blood gift key**, look at an adult NPC and press it: a yes / no box asks. They turn at once; with Growl, a werewolf gift uses Growl's companion beastblood. The world cap and every immunity still apply. Never children.
+- **Scene choice:** O'Deadly's own beast scenes now prefer OStim Beast Form 1.0's `OBF*Idle*` start scenes (male werewolf or vampire lord with a woman, two female werewolves) and only fall back to OCreatures' `OCr*Idle*` scenes.
+- Event-driven as before: one check when an OStim scene starts and ends, the infected NPCs' own combat events, one single update after a fight they changed for. No polling.
+- New record: one message box (`ODS_BloodGiftChoice`, 0x82D). Existing FormIDs unchanged. MCM `GetVersion` 14. New settings at the end of `ODS_Main`. SkyrimNet pack `coronerra.odeadly` 1.1.0 (new actions and a character bio section; needs PapyrusUtil, which the mod already uses).
+
+Updating from 1.0.2: overwrite the old files (in-place, save-safe). NPCs infected under 1.0.x keep their state and get the SkyrimNet context on the next load. The world cap you set before is kept (new installs start at 10).
+
+## New in 1.0.2 (Blood Born Pathogen diagnostics)
+
+- **The debug force tells you why.** "Blood Born Pathogen (next scene)" (MCM > Debug) only skips the chance roll. If a partner fails an eligibility check, they are not infected, the force stays armed, and the reason is now shown on screen even without Debug notifications.
+- **Last result** on MCM > Debug: whether the force is armed, the last pathogen result (tracked scene, reason, roll, infection) and who is infected.
+- **Own log file:** every O'Deadly log line also goes to `Data/SKSE/Plugins/ODeadlySkyrim.log` (with MO2: the overwrite folder), with a timestamp. Needs PapyrusUtil. Toggle: MCM > Debug > "Write ODeadlySkyrim.log" (ON by default).
+- **More log lines:** scenes that are not tracked (and why), and the cases where an infection could not be stored (no free slot, missing quest or alias) are now logged instead of failing silently.
+- **Timer fix:** the game-time timer is no longer dropped when OStim is not ready; it retries an hour later, and pathogen stages still advance.
+- **Clearer MCM text:** infected or turned NPCs look normal; a turned werewolf only changes in a fight at night.
+- MCM `GetVersion` 13. The plugin description says v1.0.2 (records and FormIDs unchanged). SkyrimNet pack unchanged.
+
+Updating from 1.0.1: overwrite the old files (in-place, save-safe); settings carry over.
+
 ## New in 1.0.1 (Blood Born Pathogen fix)
 
 - **Why not?** The Papyrus log now says why a partner could not be infected (for example: on the Protected followers list, not detected as a follower or spouse, already a werewolf or vampire, limit reached), each chance roll, and when you have no lycanthropy or vampirism it can find. With Debug notifications on (MCM > Debug) you also see these on screen.
@@ -366,7 +437,7 @@ Three new modules. Each one is **OFF by default**, has its own MCM toggles and c
 
 - **OFF by default**, own toggle and chance (25% per eligible scene), behind the master switch and the panic key. Adults only.
 - When an OStim scene with you starts between a male werewolf in beast form and a human (either of you can be the werewolf), outdoors and away from towns, the howls and the scent can draw other werewolves in the area to join. SkyrimNet is told plainly what drew them and what happens.
-- You choose how many come (1-3), or let it pick for you (MCM: ask or automatic, plus a maximum). Only counts that have an installed scene for that cast are offered: Beast Form's multi-werewolf scenes and Werewolf and Vampire Lord OStim's two-, three- and four-werewolf scenes (female and male human versions). The human is always the centre; if your partner is not human (for example two werewolves), nothing is offered.
+- You choose how many come in the MCM ahead of time (1.1.6: "How many join": 1, 2, 3 or 0 = random 1-3, the default). Nothing pops up in game, so OStim's own menu is the only one at the start of the scene. If the chosen count has no installed scene for that cast, the nearest count that has one is used (logged). Counts are checked against the installed scenes: Beast Form's multi-werewolf scenes and Werewolf and Vampire Lord OStim's two-, three- and four-werewolf scenes (female and male human versions). The human is always the centre; if your partner is not human (for example two werewolves), nothing is offered.
 - The newcomers are always in werewolf beast form (checked before they are used and again before the scene starts; otherwise the event is skipped). They are never hostile: they arrive from out of sight, walk in, the current scene ends and a bigger one starts with the same human, and afterwards they walk away and vanish once out of sight. They never attack you, your followers or anyone else before, during or after.
 
 ### Blood Born Pathogen (MCM > More encounters)
@@ -374,8 +445,8 @@ Three new modules. Each one is **OFF by default**, has its own MCM toggles and c
 - **OFF by default**, own toggle and two chance sliders (10% per partner per scene, 35% while you are in werewolf or vampire lord form). Master switch and panic key apply. Adults only.
 - If you are a werewolf or a vampire (vanilla, Growl or Sacrosanct) and finish an OStim scene with an adult human partner, you can pass it on. By default only your followers and your spouse can catch it; an option allows any eligible NPC, with a cap (5 by default, at most 10).
 - Never children, essential NPCs who are not your follower or spouse, protected NPCs (including the MCM protected list, unless you turn on "Protected followers / spouse can still catch it", 1.0.1), the Companions' Circle, the Volkihar clan or the Dawnguard, or anyone who already is a werewolf or vampire.
-- About 3 game days of incubation with symptom updates. A potion of Cure Disease, given to them (or already in their pack when the next update comes), stops it during that time.
-- **Lycanthropy:** they become a werewolf. In a fight at night they can turn into a werewolf in full beast form (Beast Form's body if you use it) for about 30 seconds, then change back, with a 90 second cooldown. Never while sitting, sleeping or riding, and anyone still changed is turned back on load and by the panic key. With Growl installed, a follower gets Growl's own beastblood instead and Growl handles their changes.
+- 1.1.1: from a werewolf, werebear or vampire lord they turn at once when the scene ends (no incubation). From a vampire in human form: about 3 game days of incubation with symptom updates. A potion of Cure Disease, given to them (or already in their pack when the next update comes), stops it during that time.
+- **Lycanthropy:** they become a werewolf. In a fight at night they can turn into a werewolf in full beast form (Beast Form's body if you use it) for about 30 seconds, then change back, with a 90 second cooldown. Never while sitting, sleeping or riding, and anyone still changed is turned back on load and by the panic key. With Growl installed, a follower gets Growl's own beastblood instead and Growl handles their changes. Growl still makes its own fight changes; 1.1.4: SkyrimNet `TransformToBeast` / `TransformBack` work for those followers too, and whichever mod changes them, O'Deadly swaps in the beast body.
 - **Vampirism:** no race change. They join the vampire faction and the sun burns them.
 - SkyrimNet is told plainly at every step (infection, symptoms, turning, first change) that you, by name, passed it to them through sex, and it becomes part of their memories and bio, so they can bring it up with you.
 - MCM: a list of who is infected, and a button to cure everyone this mod infected. From 1.0.1: an on-screen notice when someone is infected (on by default), and the reason in the Papyrus log when someone could not be.
@@ -498,10 +569,21 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 11. 1.0 Join in: turn it on (Relationships page) along with cheating spouse, shared room or bathing, and force one of those with your spouse / a companion nearby. Confirm the Watch / Join in / Stop them box, that joining starts a three-person scene (or a take-over), and the SkyrimNet memory.
 12. 1.0 wild creatures (OCreatures) and werewolves at night (OStim Beast Form): turn them on, then use Debug > "Wild creature" / "Werewolf (now if on a road)" on a wilderness road (werewolves need night). Confirm watch, rescue, the narration, and that the panic key removes the spawns.
 13. 1.0 beast form choices (OStim Beast Form): turn them on, press Debug > "Beast form choice", then transform (or press it while transformed). Confirm the take / claim box and that the scene opens on Beast Form's start scene.
-14. 1.0 Bitch in Heat (OStim Beast Form + multi-werewolf scenes): turn it on, press Debug > "Bitch in Heat", then start a beast-form scene with a human outdoors. Confirm the how-many box, that the newcomers are werewolves in beast form, never hostile, that the bigger scene starts with the same human, that they walk off and vanish afterwards, and that the panic key removes them.
+14. 1.0 Bitch in Heat (OStim Beast Form + multi-werewolf scenes): turn it on, press Debug > "Bitch in Heat", then start a beast-form scene with a human outdoors. Confirm that no box pops up (1.1.6: the count comes from MCM "How many join"), that the newcomers are werewolves in beast form, never hostile, that the bigger scene starts with the same human, that they walk off and vanish afterwards, and that the panic key removes them.
 15. 1.0 Blood Born Pathogen: as a werewolf or vampire, turn it on (More encounters), press Debug > "Blood Born Pathogen" and finish a scene with a follower. Wait or sleep through about 3 game days and confirm the symptom narration names you, that a Cure Disease potion given during that time stops it, and (lycanthropy) that they change in a night fight and change back after about 30 seconds.
 16. 1.0 Saturalia (Saturalia Holiday Pack): turn it on, stand in a town or inn with adults around and press Debug > "Saturalia gift visit". Agrane should walk up from out of sight and hand out gifts, then be back at his camp a couple of game hours later.
 17. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+
+## Troubleshooting / log files
+
+O'Deadly writes its own log, so you do not need to turn on Papyrus logging:
+
+- **Where:** `Data/SKSE/Plugins/ODeadlySkyrim.log`. With MO2 it lands in `overwrite/SKSE/Plugins/ODeadlySkyrim.log` (Vortex / manual: the game's `Data/SKSE/Plugins`).
+- **What it records:** a header every game load (version, game time, real date and time on each line); a startup block a few seconds after loading (SKSE, PapyrusUtil, OStim, powerofthree's Papyrus Extender, JContainers, SkyrimNet, OCreatures, OCum, OStim Beast Form and its scenes, Growl, Dirt and Blood, Bathing in Skyrim, the defeat mods and the other optional mods it found, which modules are on, Blood Born Pathogen settings, SkyrimNet settings); then one line per event: rest rolls, each event staged / started / skipped and why, defeat, ambushes, jail, join in, wild creatures, Bitch in Heat, Saturalia, follower rescue, Blood Born Pathogen (tracking, rolls, reasons, infections, changes), SkyrimNet actions (`TransformToBeast`, `TransformBack`, `AcceptBloodGift`, `GiveBloodGift`) and why one was ignored, SkyrimNet narration and memories, panic key.
+- **MCM:** O'Deadly Skyrim > Debug > **Write log file** (ON by default). Turn it off and nothing is written.
+- **Size:** one line per event, nothing per frame. The file starts over after 10 game loads (a small counter in `SKSE/Plugins/StorageUtilData/ODeadlySkyrim_log.json`), and one game load writes at most 3000 lines.
+- **Needs PapyrusUtil** (already required). Without it nothing is written and nothing errors.
+- **Bug reports:** attach `ODeadlySkyrim.log`. If the game crashed, copy the log **before** you load again. Every line also goes to `Papyrus.0.log` (tagged `[ODeadlySkyrim]`) when Papyrus logging is on.
 
 ## Known limits
 
@@ -525,7 +607,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - Wild creatures and werewolves need installed scenes for the exact pair; no scene means nothing happens and the spawns are removed. The werewolf is a vanilla werewolf template; if it does not come out in beast form on your setup, the event is skipped.
 - Beast form choices appear a few seconds after the transformation, once you are out of combat. Vanilla beast form has a timer; if you change back mid-scene, how that plays is up to OStim Beast Form.
 - Bitch in Heat needs a scene for that exact cast (werewolves first, the human last). The walk-in is capped at 25 seconds; after that OStim places everyone. The newcomers walk off after the scene and are removed once out of sight (at the latest after half a game hour).
-- Blood Born Pathogen: the werewolf change is a direct race change without a transformation animation, and how armor looks during it depends on your body and Beast Form setup. Vampires get no eye change and no vampire lord form. Followers with Growl use Growl's own beastblood. Up to 10 infected NPCs at a time.
+- Blood Born Pathogen: the werewolf change is a direct race change without a transformation animation, and how armor looks during it depends on your body and Beast Form setup. 1.1.3: an NPC with its own skin gets the beast race's skin while changed and its own skin back afterwards; if a turned NPC still shows only a head, check `ODeadlySkyrim.log` for the `skin:` lines. Vampires get no eye change and no vampire lord form. Followers with Growl use Growl's own beastblood for fight changes (1.1.4: O'Deadly still gives them the beast body and handles SkyrimNet changes). Up to 10 infected NPCs at a time.
 - Saturalia: Agrane is placed on the navmesh just out of sight; in small interiors he may appear in the next room. If a fight starts he stops handing out gifts.
 - Killer Rabbit vs Vigilants is locked without Mihail's The Killer Rabbit of Caerbannog. The rabbit is as strong as his race makes it; two generic Vigilants are expected to lose without help.
 
@@ -539,7 +621,7 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 - `src/` — Papyrus source
 - `Data/` — `ODeadlySkyrim.esp`, compiled `.pex`, source copy, and the SkyrimNet pack
 - `tools/` — Caprica compile script, plugin builder, verifier, and compile-only stubs (the stubs are not in the player zip)
-- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_1.0.1.zip`)
+- The installable zip is on the [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases) page (latest: `ODeadly_Skyrim_1.1.zip`)
 
 ## Credits
 

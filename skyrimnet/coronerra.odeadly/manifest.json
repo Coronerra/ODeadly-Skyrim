@@ -2,8 +2,8 @@
     "id": "coronerra.odeadly",
     "type": "bundle",
     "title": "O'Deadly Skyrim",
-    "tagline": "Lets O'Deadly Skyrim ask whether a character would act, or would be willing, based on their bio.",
-    "description": "Decision template used by O'Deadly Skyrim (A SkyrimNet environmental mod). When the mod is about to involve a real NPC, it asks SkyrimNet's decision model whether that character, given their bio and the situation, would do it (or, for 1.0's beast-form claim, whether a companion is willing). Without a decisions provider the mod falls back to its own character filter.",
+    "tagline": "O'Deadly Skyrim's decision template, plus 1.1's beast-blood context and actions: turned NPCs can change into their beast form and back, and the blood gift.",
+    "description": "Used by O'Deadly Skyrim (A SkyrimNet environmental mod). Decision template: when the mod is about to involve a real NPC, it asks SkyrimNet's decision model whether that character, given their bio and the situation, would do it (or, for the beast-form claim, whether a companion is willing). Without a decisions provider the mod falls back to its own character filter.\n\n1.1 (Blood Born Pathogen): a character bio section tells NPCs who caught or were given beast blood what they are, who gave it to them, and whether they are in beast form right now. Actions: TransformToBeast and TransformBack (NPCs the mod turned: werewolf, vampire lord, werebear; they stay changed until they change back, or until the fight they changed for is over), AcceptBloodGift and GiveBloodGift. Needs PapyrusUtil (already required by the mod). 1.1.5: BecomeVampireLord for followers who already are vampires (MCM toggle, off by default).",
     "author": "That Guy (Coronerra)",
     "tags": [
         "adult",
@@ -11,7 +11,7 @@
         "immersion"
     ],
     "nsfw": true,
-    "version": "1.0.0",
+    "version": "1.1.5",
     "min_skyrimnet_version": "0.28.0",
     "mods": [
         {

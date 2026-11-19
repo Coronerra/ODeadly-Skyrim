@@ -27,7 +27,9 @@ Event OnUpdate()
 		EndIf
 		return
 	EndIf
-	(GetOwningQuest() as ODS_Main).BothDefeatsWarn()
+	ODS_Main m = GetOwningQuest() as ODS_Main
+	m.LogStartup()          ; 1.1.2: what was found and what is on, in ODeadlySkyrim.log
+	m.BothDefeatsWarn()
 EndEvent
 
 ; 1.0: transformed into / out of werewolf or vampire lord form

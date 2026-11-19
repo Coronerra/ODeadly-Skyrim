@@ -1,5 +1,5 @@
 Scriptname ODS_Main extends Quest
-{O'Deadly Skyrim (A SkyrimNet environmental mod) v1.0 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
+{O'Deadly Skyrim (A SkyrimNet environmental mod) v1.1 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
 
 ; ======================= properties (filled in ODeadlySkyrim.esp) =======================
 Actor Property PlayerRef Auto
@@ -367,6 +367,7 @@ string Property MODNAME = "O'Deadly Skyrim" AutoReadOnly
 
 ; ======================= lifecycle =======================
 Event OnInit()
+	LogSessionStart()    ; 1.1.2: own log file, new session header
 	InitArrays()
 	Register()
 	BothDefeatsWarn()
@@ -528,15 +529,21 @@ Function RegisterPanicKey()
 	If iPanicKey > 0
 		RegisterForKey(iPanicKey)
 	EndIf
+	If iBloodGiftKey > 0 && iBloodGiftKey != iPanicKey
+		RegisterForKey(iBloodGiftKey)       ; 1.1
+	EndIf
 EndFunction
 
 ; called by ODS_PlayerAlias.OnPlayerLoadGame
 Function OnGameLoaded()
+	LogSessionStart()    ; 1.1.2: own log file, new session header (before anything logs)
 	InitArrays()
 	Register()
 	HeatOnLoad()         ; 1.0
 	PathoInitArrays()    ; 1.0 Blood Born Pathogen
 	PathoOnLoad()
+	PathoSkinOnLoad()    ; 1.1.3: skin swaps are not saved by the game, put them back
+	VLFOnLoad()          ; 1.1.5: vampire followers as vampire lords (skin again, SkyrimNet marks)
 	SatOnLoad()          ; 1.0 Saturalia
 	If bRescueOn
 		RescueRelease(false)
@@ -570,6 +577,7 @@ EndFunction
 
 Function Log(string s)
 	Debug.Trace("[ODeadlySkyrim] " + s)
+	LogFileLine(s)      ; 1.1.2: PapyrusUtil only when present, line cap per session
 	If bDebug && bMaster
 		Debug.Notification("[ODS] " + s)
 	EndIf
@@ -741,6 +749,8 @@ EndFunction
 Event OnKeyDown(int keyCode)
 	If keyCode == iPanicKey && iPanicKey > 0
 		Panic()
+	ElseIf keyCode == iBloodGiftKey && iBloodGiftKey > 0
+		BloodGiftKey()          ; 1.1 Blood Born Pathogen
 	EndIf
 EndEvent
 
@@ -757,6 +767,7 @@ Function EnableMaster()
 	EndIf
 	ResolveSoft()
 	RefreshTimers(PlayerRef.GetCurrentLocation())
+	PathoSyncGlobals()   ; 1.1
 	Log("master ON")
 EndFunction
 
@@ -768,7 +779,7 @@ Function Panic()
 	If bPanicNotice
 		Debug.Notification("O'Deadly Skyrim is off.")
 	EndIf
-	Debug.Trace("[ODeadlySkyrim] panic / master off")
+	Log("panic key / master OFF: everything stopped")
 EndFunction
 
 Function AbortAll()
@@ -776,6 +787,7 @@ Function AbortAll()
 	HeatAbort()          ; 1.0
 	SatSendHome()        ; 1.0 Saturalia: Agrane goes back to his camp
 	PathoRevertAll()     ; 1.0: nobody stays in beast form
+	PathoSyncGlobals()   ; 1.1
 	bAftermathDone = true
 	int t = iThread
 	int t2 = iThread2
@@ -1082,6 +1094,7 @@ EndFunction
 ; ======================= ODN / busy soft-compat =======================
 Event OnODNNightAttack(Form akAttacker, bool abSpawned)
 	fLastODNAttack = Utility.GetCurrentGameTime()
+	Log("ODangerous Nights: night attack seen, O'Deadly events wait half a day")
 EndEvent
 
 bool Function OtherBusy(bool allowCombat)
@@ -2384,7 +2397,13 @@ Function StageWithFade(int kind, int ep, bool fromRest)
 	ClearStage()
 	iKind = kind
 	iBioAsked = 0
+	Log("event: " + KindName(kind) + " - staging")
 	bool ok = Dispatch(kind, ep)
+	If ok
+		Log("event: " + KindName(kind) + " started")
+	Else
+		Log("event: " + KindName(kind) + " skipped (no cast or no installed scene; the line above says why)")
+	EndIf
 	If ok && Alive(ep)
 		MaybeOfferJoin(ep)      ; 1.0: consensual scenes only, off by default
 	EndIf
@@ -3150,16 +3169,19 @@ Function OnActorBleedout(Actor a)
 		return
 	EndIf
 	If bBusy || OActor.IsInOStim(a) || (!forced && CooldownActive())
+		Log("defeat: " + a.GetDisplayName() + " down, skipped (busy, in a scene or cooldown)")
 		DefeatFailed(a)
 		return
 	EndIf
 	If !forced && Utility.RandomFloat(0.0, 100.0) >= fDefeatChance
+		Log("defeat: " + a.GetDisplayName() + " down, chance roll missed (" + fDefeatChance + "%)")
 		DefeatFailed(a)
 		return
 	EndIf
 	If forced
 		iForceMode = 0
 	EndIf
+	Log("defeat: " + a.GetDisplayName() + " down, defeat scene")
 	bBusy = true
 	kDefeatVictim = a
 	StageWithFade(K_DEFEAT, iEpoch, false)
@@ -3694,7 +3716,10 @@ Event OnOStimThreadEnd(string eventName, string strArgs, float numArg, Form send
 	EndIf
 	int id = numArg as int
 	If id >= 0 && id == iHeatThread
-		HeatSceneEnded()       ; 1.0: the werewolves walk off (our own encounter still ends below)
+		If HeatTurnNext(id)
+			return             ; 1.1.5: the next beast takes his turn (our own encounter carries on in it)
+		EndIf
+		HeatSceneEnded()       ; 1.0: the beasts walk off (our own encounter still ends below)
 	EndIf
 	If bSaviorJoining
 		return
@@ -3813,7 +3838,8 @@ Function CaughtCheck(int id)
 	If SNetOK() && bSkyrimNetLog
 		SkyrimNetApi.RegisterPersistentEvent(catcher.GetDisplayName() + " caught " + pn + " having sex with " + partner.GetDisplayName() + " at " + WhereName() + ".", catcher, PlayerRef)
 	EndIf
-	ShowMsg(catcher.GetDisplayName() + " has seen you...")
+	HeatNote(catcher.GetDisplayName() + " has seen you...")     ; 1.1.7: OStim scene start: corner notification only, never a box
+	Log("caught: " + NameOf(catcher) + " has seen you (notification, no box)")
 EndFunction
 
 ; ======================= aftermath =======================
@@ -3955,6 +3981,7 @@ Function LogSkyrimNet()
 	EndIf
 	txt += MessyText()
 	SkyrimNetApi.RegisterPersistentEvent(txt, kAttacker, kVictim)
+	Log("SkyrimNet: memory saved for " + KindName(iKind))
 EndFunction
 
 ; jail fallback for "pay the fine with your body": the player's bounty in this hold is cleared after a jail scene
@@ -4103,6 +4130,7 @@ Function OnLocChange(Location akOld, Location akNew)
 		return
 	EndIf
 	FillFollowerAliases()
+	VLFScan()            ; 1.1.5
 	RefreshTimers(akNew)
 	CheckBlackmail()
 EndFunction
@@ -4178,6 +4206,15 @@ EndFunction
 ; one-shot game-time timer: at most one roll per linger / per game hour outdoors
 Event OnUpdateGameTime()
 	If !Ready()
+		If bMaster
+			; 1.0.2: keep the timer alive (it used to be dropped here). Pathogen stages do not need OStim.
+			float pdue = PathoNextDue()
+			If pdue > 0.0 && Utility.GetCurrentGameTime() >= pdue
+				PathoTick()
+			EndIf
+			UnregisterForUpdateGameTime()
+			RegisterForSingleUpdateGameTime(1.0)     ; OStim not ready: try again in a game hour, then ScheduleGameTime() as usual
+		EndIf
 		return
 	EndIf
 	float now = Utility.GetCurrentGameTime()
@@ -4336,10 +4373,11 @@ EndFunction
 ; alias event states: the player / follower aliases only listen while a module needs it
 Function UpdateWatchers()
 	bool bathOn = bMaster && bBath && BathModOK()
-	bool playerOn = (bathOn && bBathPlayer) || (bathOn && bBathFollowers) || (bMaster && bMorningAfter)
+	bool pinc = bMaster && PathoPlayerIncubating()      ; 1.1: a Cure Disease potion stops your incubation
+	bool playerOn = (bathOn && bBathPlayer) || (bathOn && bBathFollowers) || (bMaster && bMorningAfter) || pinc
 	ODS_PlayerAlias pa = GetAlias(0) as ODS_PlayerAlias
 	If pa
-		pa.SetWatch(playerOn, bathOn, bMaster && bMorningAfter, kBathFx)
+		pa.SetWatch(playerOn, bathOn, (bMaster && bMorningAfter) || pinc, kBathFx)
 	EndIf
 	bool folOn = bathOn && bBathFollowers
 	(Follower1Alias as ODS_FollowerAlias).SetWatch(folOn, kBathFx)
@@ -4468,6 +4506,9 @@ bool Function IsAlcohol(Form f)
 EndFunction
 
 Function OnPlayerConsumed(Form f)
+	If PathoPlayerDrank(f)      ; 1.1
+		return
+	EndIf
 	If !bMaster || !bMorningAfter || !IsAlcohol(f)
 		return
 	EndIf
@@ -5079,7 +5120,8 @@ Function WatchCheck(int id)
 	If SNetOK() && bSkyrimNetStart
 		SkyrimNetApi.DirectNarration(txt, w, tgt)
 	Else
-		ShowMsg("You feel eyes on you... someone is watching from a distance.")
+		HeatNote("You feel eyes on you... someone is watching from a distance.")     ; 1.1.7: OStim scene start: never a box
+		Log("watched: someone is watching from a distance (notification, no box)")
 	EndIf
 	If SNetOK() && bSkyrimNetLog
 		SkyrimNetApi.RegisterPersistentEvent(w.GetDisplayName() + " saw " + who + " having sex out in the open near " + WhereName() + ".", w, tgt)
@@ -6696,7 +6738,7 @@ bool Function IsVampireLordForm(Actor a)
 EndFunction
 
 bool Function IsBeastForm(Actor a)
-	return IsWerewolfForm(a) || IsVampireLordForm(a)
+	return IsWerewolfForm(a) || IsVampireLordForm(a) || IsWerebearForm(a)      ; 1.1: werebears too
 EndFunction
 
 bool Function PlayerIsBeast()
@@ -6706,6 +6748,8 @@ EndFunction
 string Function BeastWord(Actor a)
 	If IsVampireLordForm(a)
 		return "vampire lord"
+	ElseIf IsWerebearForm(a)
+		return "werebear"
 	EndIf
 	return "werewolf"
 EndFunction
@@ -6750,20 +6794,25 @@ string Function BFStartFor(Actor beast, Actor other)
 		ElseIf IsBeastForm(other)
 			id = ""
 		ElseIf bm && !om
-			id = "OCrWerewolfIdleFM"
+			id = "OBFWerewolfIdleFM"       ; 1.1: Beast Form 1.0's own scene first, OCreatures' as the last resort
+			alt = "OCrWerewolfIdleFM"
 		ElseIf bm && om
 			id = "OBFWerewolfIdleMM"
 		ElseIf !bm && om
 			id = "OBFWerewolfIdleMF"
 		Else
-			id = "OBFWerewolfIdleFwF"
+			id = "OBFWerewolfIdleFF"       ; 1.1: Beast Form 1.0
+			If OMetaData.GetActorCount(id) != 2
+				id = "OBFWerewolfIdleFwF"  ; Beast Form 0.8
+			EndIf
 			alt = "OCrWerewolfIdleFF"
 		EndIf
 	ElseIf IsVampireLordForm(beast)
 		If IsVampireLordForm(other)
 			id = "OBFVampireLordIdleCC" + SexLetter(beast) + SexLetter(other)  ; vampire lord couples
 		ElseIf bm && !om && !IsBeastForm(other)
-			id = "OCrVampireLordIdleFM"
+			id = "OBFVampireLordIdleFM"    ; 1.1: Beast Form 1.0 first
+			alt = "OCrVampireLordIdleFM"
 		EndIf
 	EndIf
 	If id != "" && OMetaData.GetActorCount(id) == 2
@@ -6850,8 +6899,10 @@ Function MaybeOfferJoin(int ep)
 		return
 	EndIf
 	If choice == 1
+		Log("join: player joins " + lover.GetDisplayName() + " and " + other.GetDisplayName())
 		JoinIn(lover, other, ep)
 	ElseIf choice == 2
+		Log("join: player steps in")
 		Intervene()
 	Else
 		iJoinChoice = 1
@@ -7211,6 +7262,7 @@ Function WildChosen(int choice, int ep)
 	string pn = PlayerRef.GetDisplayName()
 	string an = WildBeastName()
 	string vn = WildVictimText()
+	Log("wild: player chose " + choice + " (1 = rescue, else watch)")
 	If choice == 1
 		TalkNet(pn + " sees " + an + " raping " + vn + " and charges in to rescue them.", kAttacker, kVictim, true, false)
 		SaviorRescue(ep)
@@ -7224,6 +7276,7 @@ EndFunction
 ; ---------- 1.0: the player in beast form (OStim Beast Form) ----------
 ; ODS_PlayerAlias.OnRaceSwitchComplete -> here. Returns seconds until the first check, 0 = none.
 float Function OnPlayerRaceSwitch()
+	PathoSyncGlobals()          ; 1.1: SkyrimNet sees whether you can give the blood gift
 	bBeastOffered = false
 	iBeastTries = 0
 	If !Ready() || !bBeastOffer || !PlayerIsBeast() || !BFScenesOK()
@@ -7469,7 +7522,8 @@ EndFunction
 ; =====================================================================================
 ; ======================= 1.0: "Bitch in Heat" (OStim Beast Form) =======================
 ; When an OStim scene with the player starts between a male werewolf in beast form and a human
-; adult, the howls and scent can draw 1-3 more werewolves. OFF by default; master switch, panic
+; adult, the howls and scent can draw 1-3 more werewolves. 1.1.5: also a werebear or a vampire
+; lord in full beast form; see the 1.1.5 notes at HeatKindOf. OFF by default; master switch, panic
 ; key and the no-children rule apply. Summoned werewolves are vanilla EncWerewolf01-06 bases
 ; (WerewolfBeastRace in Skyrim.esm), checked for that race before they are used and again right
 ; before the scene starts; they are calmed BEFORE they are enabled, never hostile, then walk off
@@ -7477,8 +7531,9 @@ EndFunction
 ; =====================================================================================
 bool Property bHeat = false Auto Hidden
 float Property fHeatChance = 25.0 Auto Hidden
-bool Property bHeatAsk = true Auto Hidden          ; ask how many (else automatic)
-int Property iHeatMax = 3 Auto Hidden              ; most werewolves summoned (1-3)
+bool Property bHeatAsk = true Auto Hidden          ; 1.1.6: retired (no in-game box any more), kept for old saves
+int Property iHeatMax = 3 Auto Hidden              ; 1.1.6: retired (replaced by iHeatJoin), kept for old saves
+int Property iHeatJoin = 0 Auto Hidden             ; 1.1.6: how many join: 1-3, 0 = random 1-3 (MCM, no in-game box)
 bool Property bForceHeat = false Auto Hidden       ; debug: next eligible scene, no chance roll
 FormList Property ODS_PoolHeatWolf Auto            ; EncWerewolf01-06 (Skyrim.esm, WerewolfBeastRace)
 Faction Property ODS_HeatPackFaction Auto          ; friend (never ally) to the player and followers
@@ -7487,7 +7542,7 @@ Faction Property PlayerFollowerFaction Auto
 GlobalVariable Property ODS_HeatAllow1 Auto        ; MESG button conditions
 GlobalVariable Property ODS_HeatAllow2 Auto
 GlobalVariable Property ODS_HeatAllow3 Auto
-Message Property ODS_HeatChoice Auto               ; One more / Two more / Three more / Not now
+Message Property ODS_HeatChoice Auto               ; 1.1.6: no longer shown (record kept, unused)
 Quest Property ODS_HeatQuest Auto                  ; holds the summoned werewolves in guarded aliases
 ReferenceAlias Property HeatWolf1Alias Auto
 ReferenceAlias Property HeatWolf2Alias Auto
@@ -7513,7 +7568,94 @@ ODS_HeatWolfAlias Function HeatAlias(int i)
 	return HeatWolf3Alias as ODS_HeatWolfAlias
 EndFunction
 
-; ---------- scenes (actor order: werewolves first, the human last = the centre) ----------
+; ---------- 1.1.5: which beast, and how they join ----------
+; 1.1.5: any male beast in FULL beast form counts (werewolf, werebear, vampire lord); human-form
+; werewolves and vampires never do. Werewolves (and werebears with OStim Beast Form's "werebears
+; use werewolf scenes" toggle) join one group scene; vampire lords (no group scenes exist) and
+; werebears without the toggle take turns, one pair scene after another.
+bool bHeatTurns = false
+bool bHeatFemale = true
+int iHeatTurn = -1
+int iHeatKind = 1          ; the beast already in the scene: 1 werewolf, 2 vampire lord, 3 werebear
+int iHeatWW = 0            ; summoned, by kind (for the narration)
+int iHeatVL = 0
+int iHeatBear = 0
+
+; 1 werewolf, 2 vampire lord, 3 werebear, 0 not in full beast form
+int Function HeatKindOf(Actor a)
+	If a == None
+		return 0
+	ElseIf IsWerewolfForm(a)
+		return 1
+	ElseIf IsVampireLordForm(a)
+		return 2
+	ElseIf IsWerebearForm(a)
+		return 3
+	EndIf
+	return 0
+EndFunction
+
+; OStim Beast Form (Core C) toggle "werebears use werewolf scenes" (GLOB OBL_WerebearAsWerewolf)
+bool Function HeatBearAsWolf()
+	If !ModLoaded("OStim_Beast_Form_Merged.esp")
+		return false
+	EndIf
+	GlobalVariable g = Game.GetFormFromFile(0x00000839, "OStim_Beast_Form_Merged.esp") as GlobalVariable
+	return g && g.GetValue() >= 1.0
+EndFunction
+
+string Function HeatCallWord(int kind)
+	If kind == 2
+		return "the shrieks"
+	ElseIf kind == 3
+		return "the roars"
+	EndIf
+	return "the howls"
+EndFunction
+
+string Function HeatKindCount(int kind, int n)
+	If n == 1
+		return "a " + FormWord(kind)
+	EndIf
+	If kind == 2
+		return HeatNumber(n) + " vampire lords"
+	ElseIf kind == 3
+		return HeatNumber(n) + " werebears"
+	EndIf
+	return HeatNumber(n) + " werewolves"
+EndFunction
+
+; "two werewolves and a werebear"
+string Function HeatPackWords()
+	string s = ""
+	int parts = 0
+	If iHeatWW > 0
+		s = HeatKindCount(1, iHeatWW)
+		parts += 1
+	EndIf
+	If iHeatBear > 0
+		If parts > 0
+			s += " and "
+		EndIf
+		s += HeatKindCount(3, iHeatBear)
+		parts += 1
+	EndIf
+	If iHeatVL > 0
+		If parts > 0
+			s += " and "
+		EndIf
+		s += HeatKindCount(2, iHeatVL)
+		parts += 1
+	EndIf
+	If parts == 0
+		return "other beasts"
+	EndIf
+	return s
+EndFunction
+
+; ---------- group scenes (actor order: beasts first, the human last = the centre) ----------
+; Werewolf and Vampire Lord OStim 0.3.1 first (hubs, then the Billyy scenes), OStim Beast Form,
+; Billyy, OCreatures last. Male-centre IDs only exist with WVL's male partner scenes installed.
 string Function HeatCandidate(bool female, int n, int i)
 	If female
 		If n == 1
@@ -7530,8 +7672,14 @@ string Function HeatCandidate(bool female, int n, int i)
 			ElseIf i == 5
 				return "WVLBWWB3pHoldDP-1"
 			ElseIf i == 6
-				return "BillyyWerewolfHubFMM"
+				return "WVLBWWB3pDogSpit-1"
 			ElseIf i == 7
+				return "WVLBWWB3pHang2-1"
+			ElseIf i == 8
+				return "WVLBWWB3pStandSpit-1"
+			ElseIf i == 9
+				return "BillyyWerewolfHubFMM"
+			ElseIf i == 10
 				return "OCrWerewolfIdleFMM"
 			EndIf
 		ElseIf n == 2
@@ -7571,6 +7719,14 @@ string Function HeatCandidate(bool female, int n, int i)
 				return "WVLBWWB3pCGM-1"
 			ElseIf i == 4
 				return "WVLBWWB3pDP2M-1"
+			ElseIf i == 5
+				return "WVLBWWB3pHoldDPM-1"
+			ElseIf i == 6
+				return "WVLBWWB3pDogSpitM-1"
+			ElseIf i == 7
+				return "WVLBWWB3pHang2M-1"
+			ElseIf i == 8
+				return "WVLBWWB3pStandSpitM-1"
 			EndIf
 		ElseIf n == 2
 			If i == 0
@@ -7593,10 +7749,10 @@ string Function HeatCandidate(bool female, int n, int i)
 	return ""
 EndFunction
 
-; installed for this many summoned werewolves (n+1 werewolves + 1 human)?
+; installed for this many summoned beasts (n+1 beasts + 1 human)?
 bool Function HeatCountOK(bool female, int n)
 	int i = 0
-	While i < 8
+	While i < 11
 		string id = HeatCandidate(female, n, i)
 		If id != "" && OMetaData.GetActorCount(id) == n + 2
 			return true
@@ -7609,7 +7765,7 @@ EndFunction
 ; the real cast: first listed scene OStim accepts for these actors, else any scene for them
 string Function HeatPickScene(Actor[] acts, bool female, int n)
 	int i = 0
-	While i < 8
+	While i < 11
 		string id = HeatCandidate(female, n, i)
 		If id != "" && OMetaData.GetActorCount(id) == acts.Length
 			string[] ok = OLibrary.GetScenesInRange(id, acts, 1)
@@ -7620,6 +7776,77 @@ string Function HeatPickScene(Actor[] acts, bool female, int n)
 		i += 1
 	EndWhile
 	string r = OLibrary.GetRandomSceneWithAnySceneTagCSV(acts, "werewolf,beast,creature")
+	If r == ""
+		r = OLibrary.GetRandomScene(acts)
+	EndIf
+	return r
+EndFunction
+
+; ---------- 1.1.5: pair scenes for taking turns (beast first, the human last) ----------
+string Function HeatPairCandidate(int kind, bool female, int i)
+	If kind == 2
+		If female
+			If i == 0
+				return "WVLVLVampireLordHubFMC1"
+			ElseIf i == 1
+				return "OBFVampireLordIdleMF"
+			EndIf
+		ElseIf i == 0
+			return "WVLVLMVampireLordHubMMC1"
+		ElseIf i == 1
+			return "WVLIdleVLMVampireLordMMC1"
+		EndIf
+		return ""
+	EndIf
+	If kind == 3 && !HeatBearAsWolf()
+		return ""          ; werebears fit the werewolf scenes only with Beast Form's toggle on
+	EndIf
+	If female
+		If i == 0
+			return "WVLWWWerewolfHubFMC1"
+		ElseIf i == 1
+			return "OBFWerewolfIdleMF"
+		EndIf
+	ElseIf i == 0
+		return "WVLWWMWerewolfHubMMC1"
+	ElseIf i == 1
+		return "WVLIdleWWMWerewolfMMC1"
+	EndIf
+	return ""
+EndFunction
+
+; a pair scene for this kind is installed (OCreatures as the last resort, female centre only)
+bool Function HeatTurnsOK(int kind, bool female)
+	int i = 0
+	While i < 2
+		string id = HeatPairCandidate(kind, female, i)
+		If id != "" && OMetaData.GetActorCount(id) == 2
+			return true
+		EndIf
+		i += 1
+	EndWhile
+	return female && OCreaturesInstalled()
+EndFunction
+
+string Function HeatPairScene(Actor[] acts, int kind, bool female)
+	int i = 0
+	While i < 2
+		string id = HeatPairCandidate(kind, female, i)
+		If id != "" && OMetaData.GetActorCount(id) == 2
+			string[] ok = OLibrary.GetScenesInRange(id, acts, 1)
+			If ok && ok.Length > 0
+				return id
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	string tags = "werewolf,beast,creature"
+	If kind == 2
+		tags = "vampirelord,vampire lord,beast,creature"
+	ElseIf kind == 3
+		tags = "werebear,beast,creature"
+	EndIf
+	string r = OLibrary.GetRandomSceneWithAnySceneTagCSV(acts, tags)
 	If r == ""
 		r = OLibrary.GetRandomScene(acts)
 	EndIf
@@ -7663,7 +7890,7 @@ EndFunction
 
 ; alias events: combat start or a hit -> calm again at once
 Function HeatCalmWolf(Actor w)
-	If w == None || kHeatWolves == None || kHeatWolves.Find(w) < 0
+	If w == None || !kHeatWolves || kHeatWolves.Find(w) < 0
 		return
 	EndIf
 	HeatPacify(w)
@@ -7678,13 +7905,13 @@ Function HeatCalmWolf(Actor w)
 	EndWhile
 EndFunction
 
-; a summoned werewolf that is not in beast form is never used: drop it
+; a summoned beast that is not in full beast form any more is never used: drop it
 Function HeatRaceChanged(Actor w)
-	If w == None || kHeatWolves == None || kHeatWolves.Find(w) < 0
+	If w == None || !kHeatWolves || kHeatWolves.Find(w) < 0
 		return
 	EndIf
-	If !IsWerewolfForm(w)
-		Log("heat: a summoned werewolf left beast form - removed")
+	If HeatKindOf(w) == 0
+		Log("heat: a summoned beast left beast form - removed")
 		int i = kHeatWolves.Find(w)
 		kHeatWolves[i] = None
 		w.Disable(false)
@@ -7702,16 +7929,82 @@ Function HeatRaceChanged(Actor w)
 	EndIf
 EndFunction
 
-; spawn one werewolf, disabled, just out of sight behind the player; verified and calmed before Enable
-Actor Function HeatSpawnWolf(Actor anchor, int ep)
+; 1.1.5: the kind for one summoned slot. Werewolf and werebear packs can mix when Beast Form lets
+; werebears use the werewolf scenes (about one answer in three is the other kind). Never for turns.
+int Function HeatSlotKind(int bk, bool turns)
+	If turns || bk == 2 || !HeatBearAsWolf() || WerebearRace() == None
+		return bk
+	EndIf
+	If Utility.RandomInt(0, 2) == 0
+		If bk == 1
+			return 3
+		EndIf
+		return 1
+	EndIf
+	return bk
+EndFunction
+
+; 1.1.5 pools: werewolves EncWerewolf01-06 (ODS_PoolHeatWolf), werebears Dragonborn DLC2EncWerebear,
+; vampire lords: male vampire boss bases (Skyrim.esm) changed to the Dawnguard vampire lord race
+; while still disabled (the game has no generic vampire lord NPCs)
+Form Function HeatPoolPick(int kind)
+	If kind == 3
+		return Game.GetFormFromFile(0x000322B1, "Dragonborn.esm")
+	ElseIf kind == 2
+		int r = Utility.RandomInt(0, 9)
+		int fid = 0x0002E1E2
+		If r == 1
+			fid = 0x0002E1FC
+		ElseIf r == 2
+			fid = 0x0002E519
+		ElseIf r == 3
+			fid = 0x0002EA9E
+		ElseIf r == 4
+			fid = 0x0002EAC1
+		ElseIf r == 5
+			fid = 0x0003377B
+		ElseIf r == 6
+			fid = 0x0003377C
+		ElseIf r == 7
+			fid = 0x00033828
+		ElseIf r == 8
+			fid = 0x0002E1DC
+		ElseIf r == 9
+			fid = 0x0002E1F1
+		EndIf
+		return Game.GetFormFromFile(fid, "Skyrim.esm")
+	EndIf
 	If ODS_PoolHeatWolf == None || ODS_PoolHeatWolf.GetSize() == 0
+		return None
+	EndIf
+	return ODS_PoolHeatWolf.GetAt(Utility.RandomInt(0, ODS_PoolHeatWolf.GetSize() - 1))
+EndFunction
+
+; spawn one beast, disabled, just out of sight behind the player; verified and calmed before Enable
+Actor Function HeatSpawnBeast(Actor anchor, int ep, int kind)
+	Race vl = None
+	If kind == 2
+		vl = VampireLordRace()
+		If vl == None
+			return None
+		EndIf
+	ElseIf kind == 3 && WerebearRace() == None
 		return None
 	EndIf
 	int t = 0
 	While t < 4 && Alive(ep)
-		Actor a = anchor.PlaceAtMe(ODS_PoolHeatWolf.GetAt(Utility.RandomInt(0, ODS_PoolHeatWolf.GetSize() - 1)), 1, false, true) as Actor
+		Form base = HeatPoolPick(kind)
+		Actor a = None
+		If base
+			a = anchor.PlaceAtMe(base, 1, false, true) as Actor
+		EndIf
 		If a
-			If IsWerewolfForm(a) && a.GetLeveledActorBase().GetSex() == 0 && !IsMinor(a)
+			bool male = a.GetLeveledActorBase().GetSex() == 0
+			If kind == 2 && male && !IsMinor(a)
+				a.UnequipAll()
+				a.SetRace(vl)          ; still disabled: it is first drawn as a vampire lord
+			EndIf
+			If HeatKindOf(a) == kind && male && !IsMinor(a)
 				float ang = PlayerRef.GetAngleZ() + 180.0 + Utility.RandomFloat(-50.0, 50.0)
 				float dist = Utility.RandomFloat(1500.0, 2200.0)
 				a.SetPosition(PlayerRef.GetPositionX() + Math.sin(ang) * dist, PlayerRef.GetPositionY() + Math.cos(ang) * dist, PlayerRef.GetPositionZ())
@@ -7719,8 +8012,11 @@ Actor Function HeatSpawnWolf(Actor anchor, int ep)
 				HeatPacify(a)          ; before it ever gets an AI tick
 				return a
 			EndIf
-			Log("heat: spawn was not a male werewolf in beast form - discarded")
+			Log("heat: spawn was not a male " + FormWord(kind) + " in beast form (" + FormText(base) + ", race " + FormText(a.GetRace()) + ") - discarded")
 			a.Delete()
+		ElseIf base == None
+			Log("heat: no " + FormWord(kind) + " base form found")
+			return None
 		EndIf
 		t += 1
 	EndWhile
@@ -7737,10 +8033,10 @@ EndFunction
 
 ; ---------- trigger: OnOStimThreadStart ----------
 Function HeatCheck(int id)
-	If !bHeat || !Ready() || bHeatOn || bRescueOn || id < 0 || !BFScenesOK()
+	If !bHeat || !Ready() || bHeatOn || bRescueOn || id < 0 || !OStimOK()
 		return
 	EndIf
-	If ODS_HeatQuest == None || ODS_HeatQuest.IsRunning() || ODS_PoolHeatWolf == None
+	If ODS_HeatQuest == None || ODS_HeatQuest.IsRunning()
 		return
 	EndIf
 	If bBusy && id != iThread
@@ -7752,54 +8048,67 @@ Function HeatCheck(int id)
 	EndIf
 	Actor beast = None
 	Actor human = None
-	If IsWerewolfForm(acts[0]) && !IsBeastForm(acts[1])
+	int k0 = HeatKindOf(acts[0])
+	int k1 = HeatKindOf(acts[1])
+	If k0 > 0 && k1 == 0
 		beast = acts[0]
 		human = acts[1]
-	ElseIf IsWerewolfForm(acts[1]) && !IsBeastForm(acts[0])
+	ElseIf k1 > 0 && k0 == 0
 		beast = acts[1]
 		human = acts[0]
 	EndIf
 	If beast == None || human == None || IsMinor(beast) || IsMinor(human) || !IsHumanoid(human)
-		return
+		return       ; nobody in full beast form (human-form werewolves / vampires do not count)
 	EndIf
+	int bk = HeatKindOf(beast)
+	string bw = FormWord(bk)
 	If beast.GetLeveledActorBase().GetSex() != 0
-		return      ; the werewolf places in these scenes are male
+		Log("heat: " + bw + " scene, but the " + bw + " is female - skipped")
+		return      ; the beast places in these scenes are male
 	EndIf
 	If !HeatPlaceOK()
+		Log("heat: " + bw + " scene, but not a wilderness place - skipped")
 		return
 	EndIf
 	If !bForceHeat && Utility.RandomFloat(0.0, 100.0) >= fHeatChance
+		Log("heat: " + bw + " scene, chance roll missed (" + fHeatChance + "%)")
 		return
 	EndIf
 	bool female = human.GetLeveledActorBase().GetSex() == 1
-	int cap = iHeatMax
-	If cap > 3
-		cap = 3
-	ElseIf cap < 1
-		cap = 1
+	; 1.1.6: no in-game box (it clashed with OStim's own menu at scene start). The count comes
+	; from the MCM ("How many join": 1, 2, 3 or 0 = random 1-3); a count without an installed
+	; scene for this cast falls back silently to the nearest one that has one.
+	bool turns = false
+	bool ok1 = false
+	bool ok2 = false
+	bool ok3 = false
+	bool bearWolf = HeatBearAsWolf()
+	If bk == 1 || (bk == 3 && bearWolf)
+		ok1 = HeatCountOK(female, 1)
+		ok2 = HeatCountOK(female, 2)
+		ok3 = HeatCountOK(female, 3)
 	EndIf
-	bool ok1 = cap >= 1 && HeatCountOK(female, 1)
-	bool ok2 = cap >= 2 && HeatCountOK(female, 2)
-	bool ok3 = cap >= 3 && HeatCountOK(female, 3)
 	If !ok1 && !ok2 && !ok3
-		Log("heat: no installed multi-werewolf scene for this human")
-		return
+		If bk == 1
+			Log("heat: werewolf scene, no installed multi-werewolf scene for a " + HeatSexWord(female) + " centre - skipped")
+			return
+		EndIf
+		If !HeatTurnsOK(bk, female)
+			Log("heat: " + bw + " scene, no installed pair scene for a " + bw + " with a " + HeatSexWord(female) + " centre (werebears use werewolf scenes " + YesNo(bearWolf) + ", OCreatures " + YesNo(OCreaturesInstalled()) + ") - skipped")
+			return
+		EndIf
+		turns = true
+		ok1 = true
+		ok2 = true
+		ok3 = true
 	EndIf
 	bForceHeat = false
+	int want = iHeatJoin
+	If want < 0 || want > 3
+		want = 0
+	EndIf
 	int n = 0
-	If bHeatAsk && ODS_HeatChoice
-		ODS_HeatAllow1.SetValue(ok1 as float)
-		ODS_HeatAllow2.SetValue(ok2 as float)
-		ODS_HeatAllow3.SetValue(ok3 as float)
-		int c = ODS_HeatChoice.Show()
-		If c == 0 && ok1
-			n = 1
-		ElseIf c == 1 && ok2
-			n = 2
-		ElseIf c == 2 && ok3
-			n = 3
-		EndIf
-	Else
+	If want == 0
 		int[] pick = new int[3]
 		int k = 0
 		If ok1
@@ -7815,14 +8124,160 @@ Function HeatCheck(int id)
 			k += 1
 		EndIf
 		n = pick[Utility.RandomInt(0, k - 1)]
+		Log("heat: how many join: random 1-3 -> " + n + " (installed counts: 1 " + YesNo(ok1) + ", 2 " + YesNo(ok2) + ", 3 " + YesNo(ok3) + ")")
+	Else
+		n = HeatNearestCount(want, ok1, ok2, ok3)
+		If n != want
+			Log("heat: how many join: MCM says " + want + ", no installed scene for that cast - using " + n + " (installed counts: 1 " + YesNo(ok1) + ", 2 " + YesNo(ok2) + ", 3 " + YesNo(ok3) + ")")
+		Else
+			Log("heat: how many join: " + n + " (MCM)")
+		EndIf
 	EndIf
 	If n <= 0 || !Ready() || !OThread.IsRunning(id)
+		Log("heat: " + bw + " scene, nobody called (choice " + n + ")")
 		return
 	EndIf
-	HeatRun(id, beast, human, n, female)
+	string mode = "one group scene"
+	If turns
+		mode = "taking turns in pair scenes"
+	EndIf
+	Log("heat: " + bw + " scene " + id + " (" + NameOf(beast) + " with " + NameOf(human) + "), " + n + " answer, " + mode + " (werebears use werewolf scenes " + YesNo(bearWolf) + ")")
+	HeatRun(id, beast, human, n, female, bk, turns)
 EndFunction
 
-Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
+string Function HeatJoinText()
+	If iHeatJoin >= 1 && iHeatJoin <= 3
+		return "" + iHeatJoin
+	EndIf
+	return "random 1-3"
+EndFunction
+
+; 1.1.6: Bitch in Heat text (1.1.7: also Caught and Watched, all at OStim scene start): a corner
+; notification (unless messages are off), never a message box
+Function HeatNote(string t)
+	If bMaster && iMsgStyle != 2
+		Debug.Notification(t)
+	EndIf
+EndFunction
+
+; 1.1.6: the installed count nearest to the wanted one (a tie goes to the smaller count)
+int Function HeatNearestCount(int want, bool ok1, bool ok2, bool ok3)
+	int d = 0
+	While d < 3
+		int lo = want - d
+		int hi = want + d
+		If (lo == 1 && ok1) || (lo == 2 && ok2) || (lo == 3 && ok3)
+			return lo
+		EndIf
+		If (hi == 1 && ok1) || (hi == 2 && ok2) || (hi == 3 && ok3)
+			return hi
+		EndIf
+		d += 1
+	EndWhile
+	return 0
+EndFunction
+
+string Function HeatSexWord(bool female)
+	If female
+		return "female"
+	EndIf
+	return "male"
+EndFunction
+
+; 1.1.5: start one heat scene; our own encounter carries on in it
+int Function HeatStartScene(Actor[] acts, string sc, bool own)
+	int b = OThreadBuilder.Create(acts)
+	int t = -1
+	If b >= 0
+		OThreadBuilder.SetStartingAnimation(b, sc)
+		If own
+			float mn = fMinDuration
+			float mx = fMaxDuration
+			If mx < mn
+				mx = mn
+			EndIf
+			OThreadBuilder.SetDuration(b, Utility.RandomFloat(mn, mx))
+		EndIf
+		OThreadBuilder.UndressActors(b)
+		OThreadBuilder.NoFurniture(b)
+		OThreadBuilder.SetMetadataCSV(b, "odangerous,beastform,heat")
+		iHeatThread = -2           ; the start event of our own scene is ignored
+		t = OThreadBuilder.Start(b)
+	EndIf
+	iHeatThread = t
+	If t >= 0 && own
+		iThread = t
+		kSceneActs = acts
+		sScene1 = sc
+	EndIf
+	return t
+EndFunction
+
+; 1.1.5: first summoned slot from k on that can still take a turn
+int Function HeatNextTurn(int k)
+	While k < 3
+		Actor w = kHeatWolves[k]
+		If w && !w.IsDead() && HeatKindOf(w) > 0
+			return k
+		EndIf
+		k += 1
+	EndWhile
+	return -1
+EndFunction
+
+; 1.1.5: one summoned beast takes his turn with the human
+int Function HeatStartTurn(int k, bool own)
+	Actor w = kHeatWolves[k]
+	Actor[] acts = NewActorArray(2)
+	acts[0] = w
+	acts[1] = kHeatHuman
+	int kind = HeatKindOf(w)
+	string sc = HeatPairScene(acts, kind, bHeatFemale)
+	If sc == ""
+		Log("heat: turn " + (k + 1) + ": OStim has no pair scene for this " + FormWord(kind))
+		return -1
+	EndIf
+	HeatPacify(w)
+	int t = HeatStartScene(acts, sc, own)
+	If t < 0
+		Log("heat: turn " + (k + 1) + ": the scene did not start (" + sc + ")")
+		return -1
+	EndIf
+	bool first = iHeatTurn < 0
+	iHeatTurn = k
+	If !first
+		TalkNet("The next one, a " + FormWord(kind) + " in full beast form, takes his turn fucking " + kHeatHuman.GetDisplayName() + ".", w, kHeatHuman, true, false)
+	EndIf
+	Log("heat: turn " + (k + 1) + ": a " + FormWord(kind) + " with " + NameOf(kHeatHuman) + ", scene " + sc + " thread " + t + ", own encounter " + YesNo(own))
+	return t
+EndFunction
+
+; 1.1.5: OnOStimThreadEnd of a turn: true = the next turn started (the event stops there)
+bool Function HeatTurnNext(int id)
+	If !bHeatOn || !bHeatTurns || kHeatHuman == None || kHeatHuman.IsDead() || !Alive(iHeatEp)
+		return false
+	EndIf
+	int k = HeatNextTurn(iHeatTurn + 1)
+	If k < 0
+		Log("heat: all turns done")
+		return false
+	EndIf
+	bool own = id >= 0 && id == iThread
+	iHeatThread = -2
+	Utility.Wait(1.0)
+	If !Alive(iHeatEp) || !bHeatOn
+		iHeatThread = -1
+		return false
+	EndIf
+	int t = HeatStartTurn(k, own)
+	If t < 0
+		iHeatThread = -1
+		return false
+	EndIf
+	return true
+EndFunction
+
+Function HeatRun(int id, Actor beast, Actor human, int n, bool female, int bk, bool turns)
 	bHeatOn = true
 	iHeatEp = iEpoch
 	int ep = iHeatEp
@@ -7832,6 +8287,13 @@ Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
 	kHeatHuman = human
 	kHeatWolves = new Actor[3]
 	iHeatCount = 0
+	iHeatKind = bk
+	bHeatTurns = turns
+	bHeatFemale = female
+	iHeatTurn = -1
+	iHeatWW = 0
+	iHeatVL = 0
+	iHeatBear = 0
 	HeatFactionSetup()
 	ODS_HeatQuest.Start()
 	int w8 = 0
@@ -7846,18 +8308,31 @@ Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
 	EndIf
 	int i = 0
 	While i < n && Alive(ep)
-		Actor w = HeatSpawnWolf(human, ep)
+		int sk = HeatSlotKind(bk, turns)
+		Actor w = HeatSpawnBeast(human, ep, sk)
+		If w == None && sk != bk
+			sk = bk
+			w = HeatSpawnBeast(human, ep, sk)
+		EndIf
 		If w == None
-			Log("heat: could not get a werewolf in beast form - event skipped")
+			Log("heat: could not get a " + FormWord(sk) + " in beast form - event skipped")
 			HeatDeleteAll()
 			HeatFinish()
 			return
 		EndIf
 		kHeatWolves[i] = w
 		iHeatCount += 1
+		If sk == 2
+			iHeatVL += 1
+		ElseIf sk == 3
+			iHeatBear += 1
+		Else
+			iHeatWW += 1
+		EndIf
 		HeatAlias(i).ForceRefTo(w)
 		w.Enable(false)
 		HeatPacify(w)
+		Log("heat: summoned a " + FormWord(sk) + " (slot " + (i + 1) + ", " + FormText(w.GetLeveledActorBase()) + ")")
 		i += 1
 	EndWhile
 	If !Alive(ep)
@@ -7868,14 +8343,21 @@ Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
 	string where = WhereName()
 	string bn = beast.GetDisplayName()
 	string hn = human.GetDisplayName()
-	string cnt = HeatNumber(n)
-	If beast == PlayerRef
-		bn = PlayerRef.GetDisplayName() + ", a werewolf in full beast form,"
+	bn = bn + ", a " + FormWord(bk) + " in full beast form,"
+	string pack = HeatPackWords()
+	If turns
+		TalkNet("Near " + where + ", " + HeatCallWord(bk) + " and the scent of " + bn + " rutting with " + hn + " have drawn " + pack + " out of the wilds. They come in full beast form, and one after another each of them is going to take his turn fucking " + hn + ".", beast, human, true, false)
 	Else
-		bn = bn + ", a werewolf in full beast form,"
+		TalkNet("Near " + where + ", " + HeatCallWord(bk) + " and the scent of " + bn + " rutting with " + hn + " have drawn " + pack + " out of the wilds. They come in full beast form to join in, and " + hn + " is about to be fucked by " + HeatNumber(n + 1) + " beasts at once.", beast, human, true, false)
 	EndIf
-	TalkNet("Near " + where + ", the howls and the scent of " + bn + " rutting with " + hn + " have drawn " + cnt + " other werewolves in the area. They come out of the wilds in full beast form to join in, and " + hn + " is about to be fucked by " + HeatNumber(n + 1) + " werewolves at once.", beast, human, true, false)
-	ShowMsg("Howls answer from the wilds...")
+	; 1.1.6: never a message box here (it would sit on top of OStim's menu): corner notification only
+	If bk == 2
+		HeatNote("Wings beat in the dark...")
+	ElseIf bk == 3
+		HeatNote("Roars answer from the wilds...")
+	Else
+		HeatNote("Howls answer from the wilds...")
+	EndIf
 	i = 0
 	While i < n
 		HeatAlias(i).Approach(human)
@@ -7901,14 +8383,14 @@ Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
 		HeatFinish()
 		return
 	EndIf
-	; final guarantee before the scene: every werewolf still alive, in beast form, calm
+	; final guarantee before the scene: every summoned beast still alive, in beast form, calm
 	Actor[] acts = NewActorArray(n + 2)
 	acts[0] = beast
 	i = 0
 	While i < n
 		Actor w = kHeatWolves[i]
-		If w == None || w.IsDead() || !IsWerewolfForm(w)
-			Log("heat: a summoned werewolf is not usable - they leave")
+		If w == None || w.IsDead() || HeatKindOf(w) == 0
+			Log("heat: a summoned beast is not usable - they leave")
 			HeatLeave()
 			return
 		EndIf
@@ -7922,15 +8404,24 @@ Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
 		HeatLeave()
 		return
 	EndIf
-	string sc = HeatPickScene(acts, female, n)
-	If sc == ""
-		Log("heat: OStim has no scene for this cast - they leave")
-		HeatLeave()
-		return
+	string sc = ""
+	If !turns
+		sc = HeatPickScene(acts, female, n)
+		If sc == ""
+			If HeatTurnsOK(1, female) || HeatTurnsOK(bk, female)
+				turns = true
+				bHeatTurns = true
+				Log("heat: OStim has no group scene for this cast - they take turns instead")
+			Else
+				Log("heat: OStim has no scene for this cast - they leave")
+				HeatLeave()
+				return
+			EndIf
+		EndIf
 	EndIf
 	bool own = id == iThread
 	If own
-		bSaviorJoining = true      ; our own encounter continues in the bigger scene
+		bSaviorJoining = true      ; our own encounter continues in the heat scene(s)
 		iThread = -1
 	EndIf
 	OThread.Stop(id)
@@ -7943,27 +8434,18 @@ Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
 		HeatFinish()
 		return
 	EndIf
-	int b = OThreadBuilder.Create(acts)
 	int t = -1
-	If b >= 0
-		OThreadBuilder.SetStartingAnimation(b, sc)
-		If own
-			float mn = fMinDuration
-			float mx = fMaxDuration
-			If mx < mn
-				mx = mn
-			EndIf
-			OThreadBuilder.SetDuration(b, Utility.RandomFloat(mn, mx))
+	If turns
+		int k = HeatNextTurn(0)
+		If k >= 0
+			t = HeatStartTurn(k, own)
 		EndIf
-		OThreadBuilder.UndressActors(b)
-		OThreadBuilder.NoFurniture(b)
-		OThreadBuilder.SetMetadataCSV(b, "odangerous,beastform,heat")
-		iHeatThread = -2           ; the start event of our own scene is ignored
-		t = OThreadBuilder.Start(b)
+	Else
+		t = HeatStartScene(acts, sc, own)
 	EndIf
 	iHeatThread = t
 	If t < 0
-		Log("heat: the bigger scene did not start - they leave")
+		Log("heat: the heat scene did not start - they leave")
 		If own
 			bAftermathDone = false
 			RegisterForSingleUpdate(2.0)
@@ -7971,12 +8453,11 @@ Function HeatRun(int id, Actor beast, Actor human, int n, bool female)
 		HeatLeave()
 		return
 	EndIf
-	If own
-		iThread = t
-		kSceneActs = acts
-		sScene1 = sc
+	If turns
+		Log("heat: " + n + " beasts (" + pack + ") take turns, first thread " + t)
+	Else
+		Log("heat: " + n + " beasts (" + pack + ") joined, scene " + sc + " thread " + t)
 	EndIf
-	Log("heat: " + n + " werewolves joined, scene " + sc + " thread " + t)
 EndFunction
 
 string Function HeatNumber(int n)
@@ -7992,16 +8473,25 @@ string Function HeatNumber(int n)
 	return "several"
 EndFunction
 
-; OnOStimThreadEnd for the heat scene
+; OnOStimThreadEnd for the heat scene (the last turn when they take turns)
 Function HeatSceneEnded()
 	iHeatThread = -1
 	If bSkyrimNetLog && SNetOK() && kHeatHuman && iHeatCount > 0
-		string bn = "a werewolf"
+		string bn = "a " + FormWord(iHeatKind)
 		If kHeatBeast
-			bn = kHeatBeast.GetDisplayName()
+			bn = kHeatBeast.GetDisplayName() + ", a " + FormWord(iHeatKind) + ","
 		EndIf
-		SkyrimNetApi.RegisterPersistentEvent("Near " + WhereName() + ", the howls and the scent of " + bn + " in full beast form rutting with " + kHeatHuman.GetDisplayName() + " drew " + HeatNumber(iHeatCount) + " other werewolves out of the wilds. They joined in, and " + kHeatHuman.GetDisplayName() + " was fucked by " + HeatNumber(iHeatCount + 1) + " werewolves at once. Afterwards the pack slipped away into the wilds without harming anyone.", kHeatBeast, kHeatHuman)
+		string hn = kHeatHuman.GetDisplayName()
+		string t = "Near " + WhereName() + ", " + HeatCallWord(iHeatKind) + " and the scent of " + bn + " in full beast form rutting with " + hn + " drew " + HeatPackWords() + " out of the wilds."
+		If bHeatTurns
+			t += " One after another each of them took his turn fucking " + hn + "."
+		Else
+			t += " They joined in, and " + hn + " was fucked by " + HeatNumber(iHeatCount + 1) + " beasts at once."
+		EndIf
+		t += " Afterwards they slipped away into the wilds without harming anyone."
+		SkyrimNetApi.RegisterPersistentEvent(t, kHeatBeast, kHeatHuman)
 	EndIf
+	Log("heat: done (" + HeatPackWords() + ", turns " + YesNo(bHeatTurns) + ")")
 	HeatLeave()
 EndFunction
 
@@ -8013,7 +8503,7 @@ Function HeatLeave()
 			bBusy = false
 		EndIf
 	EndIf
-	If kHeatWolves == None
+	If !kHeatWolves
 		HeatFinish()
 		return
 	EndIf
@@ -8103,7 +8593,8 @@ Function HeatFinish()
 	If ODS_HeatQuest && ODS_HeatQuest.IsRunning()
 		ODS_HeatQuest.Stop()
 	EndIf
-	kHeatWolves = None
+	Actor[] noWolves          ; 1.1.1: a never-set local (assigning None to an array fails at run time)
+	kHeatWolves = noWolves
 	kHeatHuman = None
 	kHeatBeast = None
 	iHeatThread = -1
@@ -8481,23 +8972,34 @@ Function ForceSaturalia()
 EndFunction
 
 ; =====================================================================================
-; 1.0: Blood Born Pathogen. A werewolf / vampire player can pass it on through an OStim scene.
-; Off by default. Infected NPCs live in ODS_PathoQuest's ten aliases (event-only, no polling);
-; incubation runs on the existing game-time timer.
+; 1.0: Blood Born Pathogen. 1.1: anyone in an OStim scene with a werewolf, vampire lord or werebear
+; (or a werewolf / vampire in human form) may catch it: you, your partners, and NPCs in scenes of
+; their own. Off by default. Infected NPCs live in ODS_PathoQuest's ten aliases (event-only, no
+; polling); incubation runs on the existing game-time timer. The world cap is checked first.
+; Kinds: 1 lycanthropy (werewolf), 2 vampirism (vampire lord), 3 werebear lycanthropy.
 ; =====================================================================================
 bool Property bPatho = false Auto Hidden
-float Property fPathoChance = 10.0 Auto Hidden          ; % per partner per scene
-float Property fPathoBeastChance = 35.0 Auto Hidden     ; % while you are in werewolf / vampire lord form
+float Property fPathoChance = 10.0 Auto Hidden          ; % per partner per scene, carrier in human form
+float Property fPathoBeastChance = 35.0 Auto Hidden     ; 1.0 only (kept for old saves; 1.1 uses the three per-form chances)
 bool Property bPathoAnyNPC = false Auto Hidden          ; OFF: followers and spouses only
-int Property iPathoCap = 5 Auto Hidden                  ; most NPCs infected by this mod at once (1-10)
-bool Property bPathoTransform = true Auto Hidden        ; infected werewolves change in night fights
+int Property iPathoCap = 10 Auto Hidden                 ; world cap: most NPCs infected by this mod at once (1-10). 1.1 default 10
+bool Property bPathoTransform = true Auto Hidden        ; infected werewolves / werebears change in night fights
 bool Property bForcePatho = false Auto Hidden           ; debug: next eligible partner is infected
 bool Property bPathoNotify = true Auto Hidden          ; 1.0.1: on-screen note when someone is infected
 bool Property bPathoProtectedOK = false Auto Hidden    ; 1.0.1: ON = the Protected followers list does not block infection
 Quest Property ODS_PathoQuest Auto
+; 1.1
+float Property fPathoWWChance = 35.0 Auto Hidden        ; % per partner, werewolf in beast form
+float Property fPathoVLChance = 35.0 Auto Hidden        ; % per partner, vampire lord form
+float Property fPathoBearChance = 35.0 Auto Hidden      ; % per partner, werebear form
+bool Property bPathoNPCs = true Auto Hidden             ; NPC-only scenes spread it too
+bool Property bPathoPlayerCatch = true Auto Hidden      ; you can catch it from a partner
+bool Property bPathoSNetForms = true Auto Hidden        ; SkyrimNet: infected NPCs may change at will
+int Property iBloodGiftKey = 0 Auto Hidden              ; 0 = no key
+Message Property ODS_BloodGiftChoice Auto
 
 Actor[] kPatho
-int[] iPathoKind          ; 1 lycanthropy, 2 vampirism
+int[] iPathoKind          ; 1 lycanthropy, 2 vampirism, 3 werebear lycanthropy
 int[] iPathoStage         ; 0-2 incubating, 3 turned
 float[] fPathoStart
 Race[] kPathoRace
@@ -8506,13 +9008,27 @@ bool[] bPathoChanged
 bool[] bPathoBusy
 float[] fPathoCD
 int[] iPathoMode          ; 0 ours, 1 Growl's own follower beastblood
-int iPathoThread = -1
-int iPathoThreadKind = 0
-bool bPathoThreadBeast = false
-Actor[] kPathoActs
+; 1.1
+Actor[] kPathoSrc         ; who passed it on (None = unknown)
+int[] iPathoWhy           ; beast form now: 0 no, 1 asked / chose to (stays until asked back), 2 for a fight (back after it)
+int[] iPTId               ; tracked scenes: thread id + 1 (0 = free); 4 at once
+Actor[] kPTActs           ; 5 actors per tracked scene
+int[] iPTKind             ; carrier kind of each actor at the start
+bool[] bPTBeast           ; in beast form at the start
+int iPTNext = 0
+int iPlayerPatho = 0      ; you: 1 / 3 lycanthropy incubating or turned by this mod (vampirism uses the vanilla disease)
+int iPlayerPathoStage = 0
+float fPlayerPathoStart = 0.0
+Actor kPlayerPathoSrc
+; 1.1.3: an NPC with its own skin (NPC worn armor, e.g. most custom followers) keeps that skin when its
+; race changes, and that skin has no beast-race body, so the body was invisible (only the head showed).
+; While changed by this mod the beast race's own skin is swapped in and the NPC's skin is given back after.
+Armor[] kPathoSkin        ; the NPC's own skin, saved while the beast skin is swapped in
+bool[] bPathoSkinSwap     ; true while the swap is in place
+bool bPathoRaceSetting = false   ; 1.1.4: O'Deadly itself is changing a race right now (PathoSkinCheck leaves the flags alone)
 
 Function PathoInitArrays()
-	If kPatho == None
+	If !kPatho
 		kPatho = new Actor[10]
 		iPathoKind = new int[10]
 		iPathoStage = new int[10]
@@ -8524,6 +9040,30 @@ Function PathoInitArrays()
 		fPathoCD = new float[10]
 		iPathoMode = new int[10]
 	EndIf
+	If !kPathoSrc          ; 1.1 (also for 1.0.x saves)
+		kPathoSrc = new Actor[10]
+		iPathoWhy = new int[10]
+		int i = 0
+		While i < 10
+			If bPathoChanged[i]
+				iPathoWhy[i] = 2      ; a 1.0 fight change
+			EndIf
+			If kPatho[i]
+				kPathoSrc[i] = PlayerRef     ; 1.0 only ever passed it on from you
+			EndIf
+			i += 1
+		EndWhile
+	EndIf
+	If !kPathoSkin         ; 1.1.3 (also for 1.1.2 and older saves)
+		kPathoSkin = new Armor[10]
+		bPathoSkinSwap = new bool[10]
+	EndIf
+	If !iPTId
+		iPTId = new int[4]
+		kPTActs = new Actor[20]
+		iPTKind = new int[20]
+		bPTBeast = new bool[20]
+	EndIf
 EndFunction
 
 string Function PlayerName()
@@ -8534,11 +9074,23 @@ string Function PlayerName()
 	return n
 EndFunction
 
+string Function NameOf(Actor a)
+	If a == None
+		return "someone"
+	ElseIf a == PlayerRef
+		return PlayerName()
+	EndIf
+	return a.GetDisplayName()
+EndFunction
+
 bool Function PlayerHasLycanthropy()
-	If IsWerewolfForm(PlayerRef)
+	If IsWerewolfForm(PlayerRef) || IsWerebearForm(PlayerRef)
 		return true
 	EndIf
 	If GlobalNow(0x000ED06C) >= 1.0          ; PlayerIsWerewolf (vanilla, Growl)
+		return true
+	EndIf
+	If iPlayerPatho > 0 && iPlayerPathoStage >= 3
 		return true
 	EndIf
 	Spell s = Game.GetFormFromFile(0x00092C48, "Skyrim.esm") as Spell     ; vanilla Beast Form power
@@ -8556,17 +9108,26 @@ bool Function PlayerHasVampirism()
 EndFunction
 
 int Function PlayerDiseaseKind()
+	If IsWerebearForm(PlayerRef)
+		return 3
+	ElseIf IsWerewolfForm(PlayerRef)
+		return 1
+	ElseIf IsVampireLordForm(PlayerRef)
+		return 2
+	EndIf
 	bool w = PlayerHasLycanthropy()
 	bool v = PlayerHasVampirism()
+	int wk = 1
+	If iPlayerPatho == 3 && iPlayerPathoStage >= 3
+		wk = 3
+	EndIf
 	If w && v
-		If IsVampireLordForm(PlayerRef)
-			return 2
-		ElseIf IsWerewolfForm(PlayerRef)
-			return 1
+		If Utility.RandomInt(1, 2) == 1
+			return wk
 		EndIf
-		return Utility.RandomInt(1, 2)
+		return 2
 	ElseIf w
-		return 1
+		return wk
 	ElseIf v
 		return 2
 	EndIf
@@ -8576,8 +9137,55 @@ EndFunction
 string Function DiseaseWord(int kind)
 	If kind == 2
 		return "vampirism"
+	ElseIf kind == 3
+		return "werebear lycanthropy"
 	EndIf
 	return "lycanthropy"
+EndFunction
+
+string Function FormWord(int kind)
+	If kind == 2
+		return "vampire lord"
+	ElseIf kind == 3
+		return "werebear"
+	EndIf
+	return "werewolf"
+EndFunction
+
+string Function BeingWord(int kind)
+	If kind == 2
+		return "a vampire"
+	ElseIf kind == 3
+		return "a werebear"
+	EndIf
+	return "a werewolf"
+EndFunction
+
+Race Function WerebearRace()
+	If !ModLoaded("Dragonborn.esm")
+		return None
+	EndIf
+	return Game.GetFormFromFile(0x0001E17B, "Dragonborn.esm") as Race      ; DLC2WerebearBeastRace
+EndFunction
+
+bool Function IsWerebearForm(Actor a)
+	If a == None
+		return false
+	EndIf
+	Race b = WerebearRace()
+	return b && a.GetRace() == b
+EndFunction
+
+Race Function BeastRaceFor(int kind)
+	If kind == 2
+		return VampireLordRace()
+	ElseIf kind == 3
+		Race b = WerebearRace()
+		If b
+			return b
+		EndIf
+	EndIf
+	return WerewolfRace()
 EndFunction
 
 ODS_PathoAlias Function PathoAlias(int i)
@@ -8608,6 +9216,16 @@ int Function PathoCount()
 	return n
 EndFunction
 
+int Function PathoCapNow()
+	int cap = iPathoCap
+	If cap > 10
+		cap = 10
+	ElseIf cap < 1
+		cap = 1
+	EndIf
+	return cap
+EndFunction
+
 bool Function PathoFactionBlocked(Actor a)
 	Faction f = Game.GetFormFromFile(0x000FF234, "Skyrim.esm") as Faction      ; CompanionsCircle
 	If f && a.IsInFaction(f)
@@ -8626,7 +9244,7 @@ bool Function PathoFactionBlocked(Actor a)
 		return true
 	EndIf
 	If ModLoaded("Dawnguard.esm")
-		f = Game.GetFormFromFile(0x00003376, "Dawnguard.esm") as Faction      ; DLC1VampireFaction (Volkihar)
+		f = Game.GetFormFromFile(0x00003376, "Dawnguard.esm") as Faction      ; DLC1VampireFaction (Volkihar: Serana, Harkon...)
 		If f && a.IsInFaction(f)
 			return true
 		EndIf
@@ -8642,6 +9260,20 @@ bool Function PathoFactionBlocked(Actor a)
 	return false
 EndFunction
 
+; human-form werewolves (the Circle, the werewolf faction)
+bool Function IsLycanNPC(Actor a)
+	Faction f = Game.GetFormFromFile(0x00043594, "Skyrim.esm") as Faction      ; WerewolfFaction
+	If f && a.IsInFaction(f)
+		return true
+	EndIf
+	f = Game.GetFormFromFile(0x000FF234, "Skyrim.esm") as Faction              ; CompanionsCircle
+	If f && a.IsInFaction(f)
+		return true
+	EndIf
+	f = Game.GetFormFromFile(0x00109C71, "Skyrim.esm") as Faction              ; CompanionsCirclePlusKodlak
+	return f && a.IsInFaction(f)
+EndFunction
+
 Spell Function GrowlNPCSpell()
 	If !ModLoaded("Growl - Werebeasts of Skyrim.esp")
 		return None
@@ -8649,14 +9281,75 @@ Spell Function GrowlNPCSpell()
 	return Game.GetFormFromFile(0x0000AA06, "Growl - Werebeasts of Skyrim.esp") as Spell   ; HRI_Mortal_Spell_NPCCanMorph_Ab_Passives
 EndFunction
 
+; 1.1: what this actor can pass on in a scene (0 = nothing). Beast forms first.
+int Function CarrierKind(Actor a)
+	If a == None || a.IsDead()
+		return 0
+	EndIf
+	If IsWerewolfForm(a)
+		return 1
+	ElseIf IsWerebearForm(a)
+		return 3
+	ElseIf IsVampireLordForm(a)
+		return 2
+	EndIf
+	If a == PlayerRef
+		return PlayerDiseaseKind()
+	EndIf
+	If IsMinor(a)
+		return 0
+	EndIf
+	int i = PathoIndex(a)
+	If i >= 0
+		If iPathoStage[i] >= 3
+			return iPathoKind[i]
+		EndIf
+		return 0
+	EndIf
+	If IsVampire(a)
+		return 2
+	EndIf
+	If IsLycanNPC(a)
+		return 1
+	EndIf
+	Spell gs = GrowlNPCSpell()
+	If gs && a.HasSpell(gs)
+		return 1
+	EndIf
+	return 0
+EndFunction
+
+float Function PathoChanceFor(int kind, bool beast)
+	If !beast
+		return fPathoChance
+	ElseIf kind == 2
+		return fPathoVLChance
+	ElseIf kind == 3
+		return fPathoBearChance
+	EndIf
+	return fPathoWWChance
+EndFunction
+
 bool Function PathoEligible(Actor a)
 	return PathoWhyNot(a) == ""
 EndFunction
 
-; 1.0.1: "" = can be infected, otherwise the reason (Papyrus log, and on screen with Debug notifications)
 string Function PathoWhyNot(Actor a)
+	return PathoWhyNot2(a, false)
+EndFunction
+
+; 1.0.1: "" = can be infected, otherwise the reason. 1.1: deliberate = a blood gift (any adult NPC
+; who agreed; the followers-only and essential checks do not apply). The cap is checked first.
+string Function PathoWhyNot2(Actor a, bool deliberate)
 	If a == None || a == PlayerRef
 		return "not a partner"
+	EndIf
+	If PathoIndex(a) >= 0
+		return "already infected by this mod"
+	EndIf
+	int cap = PathoCapNow()
+	If PathoCount() >= cap
+		return "limit reached (" + cap + " infected)"
 	EndIf
 	If a.IsDead()
 		return "dead"
@@ -8678,17 +9371,14 @@ string Function PathoWhyNot(Actor a)
 		return "no ActorTypeNPC keyword"
 	EndIf
 	bool close = IsFollowerActor(a) || IsSpouse(a)
-	If !bPathoAnyNPC && !close
+	If !deliberate && !bPathoAnyNPC && !close
 		return "not detected as a follower or spouse (turn on 'Any eligible NPC' to skip this check)"
 	EndIf
-	If a.IsEssential() && !close
+	If !deliberate && a.IsEssential() && !close
 		return "essential"          ; 1.0.1: your own follower / spouse may be essential; sex never kills, so that no longer blocks it
 	EndIf
-	If IsProtected(a) && !(close && bPathoProtectedOK)
+	If IsProtected(a) && !((close || deliberate) && bPathoProtectedOK)
 		return "on the Protected followers list (or Serana protection)"
-	EndIf
-	If PathoIndex(a) >= 0
-		return "already infected by this mod"
 	EndIf
 	If IsVampire(a)
 		return "already a vampire (Vampire keyword or vampire race)"
@@ -8700,86 +9390,242 @@ string Function PathoWhyNot(Actor a)
 	If gs && a.HasSpell(gs)
 		return "already has Growl's beastblood"
 	EndIf
-	int cap = iPathoCap
-	If cap > 10
-		cap = 10
+	return ""
+EndFunction
+
+; 1.1: can you catch it now? "" = yes
+string Function PathoPlayerWhyNot(bool deliberate)
+	If !deliberate && !bPathoPlayerCatch
+		return "'You can catch it' is off"
 	EndIf
-	If PathoCount() >= cap
-		return "limit reached (" + cap + " infected)"
+	If iPlayerPatho > 0
+		return "you already carry " + DiseaseWord(iPlayerPatho)
+	EndIf
+	If PlayerHasLycanthropy() || PlayerHasVampirism()
+		return "you are already a werewolf or a vampire"
+	EndIf
+	Spell sv = Game.GetFormFromFile(0x000B8780, "Skyrim.esm") as Spell      ; DiseaseSanguinareVampiris
+	If sv && PlayerRef.HasSpell(sv)
+		return "you already have Sanguinare Vampiris"
 	EndIf
 	return ""
 EndFunction
 
-; ---------- triggers: OnOStimThreadStart / OnOStimThreadEnd ----------
+; ---------- triggers: OnOStimThreadStart / OnOStimThreadEnd (any scene, 1.1) ----------
 Function PathoSceneStart(int id)
-	If !bPatho || !bMaster || id < 0
+	If id < 0
+		return
+	EndIf
+	If !bPatho || !bMaster
+		If bForcePatho
+			PathoNote("pathogen: scene " + id + " not tracked: Blood Born Pathogen or the master switch is off")
+		EndIf
 		return
 	EndIf
 	Actor[] acts = OThread.GetActors(id)
-	If !acts || acts.Find(PlayerRef) < 0
+	If !acts || acts.Length < 2
 		return
 	EndIf
-	int kind = PlayerDiseaseKind()
-	If kind == 0
-		Log("pathogen: no lycanthropy or vampirism found on you (PlayerIsWerewolf " + GlobalNow(0x000ED06C) + ", PlayerIsVampire " + GlobalNow(0x000ED06D) + ") - nothing to pass on")
+	bool withYou = acts.Find(PlayerRef) >= 0
+	If !withYou && !bPathoNPCs
 		return
 	EndIf
-	Log("pathogen: scene " + id + " tracked (" + DiseaseWord(kind) + ", beast form " + PlayerIsBeast() + ")")
-	iPathoThread = id
-	iPathoThreadKind = kind
-	bPathoThreadBeast = PlayerIsBeast()
-	kPathoActs = acts
+	; world cap first: with it reached only you can still catch it, so most scenes stop here
+	If PathoCount() >= PathoCapNow() && !bForcePatho
+		If !withYou || PathoPlayerWhyNot(false) != ""
+			If withYou
+				PathoNote("pathogen: scene " + id + " not tracked: limit reached (" + PathoCapNow() + " infected)")
+			EndIf
+			return
+		EndIf
+	EndIf
+	PathoInitArrays()
+	int n = acts.Length
+	If n > 5
+		n = 5
+	EndIf
+	int carriers = 0
+	int j = 0
+	While j < n
+		If CarrierKind(acts[j]) > 0
+			carriers += 1
+		EndIf
+		j += 1
+	EndWhile
+	If carriers == 0
+		If withYou
+			PathoNote("pathogen: scene " + id + " not tracked: nobody in it is a werewolf, vampire or werebear (PlayerIsWerewolf " + GlobalNow(0x000ED06C) + ", PlayerIsVampire " + GlobalNow(0x000ED06D) + ")")
+		EndIf
+		return
+	EndIf
+	int k = iPTId.Find(id + 1)
+	If k < 0
+		k = iPTId.Find(0)
+	EndIf
+	If k < 0
+		k = iPTNext
+		iPTNext = (iPTNext + 1) % 4
+	EndIf
+	iPTId[k] = id + 1
+	j = 0
+	While j < 5
+		Actor a = None
+		If j < n
+			a = acts[j]
+		EndIf
+		kPTActs[k * 5 + j] = a
+		iPTKind[k * 5 + j] = CarrierKind(a)
+		bPTBeast[k * 5 + j] = IsBeastForm(a)
+		j += 1
+	EndWhile
+	If withYou
+		PathoNote("pathogen: scene " + id + " tracked (" + carriers + " carrier(s), " + n + " actors)")
+	Else
+		Log("pathogen: NPC scene " + id + " tracked (" + carriers + " carrier(s))")
+	EndIf
 EndFunction
 
 Function PathoSceneEnd(int id)
-	If id < 0 || id != iPathoThread
+	If id < 0 || !iPTId
 		return
 	EndIf
-	int kind = iPathoThreadKind
-	Actor[] acts = kPathoActs
-	bool beast = bPathoThreadBeast || PlayerIsBeast()
-	iPathoThread = -1
-	iPathoThreadKind = 0
-	kPathoActs = None
-	If !bPatho || !bMaster || !acts || kind == 0
+	int k = iPTId.Find(id + 1)
+	If k < 0
+		If bForcePatho && bPatho && bMaster
+			Log("pathogen: scene " + id + " ended but was not tracked")
+		EndIf
 		return
 	EndIf
-	float ch = fPathoChance
-	If beast
-		ch = fPathoBeastChance
+	Actor[] acts = new Actor[5]
+	int[] kinds = new int[5]
+	bool[] beast = new bool[5]
+	int j = 0
+	While j < 5
+		acts[j] = kPTActs[k * 5 + j]
+		kinds[j] = iPTKind[k * 5 + j]
+		beast[j] = bPTBeast[k * 5 + j]
+		kPTActs[k * 5 + j] = None
+		j += 1
+	EndWhile
+	iPTId[k] = 0
+	If !bPatho || !bMaster
+		return
 	EndIf
-	int i = 0
-	While i < acts.Length
-		Actor a = acts[i]
-		If a && a != PlayerRef
-			string why = PathoWhyNot(a)
-			If why != ""
-				Log("pathogen: " + a.GetDisplayName() + " can't be infected: " + why)
-			Else
-				float r = Utility.RandomFloat(0.0, 100.0)
-				If bForcePatho || r < ch
-					bForcePatho = false
-					PathoInfect(a, kind)
-				Else
-					Log("pathogen: " + a.GetDisplayName() + " not infected this time (rolled " + (r as int) + ", needed under " + (ch as int) + ")")
-				EndIf
+	bool withYou = acts.Find(PlayerRef) >= 0
+	; someone may have changed during the scene
+	j = 0
+	While j < 5
+		If acts[j]
+			int ck = CarrierKind(acts[j])
+			If ck > 0 && (kinds[j] == 0 || IsBeastForm(acts[j]))
+				kinds[j] = ck
+			EndIf
+			If IsBeastForm(acts[j])
+				beast[j] = true
 			EndIf
 		EndIf
-		i += 1
+		j += 1
+	EndWhile
+	int t = 0
+	While t < 5
+		Actor a = acts[t]
+		If a && kinds[t] == 0
+			; the strongest carrier among the others
+			int bk = 0
+			float bch = -1.0
+			Actor bsrc = None
+			bool bbeast = false
+			j = 0
+			While j < 5
+				If j != t && acts[j] && kinds[j] > 0
+					float c = PathoChanceFor(kinds[j], beast[j])
+					If c > bch
+						bch = c
+						bk = kinds[j]
+						bsrc = acts[j]
+						bbeast = beast[j]
+					EndIf
+				EndIf
+				j += 1
+			EndWhile
+			If bk > 0
+				PathoRollOne(a, bk, bsrc, bch, withYou, bbeast)
+			EndIf
+		EndIf
+		t += 1
 	EndWhile
 EndFunction
 
-Function PathoInfect(Actor a, int kind)
+; 1.1.1: srcBeast = the carrier was in beast form. Lycanthropy (werewolf, werebear) always turns at once;
+; vampirism turns at once from a vampire lord, and stays the slow disease from a human-form vampire.
+bool Function PathoInstant(int kind, bool srcBeast)
+	return kind != 2 || srcBeast
+EndFunction
+
+Function PathoRollOne(Actor a, int kind, Actor src, float ch, bool withYou, bool srcBeast)
+	string why
+	If a == PlayerRef
+		why = PathoPlayerWhyNot(false)
+	Else
+		why = PathoWhyNot(a)
+	EndIf
+	If why != ""
+		If withYou
+			string fs = ""
+			If bForcePatho
+				fs = " (debug force still armed)"
+			EndIf
+			PathoNote("pathogen: " + NameOf(a) + " can't be infected: " + why + fs)
+		EndIf
+		return
+	EndIf
+	float r = Utility.RandomFloat(0.0, 100.0)
+	bool forced = bForcePatho && withYou
+	bool always = bPathoAlways && PathoInstant(kind, srcBeast)     ; 1.1.1: no roll from a werewolf, werebear or vampire lord
+	If forced || always || r < ch
+		If always && !forced
+			Log("pathogen: " + NameOf(a) + ": no roll ('Always infect' is on)")
+		EndIf
+		If forced
+			bForcePatho = false
+			Log("pathogen: " + NameOf(a) + ": roll skipped by the debug force")
+		EndIf
+		If a == PlayerRef
+			PathoPlayerInfect2(kind, src, false, PathoInstant(kind, srcBeast))
+		Else
+			PathoInfect2(a, kind, src, false, PathoInstant(kind, srcBeast))
+		EndIf
+	ElseIf withYou
+		PathoNote("pathogen: " + NameOf(a) + " not infected this time (rolled " + (r as int) + ", needed under " + (ch as int) + ")")
+	EndIf
+EndFunction
+
+; gift: a deliberate blood gift (no roll; turns at once)
+Function PathoInfect(Actor a, int kind, Actor src, bool gift)
+	PathoInfect2(a, kind, src, gift, false)
+EndFunction
+
+; 1.1.1: instant = caught through sex and turns at once (no incubation)
+Function PathoInfect2(Actor a, int kind, Actor src, bool gift, bool instant)
 	PathoInitArrays()
 	int i = kPatho.Find(None)
-	If i < 0 || ODS_PathoQuest == None
+	If i < 0
+		PathoNote("pathogen: " + a.GetDisplayName() + " NOT infected: no free slot (all 10 in use)")
+		return
+	EndIf
+	If ODS_PathoQuest == None
+		PathoNote("pathogen: " + a.GetDisplayName() + " NOT infected: ODS_PathoQuest missing (ODeadlySkyrim.esp not loaded or an old plugin)")
 		return
 	EndIf
 	If !ODS_PathoQuest.IsRunning()
 		ODS_PathoQuest.Start()
+		If !ODS_PathoQuest.IsRunning()
+			Log("pathogen: ODS_PathoQuest did not start (continuing; the alias only watches for Cure Disease)")
+		EndIf
 	EndIf
 	ODS_PathoAlias al = PathoAlias(i)
 	If al == None
+		PathoNote("pathogen: " + a.GetDisplayName() + " NOT infected: alias Infected" + (i + 1) + " missing or without its ODS_PathoAlias script")
 		return
 	EndIf
 	kPatho[i] = a
@@ -8787,25 +9633,61 @@ Function PathoInfect(Actor a, int kind)
 	iPathoStage[i] = 0
 	fPathoStart[i] = Utility.GetCurrentGameTime()
 	kPathoRace[i] = None
+	kPathoSkin[i] = None
+	bPathoSkinSwap[i] = false
 	bPathoFirst[i] = false
 	bPathoChanged[i] = false
 	bPathoBusy[i] = false
 	fPathoCD[i] = 0.0
 	iPathoMode[i] = 0
+	kPathoSrc[i] = src
+	iPathoWhy[i] = 0
 	al.ForceRefTo(a)
 	al.Watch(CurePotion())
-	string pn = PlayerName()
+	string sn = NameOf(src)
 	string an = a.GetDisplayName()
-	string t
-	If kind == 1
-		t = pn + " is a werewolf, and during sex " + pn + " infected " + an + " with lycanthropy. The beast blood is in " + an + " now. " + an + " knows it was " + pn + " who gave it to them through sex."
-	Else
-		t = pn + " is a vampire, and during sex " + pn + " infected " + an + " with vampirism (Sanguinare Vampiris). " + an + " knows it was " + pn + " who gave it to them through sex."
+	StorageUtil.SetStringValue(a, "ODS_BeastFrom", sn)
+	If gift
+		StorageUtil.SetIntValue(a, "ODS_BloodGift", 1)
+		iPathoStage[i] = 3
+		PathoNote("pathogen: " + an + " took the blood gift (" + DiseaseWord(kind) + ") from " + sn)
+		PathoTurn(i)
+		If bPathoNotify && !bDebug
+			Debug.Notification(an + " took your blood gift.")
+		EndIf
+		return
 	EndIf
-	TalkNet(t, a, PlayerRef, true, true)
-	Log("pathogen: " + an + " infected with " + DiseaseWord(kind))
+	If instant
+		iPathoStage[i] = 3
+		PathoNote("pathogen: " + an + " infected with " + DiseaseWord(kind) + " by " + sn + " and turned at once (no incubation)")
+		PathoTurn2(i, true)
+		If bPathoNotify && !bDebug
+			If src == PlayerRef
+				Debug.Notification(an + " took your " + DiseaseWord(kind) + ". " + PronSubj(a) + " is " + BeingWord(kind) + " now.")
+			ElseIf src && (IsFollowerActor(a) || IsSpouse(a) || a.GetDistance(PlayerRef) < 3000.0)
+				Debug.Notification(an + " took " + DiseaseWord(kind) + " from " + sn + " and is " + BeingWord(kind) + " now.")
+			EndIf
+		EndIf
+		If bMaster
+			ScheduleGameTime()
+		EndIf
+		return
+	EndIf
+	StorageUtil.SetIntValue(a, "ODS_PathoIn", kind)
+	string t
+	If kind == 2
+		t = sn + " is a vampire, and during sex " + sn + " infected " + an + " with vampirism (Sanguinare Vampiris). " + an + " knows it was " + sn + " who gave it to them through sex."
+	Else
+		t = sn + " is " + BeingWord(kind) + ", and during sex " + sn + " infected " + an + " with " + DiseaseWord(kind) + ". The beast blood is in " + an + " now. " + an + " knows it was " + sn + " who gave it to them through sex."
+	EndIf
+	TalkNet(t, a, src, true, true)
+	PathoNote("pathogen: " + an + " infected with " + DiseaseWord(kind) + " by " + sn + " (incubating; turns in about 3 game days)")
 	If bPathoNotify && !bDebug
-		Debug.Notification(an + " caught " + DiseaseWord(kind) + " from you.")
+		If src == PlayerRef
+			Debug.Notification(an + " caught " + DiseaseWord(kind) + " from you.")
+		ElseIf src && (IsFollowerActor(a) || IsSpouse(a) || a.GetDistance(PlayerRef) < 3000.0)
+			Debug.Notification(an + " caught " + DiseaseWord(kind) + " from " + sn + ".")
+		EndIf
 	EndIf
 	If bMaster
 		ScheduleGameTime()
@@ -8817,7 +9699,7 @@ Potion Function CurePotion()
 EndFunction
 
 float Function PathoNextDue()
-	If kPatho == None || !bMaster
+	If !kPatho || !bMaster
 		return -1.0
 	EndIf
 	float due = -1.0
@@ -8831,6 +9713,12 @@ float Function PathoNextDue()
 		EndIf
 		i += 1
 	EndWhile
+	If iPlayerPatho > 0 && iPlayerPathoStage < 3
+		float pd = fPlayerPathoStart + (iPlayerPathoStage + 1) as float
+		If due < 0.0 || pd < due
+			due = pd
+		EndIf
+	EndIf
 	return due
 EndFunction
 
@@ -8862,46 +9750,108 @@ Function PathoTick()
 		EndIf
 		i += 1
 	EndWhile
+	If iPlayerPatho > 0 && iPlayerPathoStage < 3 && now >= fPlayerPathoStart + (iPlayerPathoStage + 1) as float
+		int ps = iPlayerPathoStage
+		While ps < 3 && now >= fPlayerPathoStart + (ps + 1) as float
+			ps += 1
+		EndWhile
+		iPlayerPathoStage = ps
+		If ps >= 3
+			PathoPlayerTurn()
+		Else
+			PathoPlayerSymptom()
+		EndIf
+	EndIf
+	PathoSyncGlobals()
 EndFunction
 
 Function PathoSymptom(int i)
 	Actor a = kPatho[i]
-	string pn = PlayerName()
+	string pn = NameOf(kPathoSrc[i])
 	string an = a.GetDisplayName()
 	string t
-	If iPathoKind[i] == 1
-		If iPathoStage[i] == 1
-			t = an + " has a fever, sweats through the night and keeps smelling blood and raw meat. It is the lycanthropy " + pn + " gave " + an + " through sex, taking hold."
-		Else
-			t = an + " dreamed of running on all fours and tearing into prey, and feels something wild clawing inside. The lycanthropy " + pn + " passed to " + an + " through sex has nearly finished with them."
-		EndIf
-	Else
+	If iPathoKind[i] == 2
 		If iPathoStage[i] == 1
 			t = an + " feels weak and cold, daylight stings their eyes and food tastes of ash. It is the vampirism " + pn + " gave " + an + " through sex, taking hold."
 		Else
 			t = an + " cannot keep food down, the sun burns their skin and they keep staring at people's throats. The vampirism " + pn + " passed to " + an + " through sex has nearly turned them."
 		EndIf
+	ElseIf iPathoKind[i] == 3
+		If iPathoStage[i] == 1
+			t = an + " has a fever, sleeps like a stone and wakes ravenous, smelling honey, fish and blood. It is the werebear blood " + pn + " gave " + an + " through sex, taking hold."
+		Else
+			t = an + " dreamed of a huge, heavy body crashing through the snow, and feels something enormous stirring inside. The werebear blood " + pn + " passed to " + an + " through sex has nearly finished with them."
+		EndIf
+	Else
+		If iPathoStage[i] == 1
+			t = an + " has a fever, sweats through the night and keeps smelling blood and raw meat. It is the lycanthropy " + pn + " gave " + an + " through sex, taking hold."
+		Else
+			t = an + " dreamed of running on all fours and tearing into prey, and feels something wild clawing inside. The lycanthropy " + pn + " passed to " + an + " through sex has nearly finished with them."
+		EndIf
 	EndIf
-	TalkNet(t, a, PlayerRef, true, true)
+	TalkNet(t, a, kPathoSrc[i], true, true)
 EndFunction
 
 Function PathoTurn(int i)
+	PathoTurn2(i, false)
+EndFunction
+
+string Function PronSubj(Actor a)
+	If a && a.GetActorBase().GetSex() == 1
+		return "She"
+	EndIf
+	return "He"
+EndFunction
+
+string Function PronObj(Actor a)
+	If a && a.GetActorBase().GetSex() == 1
+		return "her"
+	EndIf
+	return "him"
+EndFunction
+
+string Function PronPoss(Actor a)
+	If a && a.GetActorBase().GetSex() == 1
+		return "her"
+	EndIf
+	return "his"
+EndFunction
+
+; 1.1.1: what the one who caught it through sex feels, in plain words (SkyrimNet event + memory)
+string Function PathoSexTurnText(Actor a, Actor src, int kind)
+	string an = NameOf(a)
+	string pn = NameOf(src)
+	string t = an + " feels the hot power in " + pn + "'s cum flowing through " + PronPoss(a) + " whole body, burning as it transforms " + PronObj(a) + " into " + BeingWord(kind)
+	If kind == 2
+		t += " - a vampire lord's blood, not a slow disease"
+	EndIf
+	t += ". " + pn + " was " + PathoCarrierWord(kind) + " and gave it to " + an + " through sex just now; " + an + " knows it was " + pn + ". " + an + " is " + BeingWord(kind) + " now, right away."
+	If kind == 2
+		t += " Sunlight burns " + PronObj(a) + " and " + PronSubj(a) + " hungers for blood."
+	EndIf
+	return t
+EndFunction
+
+string Function PathoCarrierWord(int kind)
+	If kind == 2
+		return "a vampire lord"
+	EndIf
+	return BeingWord(kind)
+EndFunction
+
+Function PathoTurn2(int i, bool sexNow)
 	Actor a = kPatho[i]
-	string pn = PlayerName()
+	Actor src = kPathoSrc[i]
+	string pn = NameOf(src)
 	string an = a.GetDisplayName()
+	int kind = iPathoKind[i]
+	bool gift = StorageUtil.GetIntValue(a, "ODS_BloodGift", 0) > 0
+	string how = "through sex"
+	If gift
+		how = "with a blood gift " + an + " accepted"
+	EndIf
 	string t
-	If iPathoKind[i] == 1
-		Faction wf = Game.GetFormFromFile(0x00043594, "Skyrim.esm") as Faction
-		If wf
-			a.AddToFaction(wf)
-		EndIf
-		Spell gs = GrowlNPCSpell()
-		If gs && a.IsInFaction(CurrentFollowerFaction) && a.GetFactionRank(CurrentFollowerFaction) >= 0
-			a.AddSpell(gs, false)          ; Growl's own follower beastblood: Growl handles the changes
-			iPathoMode[i] = 1
-		EndIf
-		t = an + " is now a werewolf. " + pn + " infected " + an + " with lycanthropy through sex, and " + an + " knows it was " + pn + ". In a fight at night " + an + " can turn into a werewolf in full beast form."
-	Else
+	If kind == 2
 		Faction vf = Game.GetFormFromFile(0x00027242, "Skyrim.esm") as Faction
 		If vf
 			a.AddToFaction(vf)
@@ -8910,21 +9860,77 @@ Function PathoTurn(int i)
 		If sun
 			a.AddSpell(sun, false)
 		EndIf
-		t = an + " is now a vampire. " + pn + " infected " + an + " with vampirism through sex, and " + an + " knows it was " + pn + ". Sunlight burns " + an + " now and they hunger for blood."
+		PathoVampirize(a)              ; 1.1.5: VampireVampirism; Sacrosanct-style extras when it is installed
+		t = an + " is now a vampire. " + pn + " gave " + an + " vampirism " + how + ", and " + an + " knows it was " + pn + ". Sunlight burns " + an + " now and they hunger for blood."
+	Else
+		Faction wf = Game.GetFormFromFile(0x00043594, "Skyrim.esm") as Faction
+		If wf
+			a.AddToFaction(wf)
+		EndIf
+		Spell gs = GrowlNPCSpell()
+		bool given = false
+		If gs && (gift || (sexNow && (IsFollowerActor(a) || IsSpouse(a))) || (a.IsInFaction(CurrentFollowerFaction) && a.GetFactionRank(CurrentFollowerFaction) >= 0))
+			a.AddSpell(gs, false)          ; Growl's own companion beastblood: Growl handles its fight changes
+			iPathoMode[i] = 1
+			given = true
+		EndIf
+		PathoGrowlDecision(a, kind, given)     ; 1.1.5: log who owns what (Growl follows its werebear totem)
+		t = an + " is now " + BeingWord(kind) + ". " + pn + " gave " + an + " the beast blood " + how + ", and " + an + " knows it was " + pn + "."
 	EndIf
-	TalkNet(t, a, PlayerRef, true, true)
+	If sexNow
+		t = PathoSexTurnText(a, src, kind)
+	EndIf
+	If bPathoSNetForms
+		t += " " + an + " can change into a " + FormWord(kind) + " in full beast form at will, and back."
+	EndIf
+	StorageUtil.UnsetIntValue(a, "ODS_PathoIn")
+	StorageUtil.SetIntValue(a, "ODS_BeastKind", kind)
+	TalkNet(t, a, src, true, true)
 	If SNetOK()
 		SkyrimNetApi.UpdateActorDynamicBio(a)
 	EndIf
-	Log("pathogen: " + an + " turned (" + DiseaseWord(iPathoKind[i]) + ", mode " + iPathoMode[i] + ")")
+	PathoNote("pathogen: " + an + " turned (" + DiseaseWord(kind) + ", mode " + iPathoMode[i] + ")")
 EndFunction
 
 Function PathoCure(int i)
 	Actor a = kPatho[i]
 	If a
-		TalkNet(a.GetDisplayName() + " drank a Cure Disease potion. The " + DiseaseWord(iPathoKind[i]) + " " + PlayerName() + " gave " + a.GetDisplayName() + " through sex is gone before it could take hold.", a, PlayerRef, true, true)
+		TalkNet(a.GetDisplayName() + " drank a Cure Disease potion. The " + DiseaseWord(iPathoKind[i]) + " " + NameOf(kPathoSrc[i]) + " gave " + a.GetDisplayName() + " through sex is gone before it could take hold.", a, kPathoSrc[i], true, true)
 	EndIf
 	PathoClear(i)
+EndFunction
+
+Function PathoSetKeys(int i)
+	Actor a = kPatho[i]
+	If a == None
+		return
+	EndIf
+	If iPathoStage[i] >= 3
+		StorageUtil.UnsetIntValue(a, "ODS_PathoIn")
+		StorageUtil.SetIntValue(a, "ODS_BeastKind", iPathoKind[i])
+	Else
+		StorageUtil.SetIntValue(a, "ODS_PathoIn", iPathoKind[i])
+	EndIf
+	If bPathoChanged[i] && IsBeastForm(a)
+		StorageUtil.SetIntValue(a, "ODS_BeastForm", 1)
+	Else
+		StorageUtil.UnsetIntValue(a, "ODS_BeastForm")
+	EndIf
+	If kPathoSrc[i]
+		StorageUtil.SetStringValue(a, "ODS_BeastFrom", NameOf(kPathoSrc[i]))
+	EndIf
+	StorageUtil.UnsetIntValue(a, "ODS_GrowlOwned")      ; 1.1.4: retired (1.1.3 key), O'Deadly handles Growl followers too
+EndFunction
+
+Function PathoUnsetKeys(Actor a)
+	If a
+		StorageUtil.UnsetIntValue(a, "ODS_PathoIn")
+		StorageUtil.UnsetIntValue(a, "ODS_BeastKind")
+		StorageUtil.UnsetIntValue(a, "ODS_BeastForm")
+		StorageUtil.UnsetIntValue(a, "ODS_BloodGift")
+		StorageUtil.UnsetStringValue(a, "ODS_BeastFrom")
+		StorageUtil.UnsetIntValue(a, "ODS_GrowlOwned")
+	EndIf
 EndFunction
 
 Function PathoClear(int i)
@@ -8933,6 +9939,14 @@ Function PathoClear(int i)
 		al.Halt()
 		al.Clear()
 	EndIf
+	If kPatho[i] && kPatho[i].IsDead() && IsBeastForm(kPatho[i]) && bPathoSkinSwap[i]
+		bPathoSkinSwap[i] = false      ; 1.1.3: died in beast form, the body keeps the beast skin
+		kPathoSkin[i] = None
+		Log("skin: " + NameOf(kPatho[i]) + ": died in beast form, beast skin kept on the body")
+	Else
+		PathoSkinRestore(i, kPatho[i], "cleared")      ; 1.1.3: give the NPC its own skin back
+	EndIf
+	PathoUnsetKeys(kPatho[i])
 	kPatho[i] = None
 	iPathoKind[i] = 0
 	iPathoStage[i] = 0
@@ -8941,11 +9955,13 @@ Function PathoClear(int i)
 	bPathoChanged[i] = false
 	bPathoBusy[i] = false
 	iPathoMode[i] = 0
+	kPathoSrc[i] = None
+	iPathoWhy[i] = 0
 EndFunction
 
 ; alias: a Cure Disease potion was handed over during incubation
 Function PathoItem(int i, Actor a, Form item)
-	If i < 0 || i >= 10 || kPatho == None || kPatho[i] != a || a == None || iPathoStage[i] >= 3
+	If i < 0 || i >= 10 || !kPatho || kPatho[i] != a || a == None || iPathoStage[i] >= 3
 		return
 	EndIf
 	Potion cure = CurePotion()
@@ -8961,15 +9977,63 @@ Function PathoDied(int i, Actor a)
 	EndIf
 EndFunction
 
-; alias: combat started. Our own werewolf change: night only, ~30 s, then forced back; 90 s cooldown.
+; ---------- beast form of infected NPCs (1.1) ----------
+; why: 1 asked / chose to (stays until asked back), 2 for a fight (back once the fight is over)
+bool Function PathoChangeTo(int i, int why)
+	Actor a = kPatho[i]
+	If a == None || iPathoStage[i] < 3 || bPathoChanged[i] || IsBeastForm(a)
+		return false
+	EndIf
+	Race r = BeastRaceFor(iPathoKind[i])
+	If r == None
+		return false
+	EndIf
+	If a.GetSitState() != 0
+		Debug.SendAnimationEvent(a, "IdleForceDefaultState")
+	EndIf
+	bPathoBusy[i] = true
+	kPathoRace[i] = a.GetRace()
+	bPathoChanged[i] = true
+	iPathoWhy[i] = why
+	PathoSkinSwap(i, a, r, "change")       ; 1.1.3: before SetRace, so the new 3D uses the beast skin
+	bPathoRaceSetting = true
+	a.SetRace(r)
+	bPathoRaceSetting = false
+	a.QueueNiNodeUpdate()
+	StorageUtil.SetIntValue(a, "ODS_BeastForm", 1)
+	Log("pathogen: " + a.GetDisplayName() + " changed into a " + FormWord(iPathoKind[i]) + " (reason " + why + ")")
+	return true
+EndFunction
+
+; alias: combat state changed. Night fights: an infected werewolf / werebear may change by itself.
+; 1.1: no timer. Changed for this fight: back once it is over (the alias waits a few seconds and
+; checks again). Changed because asked: stays until asked back.
 Function PathoCombat(int i, Actor a, int st)
-	If st == 0 || i < 0 || i >= 10 || kPatho == None || a == None || kPatho[i] != a
+	If i < 0 || i >= 10 || !kPatho || a == None || kPatho[i] != a
 		return
 	EndIf
-	If !bPatho || !bMaster || !bPathoTransform || iPathoKind[i] != 1 || iPathoStage[i] < 3 || iPathoMode[i] != 0
+	If iPathoStage[i] >= 3 && iPathoKind[i] != 2
+		ODS_PathoAlias alc = PathoAlias(i)
+		If alc
+			alc.RevertIn(6.0)      ; 1.1.4: one look a few seconds later (a Growl change takes a moment); also the old after-fight revert
+		EndIf
+	EndIf
+	If st == 0
+		If bPathoChanged[i] && iPathoWhy[i] == 2
+			ODS_PathoAlias al0 = PathoAlias(i)
+			If al0
+				al0.RevertIn(4.0)
+			EndIf
+		EndIf
 		return
 	EndIf
-	If bPathoBusy[i] || bPathoChanged[i] || IsBeastForm(a) || !IsNight()
+	If bPathoChanged[i]
+		return
+	EndIf
+	If !bPatho || !bMaster || !bPathoTransform || iPathoKind[i] == 2 || iPathoStage[i] < 3 || iPathoMode[i] != 0
+		return
+	EndIf
+	If bPathoBusy[i] || IsBeastForm(a) || !IsNight()
 		return
 	EndIf
 	If Utility.GetCurrentRealTime() < fPathoCD[i]
@@ -8982,49 +10046,69 @@ Function PathoCombat(int i, Actor a, int st)
 	If gs && a.HasSpell(gs)
 		return            ; Growl owns this one
 	EndIf
-	Race w = WerewolfRace()
-	ODS_PathoAlias al = PathoAlias(i)
-	If w == None || al == None
+	If PathoAlias(i) == None || !PathoChangeTo(i, 2)
 		return
 	EndIf
-	bPathoBusy[i] = true
-	kPathoRace[i] = a.GetRace()
-	bPathoChanged[i] = true
-	a.SetRace(w)
-	al.RevertIn(30.0)
 	If !bPathoFirst[i]
 		bPathoFirst[i] = true
-		string pn = PlayerName()
+		string pn = NameOf(kPathoSrc[i])
 		string an = a.GetDisplayName()
-		TalkNet(an + " just turned into a werewolf for the first time, in full beast form, in the middle of a fight. The lycanthropy came from " + pn + ", who infected " + an + " through sex, and " + an + " knows it.", a, PlayerRef, true, true)
+		TalkNet(an + " just turned into a " + FormWord(iPathoKind[i]) + " for the first time, in full beast form, in the middle of a fight. The beast blood came from " + pn + ", and " + an + " knows it.", a, kPathoSrc[i], true, true)
+	EndIf
+EndFunction
+
+; alias single update (only after a fight ended): back if still out of combat
+Function PathoAliasUpdate(int i)
+	If i < 0 || i >= 10 || !kPatho
+		return
+	EndIf
+	Actor a = kPatho[i]
+	PathoSkinCheck(i, a, "check")       ; 1.1.4: a Growl change during / after the fight
+	If a && bPathoChanged[i] && iPathoWhy[i] == 2 && !a.IsInCombat()
+		PathoRevert(i)
 	EndIf
 EndFunction
 
 Function PathoRevert(int i)
-	If i < 0 || i >= 10 || kPatho == None
+	If i < 0 || i >= 10 || !kPatho
 		return
 	EndIf
 	Actor a = kPatho[i]
+	bool fight = iPathoWhy[i] == 2
 	If a && bPathoChanged[i]
 		Race r = kPathoRace[i]
-		If r && IsWerewolfForm(a)
+		PathoSkinRestore(i, a, "change back")      ; 1.1.3: own skin back before the race, so the new 3D uses it
+		If r && IsBeastForm(a)
+			bPathoRaceSetting = true
 			a.SetRace(r)
+			bPathoRaceSetting = false
+			a.QueueNiNodeUpdate()
 			a.EvaluatePackage()
 		EndIf
+		StorageUtil.UnsetIntValue(a, "ODS_BeastForm")
 	EndIf
 	bPathoChanged[i] = false
 	bPathoBusy[i] = false
-	fPathoCD[i] = Utility.GetCurrentRealTime() + 90.0
+	iPathoWhy[i] = 0
+	If fight
+		fPathoCD[i] = Utility.GetCurrentRealTime() + 90.0
+	Else
+		fPathoCD[i] = 0.0
+	EndIf
 EndFunction
 
 Function PathoRevertAll()
-	If kPatho == None
+	VLFRevertAll()           ; 1.1.5: vampire followers changed into vampire lords
+	If !kPatho
 		return
 	EndIf
+	PathoInitArrays()
 	int i = 0
 	While i < 10
 		If bPathoChanged[i]
 			PathoRevert(i)
+		ElseIf bPathoSkinSwap[i]
+			PathoSkinRestore(i, kPatho[i], "revert all")
 		EndIf
 		bPathoBusy[i] = false
 		fPathoCD[i] = 0.0
@@ -9032,21 +10116,447 @@ Function PathoRevertAll()
 	EndWhile
 EndFunction
 
-; game loaded: nobody stays stuck in beast form; aliases watch again
-Function PathoOnLoad()
-	iPathoThread = -1
-	kPathoActs = None
-	If kPatho == None
+; ---------- SkyrimNet actions (YAML in coronerra.odeadly/actions; run on the Papyrus VM, short) ----------
+Function SNTransformToBeast(Actor akSpeaker)
+	int i = PathoIndex(akSpeaker)
+	If i < 0 || !bPatho || !bMaster || !bPathoSNetForms
+		Log("SkyrimNet action TransformToBeast (" + NameOf(akSpeaker) + ") ignored: not turned by this mod, or pathogen / master / 'change at will' off")
 		return
 	EndIf
-	PathoRevertAll()
+	Log("SkyrimNet action TransformToBeast: " + NameOf(akSpeaker) + PathoGrowlTag(i) + " -> " + FormWord(iPathoKind[i]) + " " + FormText(BeastRaceFor(iPathoKind[i])) + " (O'Deadly owns SkyrimNet changes; Growl " + GrowlTotemText() + ")")
+	If akSpeaker.IsDead() || akSpeaker.IsOnMount() || OActor.IsInOStim(akSpeaker) || IsStaged(akSpeaker)
+		Log("pathogen: " + akSpeaker.GetDisplayName() + " could not change now (mount, scene or staged)")
+		return
+	EndIf
+	int why = 1
+	If akSpeaker.IsInCombat()
+		why = 2
+	EndIf
+	PathoChangeTo(i, why)
+EndFunction
+
+Function SNTransformBack(Actor akSpeaker)
+	int i = PathoIndex(akSpeaker)
+	If i < 0 && VLFBack(akSpeaker)
+		return             ; 1.1.5: an existing vampire follower back from vampire lord
+	EndIf
+	; 1.1.4: changed by Growl (or anything else) with a known normal race: O'Deadly takes it over and changes them back
+	If i >= 0 && !bPathoChanged[i] && IsBeastForm(akSpeaker) && kPathoRace[i] && !IsBeastRace(kPathoRace[i]) && !OActor.IsInOStim(akSpeaker)
+		bPathoChanged[i] = true
+		iPathoWhy[i] = 1
+		Log("SkyrimNet action TransformBack: " + NameOf(akSpeaker) + " is in beast form from another mod" + PathoGrowlTag(i) + ", back to " + FormText(kPathoRace[i]))
+	EndIf
+	If i >= 0 && bPathoChanged[i] && !OActor.IsInOStim(akSpeaker)
+		Log("SkyrimNet action TransformBack: " + NameOf(akSpeaker))
+		PathoRevert(i)
+	Else
+		Log("SkyrimNet action TransformBack (" + NameOf(akSpeaker) + ") ignored: not changed by this mod, or in a scene")
+	EndIf
+EndFunction
+
+; the speaker accepts YOUR blood gift
+Function SNAcceptBloodGift(Actor akSpeaker)
+	Log("SkyrimNet action AcceptBloodGift: " + NameOf(akSpeaker))
+	PathoGiftTo(akSpeaker, true)
+EndFunction
+
+; an infected NPC gives YOU their blood gift
+Function SNGiveBloodGift(Actor akSpeaker)
+	If !bPatho || !bMaster || akSpeaker == None
+		Log("SkyrimNet action GiveBloodGift ignored: pathogen or master off")
+		return
+	EndIf
+	int i = PathoIndex(akSpeaker)
+	If i < 0 || iPathoStage[i] < 3
+		Log("SkyrimNet action GiveBloodGift (" + NameOf(akSpeaker) + ") ignored: not turned by this mod yet")
+		return
+	EndIf
+	Log("SkyrimNet action GiveBloodGift: " + NameOf(akSpeaker))
+	string why = PathoPlayerWhyNot(true)
+	If why != ""
+		PathoNote("pathogen: blood gift from " + akSpeaker.GetDisplayName() + " not taken: " + why)
+		return
+	EndIf
+	PathoPlayerInfect(iPathoKind[i], akSpeaker, true)
+EndFunction
+
+bool Function PathoGiftTo(Actor a, bool viaNet)
+	If !bPatho || !bMaster || a == None
+		return false
+	EndIf
+	int kind = PlayerDiseaseKind()
+	If kind == 0
+		PathoNote("pathogen: no blood gift: you are not a werewolf, vampire or werebear")
+		return false
+	EndIf
+	string why = PathoWhyNot2(a, true)
+	If why != ""
+		PathoNote("pathogen: " + a.GetDisplayName() + " can't take the blood gift: " + why)
+		If !viaNet
+			Debug.Notification(a.GetDisplayName() + " can't take your blood gift: " + why)
+		EndIf
+		return false
+	EndIf
+	PathoInfect(a, kind, PlayerRef, true)
+	return true
+EndFunction
+
+; blood gift key: the adult in your crosshair, after a yes / no box
+Function BloodGiftKey()
+	If !bPatho || !bMaster || Utility.IsInMenuMode()
+		return
+	EndIf
+	Actor a = Game.GetCurrentCrosshairRef() as Actor
+	If a == None || a == PlayerRef
+		Debug.Notification("Blood gift: look at the person first.")
+		return
+	EndIf
+	If PlayerDiseaseKind() == 0
+		Debug.Notification("Blood gift: you are not a werewolf, vampire or werebear.")
+		return
+	EndIf
+	string why = PathoWhyNot2(a, true)
+	If why != ""
+		Debug.Notification(a.GetDisplayName() + " can't take your blood gift: " + why)
+		return
+	EndIf
+	If ODS_BloodGiftChoice && ODS_BloodGiftChoice.Show() != 0
+		return
+	EndIf
+	PathoGiftTo(a, false)
+EndFunction
+
+; ---------- you (1.1) ----------
+Function PathoPlayerInfect(int kind, Actor src, bool gift)
+	PathoPlayerInfect2(kind, src, gift, false)
+EndFunction
+
+; 1.1.1: instant = caught through sex from a werewolf / werebear (any form) or a vampire lord: no incubation
+Function PathoPlayerInfect2(int kind, Actor src, bool gift, bool instant)
+	string sn = NameOf(src)
+	string pn = PlayerName()
+	If kind == 2 && instant && !gift
+		PathoNote("pathogen: you caught vampirism from " + sn + " (a vampire lord) and turned at once")
+		ODS_Vamp.TurnPlayerLord(PlayerRef)
+		TalkNet(PathoSexTurnText(PlayerRef, src, 2), PlayerRef, src, true, true)
+		If bPathoNotify
+			Debug.Notification("Burning blood. You are a vampire now - " + sn + " gave it to you.")
+		EndIf
+		UpdateWatchers()
+		PathoSyncGlobals()
+		return
+	EndIf
+	If kind == 2
+		Spell sv = Game.GetFormFromFile(0x000B8780, "Skyrim.esm") as Spell      ; DiseaseSanguinareVampiris: vanilla three days
+		If sv
+			PlayerRef.AddSpell(sv, false)
+		EndIf
+		TalkNet(sn + " is a vampire and gave " + pn + " Sanguinare Vampiris " + PathoHow(gift) + ". " + pn + " will turn into a vampire in about three days unless it is cured.", PlayerRef, src, true, true)
+		PathoNote("pathogen: you caught vampirism from " + sn)
+		If bPathoNotify
+			Debug.Notification("You caught Sanguinare Vampiris from " + sn + ".")
+		EndIf
+		PathoSyncGlobals()
+		return
+	EndIf
+	iPlayerPatho = kind
+	iPlayerPathoStage = 0
+	fPlayerPathoStart = Utility.GetCurrentGameTime()
+	kPlayerPathoSrc = src
+	If gift
+		iPlayerPathoStage = 3
+		PathoNote("pathogen: you took the blood gift (" + DiseaseWord(kind) + ") from " + sn)
+		PathoPlayerTurn()
+		return
+	EndIf
+	If instant
+		iPlayerPathoStage = 3
+		PathoNote("pathogen: you caught " + DiseaseWord(kind) + " from " + sn + " and turned at once (no incubation)")
+		PathoPlayerTurn2(true)
+		return
+	EndIf
+	TalkNet(sn + " is " + BeingWord(kind) + ", and during sex " + sn + " infected " + pn + " with " + DiseaseWord(kind) + ". The beast blood is in " + pn + " now.", PlayerRef, src, true, true)
+	PathoNote("pathogen: you caught " + DiseaseWord(kind) + " from " + sn + " (turns in about 3 game days; a Cure Disease potion stops it)")
+	If bPathoNotify
+		Debug.Notification("You caught " + DiseaseWord(kind) + " from " + sn + ".")
+	EndIf
+	UpdateWatchers()
+	If bMaster
+		ScheduleGameTime()
+	EndIf
+EndFunction
+
+string Function PathoHow(bool gift)
+	If gift
+		return "with a blood gift"
+	EndIf
+	return "through sex"
+EndFunction
+
+Function PathoPlayerSymptom()
+	string pn = PlayerName()
+	string t
+	If iPlayerPatho == 3
+		t = pn + " has a fever, sleeps like a stone and wakes ravenous. The werebear blood from " + NameOf(kPlayerPathoSrc) + " is taking hold."
+		Debug.Notification("You feel feverish and ravenous.")
+	Else
+		t = pn + " has a fever and keeps smelling blood and raw meat. The lycanthropy from " + NameOf(kPlayerPathoSrc) + " is taking hold."
+		Debug.Notification("You feel feverish. You smell blood everywhere.")
+	EndIf
+	TalkNet(t, PlayerRef, kPlayerPathoSrc, true, true)
+EndFunction
+
+; vanilla Beast Form power + PlayerIsWerewolf. With Growl a werebear is chosen in Growl itself.
+Function PathoPlayerTurn()
+	PathoPlayerTurn2(false)
+EndFunction
+
+Function PathoPlayerTurn2(bool sexNow)
+	Spell bf = Game.GetFormFromFile(0x00092C48, "Skyrim.esm") as Spell
+	If bf && !PlayerRef.HasSpell(bf)
+		PlayerRef.AddSpell(bf, false)
+	EndIf
+	GlobalVariable g = Game.GetFormFromFile(0x000ED06C, "Skyrim.esm") as GlobalVariable
+	If g
+		g.SetValue(1.0)
+	EndIf
+	string pn = PlayerName()
+	string sn = NameOf(kPlayerPathoSrc)
+	If sexNow
+		TalkNet(PathoSexTurnText(PlayerRef, kPlayerPathoSrc, iPlayerPatho), PlayerRef, kPlayerPathoSrc, true, true)
+	Else
+		TalkNet(pn + " is now " + BeingWord(iPlayerPatho) + ". The beast blood came from " + sn + ".", PlayerRef, kPlayerPathoSrc, true, true)
+	EndIf
+	If iPlayerPatho == 3 && ModLoaded("Growl - Werebeasts of Skyrim.esp")
+		Debug.Notification("The beast blood has taken you. (Growl: choose the werebear path there.)")
+	Else
+		Debug.Notification("The beast blood has taken you. You can change into a werewolf.")
+	EndIf
+	PathoNote("pathogen: you turned (" + DiseaseWord(iPlayerPatho) + ")")
+	UpdateWatchers()
+	PathoSyncGlobals()
+EndFunction
+
+; ODS_PlayerAlias: you drank something while incubating
+bool Function PathoPlayerDrank(Form f)
+	If iPlayerPatho <= 0 || iPlayerPathoStage >= 3 || f == None || f != CurePotion()
+		return false
+	EndIf
+	TalkNet(PlayerName() + " drank a Cure Disease potion. The " + DiseaseWord(iPlayerPatho) + " from " + NameOf(kPlayerPathoSrc) + " is gone before it could take hold.", PlayerRef, kPlayerPathoSrc, true, true)
+	Debug.Notification("The fever breaks. The beast blood is gone.")
+	PathoNote("pathogen: your incubating " + DiseaseWord(iPlayerPatho) + " was cured")
+	iPlayerPatho = 0
+	iPlayerPathoStage = 0
+	kPlayerPathoSrc = None
+	UpdateWatchers()
+	PathoSyncGlobals()
+	return true
+EndFunction
+
+bool Function PathoPlayerIncubating()
+	return iPlayerPatho > 0 && iPlayerPathoStage < 3
+EndFunction
+
+; StorageUtil values SkyrimNet reads with papyrus_util (no Papyrus runs while a prompt renders)
+Function PathoSyncGlobals()
+	If bVLFollowers && bMaster && VampireLordRace() != None
+		StorageUtil.SetIntValue(None, "ODS_VLFOn", 1)       ; 1.1.5: SkyrimNet BecomeVampireLord
+	Else
+		StorageUtil.UnsetIntValue(None, "ODS_VLFOn")
+	EndIf
+	If bPatho && bMaster
+		StorageUtil.SetIntValue(None, "ODS_PathoOn", 1)
+		If bPathoSNetForms
+			StorageUtil.SetIntValue(None, "ODS_FormsOn", 1)
+		Else
+			StorageUtil.UnsetIntValue(None, "ODS_FormsOn")
+		EndIf
+		int k = 0
+		If PlayerHasLycanthropy() || PlayerHasVampirism()
+			k = PlayerDiseaseKind()
+		EndIf
+		If k > 0
+			StorageUtil.SetIntValue(None, "ODS_PlayerBlood", k)
+		Else
+			StorageUtil.UnsetIntValue(None, "ODS_PlayerBlood")
+		EndIf
+	Else
+		StorageUtil.UnsetIntValue(None, "ODS_PathoOn")
+		StorageUtil.UnsetIntValue(None, "ODS_FormsOn")
+		StorageUtil.UnsetIntValue(None, "ODS_PlayerBlood")
+	EndIf
+EndFunction
+
+; game loaded: beasts who changed for a fight that is over change back; asked-for forms stay
+; ---------- 1.1.3: beast skin swap for NPCs with their own skin ----------
+; Uses the leveled base (what the game draws for templated NPCs; the same base for unique ones).
+; SKSE ActorBase.SetSkin is not written to the save, so PathoSkinOnLoad redoes it after a load.
+ActorBase Function PathoSkinBase(Actor a)
+	If a == None
+		return None
+	EndIf
+	ActorBase ab = a.GetLeveledActorBase()
+	If ab == None
+		ab = a.GetActorBase()
+	EndIf
+	return ab
+EndFunction
+
+string Function FormText(Form f)
+	If f == None
+		return "none"
+	EndIf
+	return "" + f
+EndFunction
+
+Function PathoSkinSwap(int i, Actor a, Race r, string why)
+	If a == None || r == None || i < 0 || i >= 10
+		return
+	EndIf
+	PathoInitArrays()
+	ActorBase ab = PathoSkinBase(a)
+	If ab == None
+		Log("skin: " + NameOf(a) + ": no actor base, skin left alone (" + why + ")")
+		return
+	EndIf
+	Armor beast = r.GetSkin()
+	Armor own = ab.GetSkin()
+	If bPathoSkinSwap[i]
+		If own != beast
+			ab.SetSkin(beast)
+			Log("skin: " + NameOf(a) + ": beast skin " + FormText(beast) + " put back on (" + why + ")")
+		EndIf
+		return
+	EndIf
+	If own == None || own == beast
+		If why != "check"
+			Log("skin: " + NameOf(a) + ": no own skin (uses the race skin), nothing to swap (" + why + ")")
+		EndIf
+		return
+	EndIf
+	kPathoSkin[i] = own
+	bPathoSkinSwap[i] = true
+	ab.SetSkin(beast)
+	Log("skin: " + NameOf(a) + ": own skin " + FormText(own) + " saved, beast race " + FormText(r) + " skin " + FormText(beast) + " swapped in (" + why + ")")
+EndFunction
+
+Function PathoSkinRestore(int i, Actor a, string why)
+	If i < 0 || i >= 10
+		return
+	EndIf
+	PathoInitArrays()
+	If !bPathoSkinSwap[i]
+		return
+	EndIf
+	Armor own = kPathoSkin[i]
+	bPathoSkinSwap[i] = false
+	kPathoSkin[i] = None
+	ActorBase ab = PathoSkinBase(a)
+	If ab && own
+		ab.SetSkin(own)
+		Log("skin: " + NameOf(a) + ": own skin " + FormText(own) + " given back (" + why + ")")
+	Else
+		Log("skin: " + NameOf(a) + ": swap flag cleared, nothing to give back (" + why + ")")
+	EndIf
+EndFunction
+
+; 1.1.4: called on game load, on the alias's race switch / 3D load, and once a few seconds after a combat
+; change. Beast race by any path (O'Deadly, Growl's beastblood, vanilla change) + own skin: beast skin on.
+; Normal race again: own skin back and the normal race remembered (so TransformBack can undo a Growl change).
+Function PathoSkinCheck(int i, Actor a, string why)
+	If i < 0 || i >= 10 || a == None
+		return
+	EndIf
+	PathoInitArrays()
+	If kPatho[i] != a || a.IsDead()
+		return
+	EndIf
+	If IsBeastForm(a)
+		bool had = bPathoSkinSwap[i]
+		PathoSkinSwap(i, a, a.GetRace(), why)
+		If bPathoSkinSwap[i] && (!had || why == "game load")
+			a.QueueNiNodeUpdate()
+		EndIf
+		If !bPathoChanged[i] && !had && bPathoSkinSwap[i]
+			Log("skin: " + NameOf(a) + " is in beast form from another mod" + PathoGrowlTag(i) + " (" + why + ")")
+		EndIf
+		StorageUtil.SetIntValue(a, "ODS_BeastForm", 1)
+	Else
+		If !bPathoChanged[i]
+			kPathoRace[i] = a.GetRace()
+		EndIf
+		If bPathoSkinSwap[i]
+			PathoSkinRestore(i, a, why + ", normal race again")
+			a.QueueNiNodeUpdate()
+		EndIf
+		If bPathoChanged[i] && !bPathoRaceSetting
+			bPathoChanged[i] = false      ; changed back by something else (Growl, a spell)
+			bPathoBusy[i] = false
+			iPathoWhy[i] = 0
+			Log("skin: " + NameOf(a) + ": changed back by another mod (" + why + ")")
+		EndIf
+		StorageUtil.UnsetIntValue(a, "ODS_BeastForm")
+	EndIf
+EndFunction
+
+string Function PathoGrowlTag(int i)
+	If iPathoMode[i] == 1
+		return " (Growl beastblood)"
+	EndIf
+	return ""
+EndFunction
+
+bool Function IsBeastRace(Race r)
+	If r == None
+		return false
+	EndIf
+	return r == WerewolfRace() || r == VampireLordRace() || r == WerebearRace()
+EndFunction
+
+Function PathoSkinOnLoad()
+	PathoInitArrays()
+	If !kPatho
+		return
+	EndIf
+	int i = 0
+	While i < 10
+		If kPatho[i]
+			PathoSkinCheck(i, kPatho[i], "game load")   ; 1.1.4: any beast form (O'Deadly, Growl or other), also 1.1.2 saves
+		ElseIf bPathoSkinSwap[i]
+			bPathoSkinSwap[i] = false
+			kPathoSkin[i] = None
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+Function PathoOnLoad()
+	PathoInitArrays()
+	int t = 0
+	While t < 4
+		iPTId[t] = 0
+		t += 1
+	EndWhile
+	PathoSyncGlobals()
+	If !kPatho
+		return
+	EndIf
 	Potion cure = CurePotion()
 	bool any = false
 	int i = 0
 	While i < 10
 		If kPatho[i]
 			any = true
+			PathoSetKeys(i)          ; 1.1: SkyrimNet values (also for NPCs infected under 1.0.x)
+			If bPathoChanged[i] && (iPathoWhy[i] != 1 || !IsBeastForm(kPatho[i]))
+				If !kPatho[i].IsInCombat() || !IsBeastForm(kPatho[i])
+					PathoRevert(i)
+				EndIf
+			EndIf
+		ElseIf bPathoChanged[i]
+			bPathoChanged[i] = false
 		EndIf
+		bPathoBusy[i] = bPathoChanged[i]
 		i += 1
 	EndWhile
 	If any && ODS_PathoQuest
@@ -9069,7 +10579,7 @@ EndFunction
 
 ; MCM: take everything this mod gave back (also before uninstalling)
 Function PathoCureAll()
-	If kPatho == None
+	If !kPatho
 		return
 	EndIf
 	PathoRevertAll()
@@ -9081,7 +10591,7 @@ Function PathoCureAll()
 	While i < 10
 		Actor a = kPatho[i]
 		If a && iPathoStage[i] >= 3
-			If iPathoKind[i] == 1
+			If iPathoKind[i] != 2
 				If wf
 					a.RemoveFromFaction(wf)
 				EndIf
@@ -9095,6 +10605,7 @@ Function PathoCureAll()
 				If sun
 					a.RemoveSpell(sun)
 				EndIf
+				PathoUnvampirize(a)        ; 1.1.5
 			EndIf
 		EndIf
 		If a
@@ -9102,13 +10613,19 @@ Function PathoCureAll()
 		EndIf
 		i += 1
 	EndWhile
+	If iPlayerPatho > 0 && iPlayerPathoStage < 3
+		iPlayerPatho = 0
+		kPlayerPathoSrc = None
+		UpdateWatchers()
+	EndIf
 	If ODS_PathoQuest && ODS_PathoQuest.IsRunning()
 		ODS_PathoQuest.Stop()
 	EndIf
+	PathoSyncGlobals()
 EndFunction
 
 string Function PathoListText()
-	If kPatho == None
+	If !kPatho
 		return "nobody"
 	EndIf
 	string s = ""
@@ -9121,13 +10638,554 @@ string Function PathoListText()
 			string st = "turned"
 			If iPathoStage[i] < 3
 				st = "incubating"
+			ElseIf bPathoChanged[i]
+				st = "turned, in beast form"
 			EndIf
 			s += kPatho[i].GetDisplayName() + " (" + DiseaseWord(iPathoKind[i]) + ", " + st + ")"
 		EndIf
 		i += 1
 	EndWhile
+	If iPlayerPatho > 0 && iPlayerPathoStage < 3
+		If s != ""
+			s += ", "
+		EndIf
+		s += "you (" + DiseaseWord(iPlayerPatho) + ", incubating)"
+	EndIf
 	If s == ""
 		return "nobody"
 	EndIf
 	return s
 EndFunction
+
+; =====================================================================================
+; 1.0.2: pathogen diagnostics. Every result also goes to the MCM Debug page; while the debug
+; force is armed it is shown on screen even without Debug notifications.
+bool Property bLogFile = true Auto Hidden                ; 1.0.2: write Data/SKSE/Plugins/ODeadlySkyrim.log (PapyrusUtil MiscUtil)
+string Property sPathoLast = "" Auto Hidden              ; 1.0.2: last pathogen result (MCM > Debug)
+string Property LOG_FILE = "Data/SKSE/Plugins/ODeadlySkyrim.log" AutoReadOnly
+bool Property bPathoAlways = false Auto Hidden           ; 1.1.1: always infect from a werewolf / werebear / vampire lord (no chance roll)
+
+Function PathoNote(string s)
+	Log(s)
+	sPathoLast = s
+	If bForcePatho && !(bDebug && bMaster)
+		Debug.Notification("[ODS] " + s)
+	EndIf
+EndFunction
+
+; =====================================================================================
+; 1.1.2: own log file for bug reports (Data/SKSE/Plugins/ODeadlySkyrim.log, MO2: overwrite).
+; PapyrusUtil soft dependency: without it nothing is written and nothing errors. Light: a header
+; per game load, one line per event, no polling. The file restarts after LOG_SESSIONS game loads
+; (counter in StorageUtilData/ODeadlySkyrim_log.json) and each session stops at LOG_LINES_MAX lines.
+string Property ODS_VERSION = "1.1.7" AutoReadOnly
+string Property LOG_STATE = "ODeadlySkyrim_log" AutoReadOnly
+int Property LOG_SESSIONS = 10 AutoReadOnly
+int Property LOG_LINES_MAX = 3000 AutoReadOnly
+bool bLogPU = false
+int iLogLines = 0
+
+bool Function PapyrusUtilOK()
+	return SKSE.GetPluginVersion("papyrusutil plugin") > 0
+EndFunction
+
+Function LogSessionStart()
+	bLogPU = PapyrusUtilOK()
+	iLogLines = 0
+	If !bLogPU || !bLogFile
+		return
+	EndIf
+	int n = JsonUtil.GetIntValue(LOG_STATE, "session", 0) + 1
+	bool fresh = n > LOG_SESSIONS || !MiscUtil.FileExists(LOG_FILE)
+	If fresh
+		n = 1
+	EndIf
+	JsonUtil.SetIntValue(LOG_STATE, "session", n)
+	JsonUtil.Save(LOG_STATE)
+	string h = "===== O'Deadly Skyrim " + ODS_VERSION + " | game load " + n + " of " + LOG_SESSIONS + " in this file | game time " + Utility.GameTimeToString(Utility.GetCurrentGameTime()) + " ====="
+	MiscUtil.WriteToFile(LOG_FILE, h + "\n", !fresh, true)
+EndFunction
+
+Function LogFileLine(string s)
+	If !bLogPU || !bLogFile || iLogLines >= LOG_LINES_MAX
+		return
+	EndIf
+	iLogLines += 1
+	If iLogLines == LOG_LINES_MAX
+		s += "\n[ODS] (" + LOG_LINES_MAX + " lines this game load: the rest only goes to Papyrus.0.log)"
+	EndIf
+	MiscUtil.WriteToFile(LOG_FILE, "[ODS] " + s + "\n", true, true)
+EndFunction
+
+; MCM toggle turned on mid-game: start writing now
+Function LogToggled()
+	bLogPU = PapyrusUtilOK()
+	If bLogFile
+		LogSessionStart()
+		LogStartup()
+	EndIf
+EndFunction
+
+string Function KindName(int k)
+	If k == K_ATTACK
+		return "night attack"
+	ElseIf k == K_CHEAT
+		return "cheating spouse"
+	ElseIf k == K_JAIL
+		return "jail / barracks"
+	ElseIf k == K_INN
+		return "inn patrons"
+	ElseIf k == K_SPIKED
+		return "spiked drink"
+	ElseIf k == K_DEFEAT
+		return "defeat"
+	ElseIf k == K_TRESPASS
+		return "trespass"
+	ElseIf k == K_ROAD
+		return "road robbery"
+	ElseIf k == K_CREATURE
+		return "creature (camp)"
+	ElseIf k == K_BETRAYAL
+		return "follower betrayal"
+	ElseIf k == K_VAMPIRE
+		return "vampire seduction"
+	ElseIf k == K_MORNING
+		return "morning after"
+	ElseIf k == K_BATH
+		return "bathing"
+	ElseIf k == K_INNSHARE
+		return "inn share"
+	ElseIf k == K_DARKGIFT
+		return "dark gift"
+	ElseIf k == K_SAVIOR
+		return "savior complex"
+	ElseIf k == K_BUNNYFIGHT
+		return "killer rabbit fight"
+	ElseIf k == K_CRWILD
+		return "wild creature"
+	ElseIf k == K_WEREWOLF
+		return "werewolf at night"
+	ElseIf k == K_BEASTPREY
+		return "beast form prey"
+	ElseIf k == K_BEASTCLAIM
+		return "beast form claim"
+	EndIf
+	return "kind " + k
+EndFunction
+
+string Function OnOff(bool b)
+	If b
+		return "ON"
+	EndIf
+	return "off"
+EndFunction
+
+string Function YesNo(bool b)
+	If b
+		return "yes"
+	EndIf
+	return "no"
+EndFunction
+
+; once per game load (ODS_PlayerAlias, a few seconds after loading): what was found and what is on
+Function LogStartup()
+	If !bLogFile
+		return
+	EndIf
+	Log("startup: O'Deadly Skyrim " + ODS_VERSION + " | master switch " + OnOff(bMaster) + " | panic key " + iPanicKey + " | blood gift key " + iBloodGiftKey + " | SKSE " + SKSE.GetVersion() + "." + SKSE.GetVersionMinor() + "." + SKSE.GetVersionBeta() + " | PapyrusUtil " + YesNo(PapyrusUtilOK()))
+	Log("startup: needed: OStim " + YesNo(OStimOK()) + " | powerofthree's Papyrus Extender " + YesNo(PO3OK()) + " | JContainers " + YesNo(JCOK()))
+	Log("startup: found: SkyrimNet " + YesNo(SNetOK()) + " | OCreatures " + YesNo(OCreaturesInstalled()) + " | OCum " + YesNo(OCumOK()) + " | ZaZ " + YesNo(ZaZOK()) + " | ODangerous Nights " + YesNo(ODNLoaded()) + " | OStim Beast Form " + YesNo(BeastFormOK()) + " (scenes " + YesNo(BFScenesOK()) + ") | Growl " + YesNo(ModLoaded("Growl - Werebeasts of Skyrim.esp")) + " | Dawnguard " + YesNo(ModLoaded("Dawnguard.esm")) + " | Dragonborn " + YesNo(ModLoaded("Dragonborn.esm")))
+	Log("startup: found: Dirt and Blood " + YesNo(DnBOK()) + " | Bathing in Skyrim " + YesNo(BiSOK()) + " | iActions " + YesNo(IActionsOK()) + " | Blood and OStim " + YesNo(BaOOK()) + " | Sacrosanct " + YesNo(SacrosanctOK()) + " | Kidnapped Redux " + YesNo(OKROK()) + " | ODefeat " + YesNo(ODefeatOK()) + " | Baka Defeat " + YesNo(BakaDefeatOK()) + " | Killer Rabbit " + YesNo(KillerBunnyOK()))
+	Log("startup: on: sleep " + OnOff(bSleepEnabled) + " | cheating " + OnOff(bCheatEnabled) + " | jail " + OnOff(bJailEnabled) + " | inn " + OnOff(bInnPlayer) + " | spiked " + OnOff(bSpiked) + " | defeat " + OnOff(bDefeatEnabled) + " | trespass " + OnOff(bTrespassEnabled) + " | road " + OnOff(bTravelEnabled) + " | savior " + OnOff(bSavior) + " | rabbit fight " + OnOff(bBunnyFight) + " | betrayal " + OnOff(bBetrayal) + " | vampire " + OnOff(bVampire))
+	Log("startup: on: creatures " + OnOff(bCrEnabled) + " | wild creatures " + OnOff(bCrWild) + " | werewolf at night " + OnOff(bWolfNight) + " | beast form offers " + OnOff(bBeastOffer) + " | Bitch in Heat " + OnOff(bHeat) + " (how many join " + HeatJoinText() + ", no in-game box)" + " | Saturalia " + OnOff(bSaturalia) + " | follower rescue " + OnOff(bRescue) + " | join in " + OnOff(bJoinIn) + " | morning after " + OnOff(bMorningAfter) + " | bathing " + OnOff(bBath) + " | inn share " + OnOff(bInnShare) + " | watched " + OnOff(bWatched) + " | dark gift " + OnOff(bDarkGift))
+	Log("startup: pathogen " + OnOff(bPatho) + " | always infect " + OnOff(bPathoAlways) + " | chances WW " + fPathoWWChance + " VL " + fPathoVLChance + " bear " + fPathoBearChance + " human-form " + fPathoChance + " | any NPC " + OnOff(bPathoAnyNPC) + " | NPC scenes " + OnOff(bPathoNPCs) + " | you can catch it " + OnOff(bPathoPlayerCatch) + " | SkyrimNet change at will " + OnOff(bPathoSNetForms) + " | cap " + iPathoCap)
+	Log("startup: 1.1.5 soft: Growl " + YesNo(GrowlOK()) + " (" + GrowlTotemText() + ") | Sacrosanct " + YesNo(SacrosanctOK()) + " (race change " + OnOff(bSacRace) + ") | Beast Form werebears use werewolf scenes " + YesNo(HeatBearAsWolf()) + " | werebear pool " + YesNo(WerebearRace() != None) + " | vampire lord race " + YesNo(VampireLordRace() != None) + " | vampire followers can become vampire lords " + OnOff(bVLFollowers))
+	Log("startup: SkyrimNet narration " + OnOff(bSkyrimNetStart) + " | memories " + OnOff(bSkyrimNetLog) + " | bio check " + OnOff(bBioCheck) + " | morality filter " + OnOff(bMoralityFilter) + " | cooldown " + fCooldownHours + " h | player can be a victim " + OnOff(bPlayerVictim) + " | debug notifications " + OnOff(bDebug))
+EndFunction
+
+; =====================================================================================
+; 1.1.5: Growl / Sacrosanct soft detection (neither is needed), Sacrosanct-style NPC vampires,
+; and existing vampire followers as vampire lords through SkyrimNet. Declared at the end (save-safe).
+; =====================================================================================
+bool Property bSacRace = false Auto Hidden        ; Sacrosanct found: turned NPCs also get its vampire race
+bool Property bVLFollowers = false Auto Hidden    ; existing vampire followers can become vampire lords
+
+Actor[] kVLF
+Race[] kVLFRace
+Armor[] kVLFSkin
+bool[] bVLFChanged
+
+bool Function GrowlOK()
+	return ModLoaded("Growl - Werebeasts of Skyrim.esp")
+EndFunction
+
+; Growl's werebear totem (HRI_Lycan_Global_WerebearTotem): 1 = Growl's beastblood NPCs change into werebears
+int Function GrowlTotem()
+	If !GrowlOK()
+		return -1
+	EndIf
+	GlobalVariable g = Game.GetFormFromFile(0x0003D478, "Growl - Werebeasts of Skyrim.esp") as GlobalVariable
+	If g == None
+		return -1
+	EndIf
+	return g.GetValue() as int
+EndFunction
+
+string Function GrowlTotemText()
+	int t = GrowlTotem()
+	If t < 0
+		return "not found"
+	ElseIf t == 1
+		return "werebear totem (Growl NPC changes: werebear)"
+	EndIf
+	return "no werebear totem (" + t + ", Growl NPC changes: werewolf)"
+EndFunction
+
+; who owns what for one newly turned werewolf / werebear (logged every time)
+Function PathoGrowlDecision(Actor a, int kind, bool given)
+	string nm = NameOf(a)
+	If !GrowlOK()
+		Log("pathogen: " + nm + ": Growl not found - O'Deadly owns the " + FormWord(kind) + " night-fight changes, SkyrimNet changes and the beast body")
+		return
+	EndIf
+	If !given
+		Log("pathogen: " + nm + ": no Growl beastblood (not a gift, follower or spouse) - O'Deadly owns the " + FormWord(kind) + " night-fight changes, SkyrimNet changes and the beast body")
+		return
+	EndIf
+	int t = GrowlTotem()
+	string gw = "werewolf"
+	If t == 1
+		gw = "werebear"
+	EndIf
+	Log("pathogen: " + nm + ": Growl beastblood given - Growl owns the fight changes and follows its totem (" + GrowlTotemText() + ", Circle members stay werewolves), so Growl makes " + nm + " a " + gw + "; O'Deadly still owns SkyrimNet changes (as a " + FormWord(kind) + ") and the beast body")
+	If gw != FormWord(kind)
+		Log("pathogen: " + nm + ": note - caught " + DiseaseWord(kind) + " as a " + FormWord(kind) + ", Growl's totem makes its fight form a " + gw)
+	EndIf
+EndFunction
+
+; does this skin have a body for that race (SKSE: additional races of its armor addons)?
+bool Function SkinFitsRace(Armor sk, Race r)
+	If sk == None || r == None
+		return true
+	EndIf
+	int n = sk.GetNumArmorAddons()
+	int i = 0
+	While i < n
+		ArmorAddon aa = sk.GetNthArmorAddon(i)
+		If aa
+			int m = aa.GetNumAdditionalRaces()
+			int j = 0
+			While j < m
+				If aa.GetNthAdditionalRace(j) == r
+					return true
+				EndIf
+				j += 1
+			EndWhile
+		EndIf
+		i += 1
+	EndWhile
+	return false
+EndFunction
+
+; a newly turned NPC vampire: VampireVampirism always; with Sacrosanct also what its Foster Childe
+; gives NPCs (NPC resistances, poison resistance, drain by level), never the Foster Childe message
+Function PathoVampirize(Actor a)
+	string nm = NameOf(a)
+	Spell vv = Game.GetFormFromFile(0x000ED0A8, "Skyrim.esm") as Spell      ; VampireVampirism
+	If vv
+		a.AddSpell(vv, false)
+	EndIf
+	If !SacrosanctOK()
+		Log("pathogen: " + nm + ": vampire, standard (VampireFaction, NPC sun damage, VampireVampirism) - Sacrosanct not found")
+		return
+	EndIf
+	string p = "Sacrosanct - Vampires of Skyrim.esp"
+	Spell res = Game.GetFormFromFile(0x000F5B5C, "Skyrim.esm") as Spell     ; NPC vampire resistances
+	If res
+		a.AddSpell(res, false)
+	EndIf
+	Spell poi = Game.GetFormFromFile(0x0010FB30, "Skyrim.esm") as Spell     ; VampirePoisonResist
+	If poi
+		a.AddSpell(poi, false)
+	EndIf
+	int idx = a.GetLevel() / 10
+	If idx > 3
+		idx = 3
+	ElseIf idx < 0
+		idx = 0
+	EndIf
+	Spell dr = None
+	If idx == 0
+		dr = Game.GetFormFromFile(0x0008D5BF, "Skyrim.esm") as Spell
+	ElseIf idx == 1
+		dr = Game.GetFormFromFile(0x0015DD41, p) as Spell
+	ElseIf idx == 2
+		dr = Game.GetFormFromFile(0x0015DD43, p) as Spell
+	Else
+		dr = Game.GetFormFromFile(0x0015DD45, p) as Spell
+	EndIf
+	If dr
+		a.AddSpell(dr, false)
+		StorageUtil.SetFormValue(a, "ODS_SacDrain", dr)
+	EndIf
+	StorageUtil.SetIntValue(a, "ODS_SacVamp", 1)
+	string rt = "race unchanged (MCM toggle off)"
+	If bSacRace
+		rt = PathoSacRace(a)
+	EndIf
+	Log("pathogen: " + nm + ": vampire, Sacrosanct style (VampireVampirism, NPC sun damage, resistances " + YesNo(res != None) + ", poison resistance " + YesNo(poi != None) + ", drain tier " + idx + " " + FormText(dr) + "), " + rt)
+EndFunction
+
+string Function PathoSacRace(Actor a)
+	string p = "Sacrosanct - Vampires of Skyrim.esp"
+	FormList rl = Game.GetFormFromFile(0x000D5929, p) as FormList           ; SCS races
+	FormList vl = Game.GetFormFromFile(0x000D592A, p) as FormList           ; SCS vampire races (same order)
+	If rl == None || vl == None
+		return "race unchanged (Sacrosanct race lists not found)"
+	EndIf
+	Race cur = a.GetRace()
+	int i = rl.Find(cur)
+	If i < 0 || i >= vl.GetSize()
+		return "race unchanged (" + FormText(cur) + " is not in Sacrosanct's race list)"
+	EndIf
+	Race vr = vl.GetAt(i) as Race
+	If vr == None || vr == cur
+		return "race unchanged (no vampire race for " + FormText(cur) + ")"
+	EndIf
+	ActorBase ab = PathoSkinBase(a)
+	Armor own = None
+	If ab
+		own = ab.GetSkin()
+	EndIf
+	If own && !SkinFitsRace(own, vr)
+		return "race unchanged (" + NameOf(a) + "'s own skin " + FormText(own) + " has no body for " + FormText(vr) + ")"
+	EndIf
+	StorageUtil.SetFormValue(a, "ODS_SacRaceFrom", cur)
+	a.SetRace(vr)
+	a.QueueNiNodeUpdate()
+	return "race " + FormText(cur) + " -> " + FormText(vr)
+EndFunction
+
+; cure: take back what PathoVampirize gave
+Function PathoUnvampirize(Actor a)
+	If a == None
+		return
+	EndIf
+	Spell vv = Game.GetFormFromFile(0x000ED0A8, "Skyrim.esm") as Spell
+	If vv
+		a.RemoveSpell(vv)
+	EndIf
+	If StorageUtil.GetIntValue(a, "ODS_SacVamp", 0) > 0
+		Spell res = Game.GetFormFromFile(0x000F5B5C, "Skyrim.esm") as Spell
+		Spell poi = Game.GetFormFromFile(0x0010FB30, "Skyrim.esm") as Spell
+		Spell dr = StorageUtil.GetFormValue(a, "ODS_SacDrain") as Spell
+		If res
+			a.RemoveSpell(res)
+		EndIf
+		If poi
+			a.RemoveSpell(poi)
+		EndIf
+		If dr
+			a.RemoveSpell(dr)
+		EndIf
+	EndIf
+	Race from = StorageUtil.GetFormValue(a, "ODS_SacRaceFrom") as Race
+	If from && !IsBeastForm(a)
+		a.SetRace(from)
+		a.QueueNiNodeUpdate()
+		Log("pathogen: " + NameOf(a) + ": cured, race back to " + FormText(from))
+	EndIf
+	StorageUtil.UnsetIntValue(a, "ODS_SacVamp")
+	StorageUtil.UnsetFormValue(a, "ODS_SacDrain")
+	StorageUtil.UnsetFormValue(a, "ODS_SacRaceFrom")
+EndFunction
+
+; ---------- existing vampire followers (Serana and others) as vampire lords ----------
+bool Function IsVampireNPC(Actor a)
+	If a == None || a == PlayerRef
+		return false
+	EndIf
+	Keyword kv = Game.GetFormFromFile(0x000A82BB, "Skyrim.esm") as Keyword  ; Vampire
+	Faction vf = Game.GetFormFromFile(0x00027242, "Skyrim.esm") as Faction  ; VampireFaction
+	return (kv && a.HasKeyword(kv)) || (vf && a.IsInFaction(vf))
+EndFunction
+
+Function VLFInit()
+	If !kVLF || kVLF.Length != 5
+		kVLF = new Actor[5]
+		kVLFRace = new Race[5]
+		kVLFSkin = new Armor[5]
+		bVLFChanged = new bool[5]
+	EndIf
+EndFunction
+
+bool Function VLFEligible(Actor a)
+	return a && !a.IsDead() && IsFollowerActor(a) && !IsMinor(a) && IsVampireNPC(a) && PathoIndex(a) < 0
+EndFunction
+
+; follower refresh (game load, location change, MCM): mark vampire followers for SkyrimNet
+Function VLFScan()
+	VLFInit()
+	bool on = bVLFollowers && bMaster && VampireLordRace() != None
+	If on
+		StorageUtil.SetIntValue(None, "ODS_VLFOn", 1)
+	Else
+		StorageUtil.UnsetIntValue(None, "ODS_VLFOn")
+	EndIf
+	int i = 0
+	While i < 5
+		Actor a = kVLF[i]
+		If a && !bVLFChanged[i] && (!on || !VLFEligible(a))
+			StorageUtil.UnsetIntValue(a, "ODS_VLF")
+			Log("vampire followers: " + NameOf(a) + " unmarked")
+			kVLF[i] = None
+		EndIf
+		i += 1
+	EndWhile
+	If !on
+		return
+	EndIf
+	Actor[] near = OActorUtil.GetActorsInRangeV2(PlayerRef, 4000.0, false, false, false)
+	i = 0
+	While i < near.Length
+		Actor a = near[i]
+		If VLFEligible(a) && kVLF.Find(a) < 0
+			int s = kVLF.Find(None)
+			If s >= 0
+				kVLF[s] = a
+				bVLFChanged[s] = false
+				StorageUtil.SetIntValue(a, "ODS_VLF", 1)
+				Log("vampire followers: " + NameOf(a) + " can become a vampire lord (SkyrimNet)")
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+Function SNBecomeVampireLord(Actor a)
+	VLFInit()
+	Race vl = VampireLordRace()
+	If a == None || !bVLFollowers || !bMaster || vl == None
+		Log("SkyrimNet action BecomeVampireLord (" + NameOf(a) + ") ignored: toggle / master off or no Dawnguard")
+		return
+	EndIf
+	If !VLFEligible(a) || IsBeastForm(a)
+		Log("SkyrimNet action BecomeVampireLord (" + NameOf(a) + ") ignored: not an adult vampire follower, turned by the pathogen, or already in beast form")
+		return
+	EndIf
+	If a.IsOnMount() || OActor.IsInOStim(a) || IsStaged(a)
+		Log("SkyrimNet action BecomeVampireLord: " + NameOf(a) + " could not change now (mount, scene or staged)")
+		return
+	EndIf
+	int s = kVLF.Find(a)
+	If s < 0
+		s = kVLF.Find(None)
+		If s < 0
+			Log("SkyrimNet action BecomeVampireLord (" + NameOf(a) + ") ignored: five vampire followers already tracked")
+			return
+		EndIf
+		kVLF[s] = a
+		StorageUtil.SetIntValue(a, "ODS_VLF", 1)
+	EndIf
+	If a.GetSitState() != 0
+		Debug.SendAnimationEvent(a, "IdleForceDefaultState")
+	EndIf
+	kVLFRace[s] = a.GetRace()
+	kVLFSkin[s] = VLFSkinSwap(a, vl, "change")
+	bVLFChanged[s] = true
+	a.SetRace(vl)
+	a.QueueNiNodeUpdate()
+	StorageUtil.SetIntValue(a, "ODS_BeastForm", 1)
+	Log("SkyrimNet action BecomeVampireLord: " + NameOf(a) + " changed into a vampire lord (from " + FormText(kVLFRace[s]) + ")")
+EndFunction
+
+; own skin (WNAM) would hide the vampire lord body: wear the race's skin while changed
+Armor Function VLFSkinSwap(Actor a, Race r, string why)
+	ActorBase ab = PathoSkinBase(a)
+	If ab == None || r == None
+		return None
+	EndIf
+	Armor own = ab.GetSkin()
+	Armor beast = r.GetSkin()
+	If own && beast && own != beast
+		ab.SetSkin(beast)
+		Log("skin: " + NameOf(a) + ": own skin " + FormText(own) + " -> " + FormText(beast) + " (vampire follower, " + why + ")")
+		return own
+	EndIf
+	Log("skin: " + NameOf(a) + ": no own skin to swap (vampire follower, " + why + ")")
+	return None
+EndFunction
+
+bool Function VLFBack(Actor a)
+	If !kVLF || a == None
+		return false
+	EndIf
+	int s = kVLF.Find(a)
+	If s < 0 || !bVLFChanged[s]
+		return false
+	EndIf
+	VLFRevert(s, "SkyrimNet")
+	return true
+EndFunction
+
+Function VLFRevert(int s, string why)
+	Actor a = kVLF[s]
+	bVLFChanged[s] = false
+	If a == None
+		return
+	EndIf
+	If kVLFSkin[s] && !(a.IsDead() && IsBeastForm(a))
+		ActorBase ab = PathoSkinBase(a)
+		If ab
+			ab.SetSkin(kVLFSkin[s])
+			Log("skin: " + NameOf(a) + ": own skin " + FormText(kVLFSkin[s]) + " back (vampire follower, " + why + ")")
+		EndIf
+	EndIf
+	kVLFSkin[s] = None
+	If kVLFRace[s] && IsBeastForm(a) && !a.IsDead()
+		a.SetRace(kVLFRace[s])
+		a.QueueNiNodeUpdate()
+	EndIf
+	StorageUtil.UnsetIntValue(a, "ODS_BeastForm")
+	Log("vampire followers: " + NameOf(a) + " back to " + FormText(kVLFRace[s]) + " (" + why + ")")
+EndFunction
+
+Function VLFRevertAll()
+	If !kVLF
+		return
+	EndIf
+	int i = 0
+	While i < kVLF.Length
+		If bVLFChanged[i]
+			VLFRevert(i, "revert all")
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+; game load: SetSkin is not saved; a vampire lord follower gets the beast skin again
+Function VLFOnLoad()
+	VLFInit()
+	int i = 0
+	While i < 5
+		Actor a = kVLF[i]
+		If bVLFChanged[i]
+			If a && IsVampireLordForm(a)
+				If kVLFSkin[i]
+					VLFSkinSwap(a, a.GetRace(), "game load")
+				EndIf
+			Else
+				bVLFChanged[i] = false
+				kVLFSkin[i] = None
+				If a
+					StorageUtil.UnsetIntValue(a, "ODS_BeastForm")
+					Log("vampire followers: " + NameOf(a) + " is not a vampire lord any more after the load")
+				EndIf
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	VLFScan()
+EndFunction
+
+; OnRaceSwitchComplete is not watched for these; a change from another mod is caught on the next action/load

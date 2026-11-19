@@ -1,0 +1,46 @@
+{% if render_mode == "full" or render_mode == "thoughts" or render_mode == "transform" %}
+{#
+  O'Deadly Skyrim 1.1 (Blood Born Pathogen): beast blood this NPC caught or was given.
+  Values written by ODS_Main with StorageUtil (no Papyrus runs while this renders):
+    ODS_PathoIn    int  1 lycanthropy, 2 vampirism, 3 werebear blood: incubating
+    ODS_BeastKind  int  1 werewolf, 2 vampire, 3 werebear: turned
+    ODS_BeastForm  int  1 = in beast form right now
+    ODS_BeastFrom  string  who gave it to them
+    ODS_FormsOn    int (global) 1 = they may change at will (TransformToBeast / TransformBack)
+  1.1.5: existing vampire followers (Serana and others), MCM toggle, off by default:
+    ODS_VLF        int  1 = this vampire follower may become a vampire lord (BecomeVampireLord)
+    ODS_VLFOn      int (global) 1 = toggle on
+#}
+{% if actorUUID != player.UUID %}
+{% set bk = papyrus_util("GetIntValue", actorUUID, "ODS_BeastKind", 0) %}
+{% set bi = papyrus_util("GetIntValue", actorUUID, "ODS_PathoIn", 0) %}
+{% if bk > 0 or bi > 0 %}
+{% set npcName = decnpc(actorUUID).name %}
+{% set src = papyrus_util("GetStringValue", actorUUID, "ODS_BeastFrom", "") %}
+## Beast Blood
+{% if bk > 0 %}
+{% set bf = papyrus_util("GetIntValue", actorUUID, "ODS_BeastForm", 0) %}
+{% set fon = papyrus_util("GetIntValue", "none", "ODS_FormsOn", 0) %}
+{% if bk == 2 %}{% set beast = "vampire lord" %}{% set being = "a vampire" %}{% elif bk == 3 %}{% set beast = "werebear" %}{% set being = "a werebear" %}{% else %}{% set beast = "werewolf" %}{% set being = "a werewolf" %}{% endif %}
+- {{ npcName }} is {{ being }}{% if length(src) > 0 %}; the blood came from {{ src }}{% endif %}.
+{% if bf == 1 %}
+- {{ npcName }} is RIGHT NOW in full beast form: a huge {{ beast }}, not their normal self. They stay like this until they decide to change back (TransformBack), or until the fight they changed for is over.
+{% elif fon == 1 %}
+- {{ npcName }} looks like their normal self right now, but can change into a {{ beast }} in full beast form at will (TransformToBeast) and back again (TransformBack): when asked, or when it truly fits.
+{% endif %}
+{% else %}
+{% if bi == 2 %}{% set dis = "vampirism (Sanguinare Vampiris)" %}{% elif bi == 3 %}{% set dis = "werebear blood" %}{% else %}{% set dis = "lycanthropy" %}{% endif %}
+- {{ npcName }} caught {{ dis }}{% if length(src) > 0 %} from {{ src }}{% endif %} and feels it taking hold; within a few days they will turn unless they drink a Cure Disease potion.
+{% endif %}
+{% endif %}
+{% if bk == 0 and bi == 0 and papyrus_util("GetIntValue", actorUUID, "ODS_VLF", 0) == 1 and papyrus_util("GetIntValue", "none", "ODS_VLFOn", 0) == 1 %}
+{% set npcName = decnpc(actorUUID).name %}
+## Vampire Lord
+{% if papyrus_util("GetIntValue", actorUUID, "ODS_BeastForm", 0) == 1 %}
+- {{ npcName }} is RIGHT NOW in full vampire lord form: a huge winged vampire lord, not their normal self. They stay like this until they decide to change back (TransformBack).
+{% else %}
+- {{ npcName }} is a vampire and can change into a vampire lord at will (BecomeVampireLord) and back again (TransformBack): when asked, or when it truly fits.
+{% endif %}
+{% endif %}
+{% endif %}
+{% endif %}

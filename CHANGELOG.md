@@ -2,6 +2,129 @@
 
 By That Guy (Coronerra).
 
+## 1.1.7
+
+There are no O'Deadly popups at OStim scene start. Scripts only (`ODS_Main`, `ODS_MCM`). The plugin and SkyrimNet pack are unchanged, and every record and FormID is kept.
+
+- **Caught** ("X has seen you…") and **Watched from a distance** ("You feel eyes on you…") both fire as an OStim scene starts. They are now always corner notifications, or nothing when messages are off. They are never a message box, even with MCM message style "Message box". This is the same treatment the Bitch in Heat line got in 1.1.6.
+- The MCM "Message style" help explains this.
+- Log: new `caught:` and `watched:` lines when those messages show.
+- Build check: every compiled script was scanned for a `None` cast or assigned to an array. None found.
+
+Updating from 1.1.6: overwrite the old files. In-place and save-safe.
+
+## 1.1.6
+
+There's no in-game popup for Bitch in Heat any more. Scripts only (`ODS_Main`, `ODS_MCM`). The plugin and SkyrimNet pack are unchanged from 1.1.5, and every record and FormID is kept.
+
+- **Removed the "how many?" message box.** It opened at the same time as OStim's own menu at the start of the scene. The count is now set in the MCM ahead of time: **"How many join"** = 1, 2, 3 or 0 = random 1-3 (default). It applies to werewolves, werebears and vampire lords. It replaces the old "Ask how many" toggle and the "Most beasts that come" slider. The message record stays in the plugin, unused.
+- If the chosen count has no installed scene for that cast, the nearest count that has one is used without any prompt (a tie goes to the smaller count). Taking turns works with any count.
+- The "Howls / Roars / Wings answer..." line is now always a corner notification (or nothing when messages are off). It is never a message box, even with message style "message box".
+- Log: the startup line shows the "How many join" setting. Each event logs the count it used and, when it fell back, the count that was asked for and which counts are installed.
+- Build check: every compiled script was scanned for a `None` cast or assigned to an array. None found.
+
+Updating from 1.1.5: overwrite the old files. In-place and save-safe. The old ask and max settings are ignored.
+
+## 1.1.5
+
+Bitch in Heat for werewolves, werebears and vampire lords. Growl and Sacrosanct are soft-detected. Existing vampire followers can become vampire lords. Changed: scripts (`ODS_Main`, `ODS_MCM`), the SkyrimNet pack (new `BecomeVampireLord` action, bio section, manifest 1.1.5) and one text in the plugin (the Bitch in Heat message now reads "Others of their kind are answering"). All records and FormIDs are unchanged and nothing was added. Only OStim Beast Form is required.
+
+- **Bitch in Heat trigger:** one of the two scene actors is a male in full beast form: werewolf, werebear or vampire lord. Human-form werewolves and vampires do not count. Wilderness, adults, you in the scene. The centre is a female human, or a male human only with Werewolf and Vampire Lord OStim's male partner scenes.
+- **Werewolves:** packs of 1-3 in one group scene. New Werewolf and Vampire Lord OStim 0.3.1 three-actor scenes: `WVLBWWB3pDogSpit-1`, `WVLBWWB3pHang2-1`, `WVLBWWB3pStandSpit-1`, their `M` versions and `WVLBWWB3pHoldDPM-1`. Old scene IDs and fallbacks are kept, OCreatures last.
+- **Werebears:** spawned from Dragonborn's werebear. With OStim Beast Form's "werebears use werewolf scenes" (`OBL_WerebearAsWerewolf`) on, they join the werewolf group scenes and packs can mix werewolves and werebears. With it off they take turns in pair scenes.
+- **Vampire lords:** spawned as male vampires and changed to Dawnguard's vampire lord race before they appear. They take turns in `WVLVLVampireLordHubFMC1` / `WVLVLMVampireLordHubMMC1`. They never share a scene with werewolves.
+- **Taking turns:** after the walk-in, the first scene ends and one pair scene per newcomer runs, one after another. Your own encounter carries on through the turns, and the aftermath runs after the last one. If a mixed pack has no group scene, they take turns instead.
+- Summoned beasts arrive already changed, stay friendly, run no timers and leave politely. The narration and the SkyrimNet memory name the beast type plainly.
+- **Growl:** O'Deadly reads Growl's werebear totem (`HRI_Lycan_Global_WerebearTotem`). Growl's beastblood followers change in fights the way Growl decides. O'Deadly still handles SkyrimNet changes (in the correct beast for what they caught) and the body swap for everyone. Without Growl, O'Deadly owns the werebear and werewolf fight changes. The totem and every ownership decision are logged.
+- **Sacrosanct:** a newly turned NPC vampire always gets VampireVampirism. With Sacrosanct it also gets Sacrosanct's NPC resistances, poison resistance and a level-based drain, with no Foster Childe message. New MCM toggle **"Sacrosanct: turned vampires get its vampire race"** (OFF): this is skipped if the NPC's own skin has no body for that race. "Cure everyone" undoes all of it.
+- **New MCM toggle "Existing vampire followers can become Vampire Lords"** (OFF): SkyrimNet `BecomeVampireLord` and `TransformBack` for vampire followers such as Serana, with the beast skin swap. Back on the panic key or master off. The skin is reapplied on load.
+- Log: startup lists Growl (and its totem), Sacrosanct, the Beast Form werebear toggle, the werebear and vampire lord pools and the new toggles. New `heat:` lines (kind, mode, every summon, every turn, skips with reasons), `pathogen:` ownership and Sacrosanct lines, and `vampire followers:` lines.
+- Build check: every compiled script was scanned for a `None` cast or assigned to an array. None found.
+
+Updating from 1.1.4: overwrite the old files. In-place and save-safe.
+
+## 1.1.4
+
+O'Deadly now handles beast forms for followers with Growl's beastblood too. Scripts (`ODS_Main`, `ODS_MCM`, `ODS_PathoAlias`) and the SkyrimNet `TransformToBeast` action; plugin, records and FormIDs are unchanged. Growl's files are not touched.
+
+- **SkyrimNet `TransformToBeast` works for Growl followers again** (the 1.1.3 block is gone: no script check, no `ODS_GrowlOwned` condition, and their bio says again that they can change at will). O'Deadly changes them and swaps in the beast body, so they get the beast race's body (OStim Beast Form's female body if installed) instead of an invisible one.
+- **Beast form from any path gets the body fix.** When an NPC this mod infected ends up in werewolf, werebear or vampire lord race by any route (Growl's own fight change, a vanilla change, O'Deadly) and has their own skin, the beast race's skin is swapped in; when they are back in their normal race their own skin is given back. Checked on the race change itself, when their 3D loads, once a few seconds after their combat state changes, and on game load. Event-only, no polling.
+- **`TransformBack` also undoes a change made by another mod** (e.g. Growl's fight change) when the normal race is known.
+- Growl still makes its own fight changes for its followers; O'Deadly's night-fight auto change still stays out of those.
+- Log: `skin:` lines also say when a beast form came from another mod (tagged "Growl beastblood" for Growl followers) and when another mod changed them back.
+- Build check: every compiled script scanned for a `None` cast or assigned to an array. None found.
+
+Updating from 1.1.3: overwrite the old files. In-place and save-safe.
+
+## 1.1.3
+
+Beast form body fix for NPCs with their own skin. Scripts (`ODS_Main`, `ODS_MCM`) and the SkyrimNet `TransformToBeast` action; plugin, records and FormIDs are unchanged.
+
+- **Fix: invisible body in beast form.** Many custom followers and NPC replacers give the NPC its own skin (the NPC's "worn armor") for their body and textures. The game keeps that skin when the race changes, and it has no werewolf, werebear or vampire lord body, so a turned NPC changed into beast form showed only the head. Now, while O'Deadly has an NPC in beast form, the beast race's own skin is swapped in (`ActorBase.SetSkin`, the leveled base for generic NPCs), and the NPC's own skin is given back when they change back, are cured, cleared or reverted by the panic key / "cure all". NPCs without their own skin and the player are not touched.
+- **Save-safe:** skin changes are not stored in the save, so on every game load the swap is put back for anyone still changed. NPCs already stuck invisible from 1.1.2 get their body back on the next load.
+- **Growl followers:** a follower who got Growl's companion beastblood is Growl's to change. SkyrimNet `TransformToBeast` no longer also changes them (O'Deadly and Growl used to both claim the same follower), the action is no longer offered to them (new StorageUtil key `ODS_GrowlOwned`), and their bio no longer says they can change at will. `TransformBack` still works for anyone O'Deadly changed.
+- New `ODeadlySkyrim.log` lines: `skin:` when an NPC's own skin is saved and the beast skin swapped in, given back, or put back after a load; and when `TransformToBeast` is ignored because Growl owns that follower.
+- Build check: every compiled script scanned for a `None` cast or assigned to an array. None found.
+
+Updating from 1.1.2: overwrite the old files. In-place and save-safe.
+
+## 1.1.2
+
+Log file for troubleshooting. Scripts only (`ODS_Main`, `ODS_MCM`, `ODS_PlayerAlias`); plugin, records, FormIDs and the SkyrimNet pack are unchanged.
+
+- **`ODeadlySkyrim.log` is now a full troubleshooting log** (`Data/SKSE/Plugins/`, MO2: `overwrite/SKSE/Plugins/`). Each game load starts a new section with the version and game time (each line carries the real date and time). A few seconds after loading it lists what was found (SKSE, PapyrusUtil, OStim, powerofthree's Papyrus Extender, JContainers, SkyrimNet, OCreatures, OCum, OStim Beast Form and its scenes, Growl, Dirt and Blood, Bathing in Skyrim, the defeat mods and the other optional mods) and which modules and key settings are on.
+- **New event lines:** each event staged, started or skipped (with the reason from the line before), defeat rolls, Bitch in Heat rolls and wrong places, join in / step in choices, the wild-creature choice, ODangerous Nights attacks, SkyrimNet memories, the panic key, and every SkyrimNet beast-blood action (`TransformToBeast`, `TransformBack`, `AcceptBloodGift`, `GiveBloodGift`) with the reason when one is ignored.
+- **Light and bounded:** no polling, one line per event. The file starts over after 10 game loads (counter in `StorageUtilData/ODeadlySkyrim_log.json`); at most 3000 lines per game load.
+- **PapyrusUtil is checked first** (`SKSE.GetPluginVersion("papyrusutil plugin")`): without it nothing is written and nothing errors. Lines still go to `Papyrus.0.log`.
+- MCM > Debug: the toggle is now **Write log file** (ON by default) and shows where the file is. Turning it on writes a header and the startup block at once.
+- Build check: every compiled script is scanned for a `None` cast or assigned to an array (the 1.1 bug). None found.
+
+Updating from 1.1.1: overwrite the old files. In-place and save-safe.
+
+## 1.1.1
+
+Blood Born Pathogen fix + instant turning. Scripts only (`ODS_Main`, `ODS_MCM`, `ODS_SatAlias`, `ODS_Vamp`); plugin and SkyrimNet pack unchanged.
+
+- **Fix: the pathogen never ran in game.** Every `array == None` check (and `array = None`) compiled to a cast of None to an array type, which the Papyrus VM rejects (`Cannot cast from None to Actor[]`, then `Cannot create an array into a non-array variable`). The pathogen's arrays were never created, so scenes were "tracked" but nothing happened when they ended: no roll, no reason, no infection. Same bug in the Bitch in Heat wolf list and the Saturalia target list. The checks now use `!array`, and arrays are cleared from an unset local. Existing saves recover on the next load.
+- **No incubation from a werewolf, werebear or vampire lord.** When the chance hits at the end of the scene, the partner turns at once: werewolf faction / Growl companion beastblood (followers and spouse too) for lycanthropy, vampire faction + sun damage for vampirism. They can use the SkyrimNet beast-form actions right away. SkyrimNet gets a plain-words event and memory: they feel the hot power in the carrier's cum burning through their body as it turns them, and know who gave it to them through sex.
+- **You, too:** from a werewolf or werebear you turn at once (vanilla Beast Form power); from a vampire lord you become a vampire at once (`PlayerVampireQuest.VampireChange`, Sacrosanct-aware) and get the Dawnguard Vampire Lord power.
+- **New MCM option "Always infect (no chance roll)"** (Blood Born Pathogen, OFF by default): every eligible partner of a werewolf, werebear or vampire lord is turned at the end of the scene without a roll. Immunity, children, the followers / spouse filter, "You can catch it" and the world cap still apply. A vampire in human form still rolls.
+- A vampire in human form still passes the slow disease (NPCs: about 3 game days, Cure Disease stops it; you: vanilla Sanguinare Vampiris).
+
+Updating from 1.1: overwrite the old files. In-place and save-safe.
+
+## 1.1
+
+Blood Born Pathogen for everyone, beast forms through SkyrimNet, blood gift. Scripts (`ODS_Main`, `ODS_MCM`, `ODS_PathoAlias`), one new message record, SkyrimNet pack 1.1.0.
+
+- **Anyone in an OStim scene with a werewolf, vampire lord or werebear may catch it** (or with a werewolf / vampire in human form): your partners, you, and NPCs in scenes of their own (new toggle "NPC scenes without you spread it too", ON). One roll per person against the strongest carrier. Up to 4 scenes tracked at once.
+- **Chances per form** (new sliders): werewolf, vampire lord, werebear (35% each); human-form carrier 10% (the old "chance per partner"). The 1.0 beast-form slider is retired.
+- **World cap** default 10 (was 5 for new installs), checked first when a scene starts.
+- **Immunity** unchanged and applied to everyone: werewolves, vampires and vampire lords (Serana, Harkon, the Circle, Volkihar, Dawnguard, werewolf / vampire factions, Growl beastblood), beast form, already infected. Children always refused.
+- **You can catch it** (new toggle, ON): vampirism = vanilla Sanguinare Vampiris; lycanthropy / werebear blood incubates ~3 game days (Cure Disease potion stops it), then the vanilla Beast Form power and `PlayerIsWerewolf`.
+- **Werebear blood** (kind 3, Dragonborn `DLC2WerebearBeastRace`); werebears count as beast form everywhere.
+- **SkyrimNet actions** `TransformToBeast` / `TransformBack` for NPCs this mod turned (werewolf, vampire lord, werebear) and a character bio section (what they are, from whom, beast form now or not). New toggle "SkyrimNet: turned NPCs change at will", ON. No timer: changed on request = stays until changed back; changed for a fight = back after the fight (the old 30-second change is gone). On load only fight changes whose fight is over are undone.
+- **Blood gift** (no roll, turns at once): SkyrimNet actions `AcceptBloodGift` / `GiveBloodGift`, and a new Blood gift key with a yes / no box (`ODS_BloodGiftChoice`, 0x82D). With Growl, a werewolf gift uses Growl's companion beastblood (0xAA06).
+- **OStim Beast Form 1.0 scenes first:** `OBFWerewolfIdleFM`, `OBFWerewolfIdleFF`, `OBFVampireLordIdleFM` before `OCr*Idle*`.
+- SkyrimNet sees state through StorageUtil (`papyrus_util`), so no Papyrus runs while prompts render.
+- MCM `GetVersion` 14. New settings at the end of `ODS_Main`; 1.0.x infections are migrated on load.
+
+Updating from 1.0.2: overwrite the old files. In-place and save-safe.
+
+## 1.0.2
+
+Blood Born Pathogen diagnostics. Scripts (`ODS_Main`, `ODS_MCM`) plus the plugin description (records and FormIDs unchanged); SkyrimNet pack unchanged.
+
+- **Debug force shows the reason:** while "Blood Born Pathogen (next scene)" is armed, each pathogen result (scene tracked or not, why a partner can't be infected, the roll, the infection) is shown on screen even without Debug notifications. A rejected partner leaves the force armed. The force only skips the chance roll; the MCM text now says so.
+- **MCM > Debug:** force armed yes/no, the last pathogen result, and who is infected.
+- **`ODeadlySkyrim.log`:** every O'Deadly log line is also written (timestamped) to `Data/SKSE/Plugins/ODeadlySkyrim.log` through PapyrusUtil's `MiscUtil.WriteToFile`; toggle "Write ODeadlySkyrim.log" (ON by default).
+- **New log lines:** untracked scenes and why (pathogen or master off while the force is armed, player not in the scene, no lycanthropy / vampirism found), an untracked scene ending while the force is armed, and the former silent returns in `PathoInfect` (no free slot, `ODS_PathoQuest` missing, alias missing).
+- **Timer fix:** `OnUpdateGameTime` no longer drops the game-time timer when OStim is not ready: pathogen stages still advance and it retries in one game hour.
+- **MCM text:** infected or turned NPCs look normal until a fight at night.
+- MCM `GetVersion` 13. New settings at the end of `ODS_Main` (`bLogFile`, `sPathoLast`).
+
+Updating from 1.0.1: overwrite the old files. In-place and save-safe.
+
 ## 1.0.1
 
 Blood Born Pathogen fix. Scripts only (`ODS_Main`, `ODS_MCM`); plugin, records, FormIDs and the SkyrimNet pack are unchanged.
