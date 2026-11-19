@@ -10,6 +10,8 @@
   1.1.5: existing vampire followers (Serana and others), MCM toggle, off by default:
     ODS_VLF        int  1 = this vampire follower may become a vampire lord (BecomeVampireLord)
     ODS_VLFOn      int (global) 1 = toggle on
+  1.1.8: lore beasts (Serana, the living Circle leaders) also have ODS_BeastKind set, with
+    ODS_BeastFrom empty (they already are what they are; the blood did not come from a partner).
 #}
 {% if actorUUID != player.UUID %}
 {% set bk = papyrus_util("GetIntValue", actorUUID, "ODS_BeastKind", 0) %}

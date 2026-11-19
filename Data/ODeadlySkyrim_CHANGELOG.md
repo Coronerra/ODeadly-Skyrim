@@ -2,6 +2,21 @@
 
 By That Guy (Coronerra).
 
+## 1.1.8
+
+When OStim Beast Form is installed, Serana and the living Companions Circle leaders already have O'Deadly's transform ability. Scripts only (`ODS_Main`, `ODS_MCM`) plus a short SkyrimNet bio comment and manifest 1.1.8. The plugin is unchanged, and every record and FormID is kept.
+
+- Soft detection of OStim Beast Form (`OStim_Beast_Form_Merged.esp` or `OStim_Beast_Form_TWO.esp`), same as the rest of the Beast Form page. No new masters.
+- **Serana** (Dawnguard `DLC1SeranaRef` 0x00002B74, base 0x00002B6C) is given vampire lord carrier data. **Kodlak Whitemane**, **Skjor**, **Aela the Huntress**, **Farkas** and **Vilkas** (their Skyrim.esm placed refs) are given werewolf carrier data. They can change through SkyrimNet (`TransformToBeast` / `TransformBack`) and get the beast skin swap, immunity and carrier type, as if already turned by Blood Born Pathogen.
+- O'Deadly only writes its own data (the pathogen aliases, StorageUtil keys, SkyrimNet bio). It does **not** add or remove quest factions, change their race, add vanilla or Growl spells, or touch vanilla scripts. **Harkon is never touched.**
+- Dead actors are skipped (Kodlak and Skjor after they die in the questline). Kodlak is still given the ability if he is alive, including after being cured in vanilla.
+- MCM > Beast Form: **"Lore beasts start transformed-capable"** (ON by default). It only does anything when Beast Form is detected. Turning it off removes only O'Deadly's data. Logged to `ODeadlySkyrim.log`.
+- They do not change in night fights on their own (quest safety). Blood Born Pathogen can stay off: SkyrimNet change-at-will still works for these six when the master switch and "turned NPCs change at will" are on.
+- Lore slots are not counted against the world cap, but they still use the ten aliases, so at most ten tracked NPCs in total. Already-tracked NPCs are left as they are. Idempotent on load. "Cure everyone" does not undo their vanilla factions, spells or race.
+- Build check: every compiled script was scanned for a `None` cast or assigned to an array. None found.
+
+Updating from 1.1.7: overwrite the old files. In-place and save-safe.
+
 ## 1.1.7
 
 There are no O'Deadly popups at OStim scene start. Scripts only (`ODS_Main`, `ODS_MCM`). The plugin and SkyrimNet pack are unchanged, and every record and FormID is kept.

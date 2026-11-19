@@ -2,13 +2,15 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v1.1.7**
+**v1.1.8**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v1.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1)** · [Changelog](CHANGELOG.md) · [Earlier v1.0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.2) · [v1.0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.1) · [v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0) · [v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v1.1.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1.7)** · [Changelog](CHANGELOG.md) · [Earlier v1.0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.1) · [v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0) · [v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
+
+Version 1.1.8 (`ODeadly_Skyrim_1.1.8.zip`) gives Serana the ability to change into a vampire lord, and Kodlak, Skjor, Aela, Farkas and Vilkas the ability to change into werewolves, as soon as OStim Beast Form is installed. O'Deadly only adds its own transform data; it does not change their quest factions, races or vanilla scripts, and it never touches Harkon. See [New in 1.1.8](#new-in-118-lore-beasts-start-transformed-capable).
 
 Version 1.1.7 (`ODeadly_Skyrim_1.1.7.zip`) keeps every O'Deadly message at OStim scene start out of the way: "X has seen you…" (Caught) and "You feel eyes on you…" (Watched from a distance) are now always corner notifications, never a message box, whatever the MCM message style.
 
@@ -73,6 +75,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
+- [New in 1.1.8](#new-in-118-lore-beasts-start-transformed-capable)
 - [New in 1.1.5](#new-in-115-bitch-in-heat-for-every-beast-growl-and-sacrosanct)
 - [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form)
 - [New in 0.9](#new-in-09-savior-complex-and-killer-rabbit-vs-vigilants)
@@ -214,6 +217,7 @@ If you have SkyrimNet beta 29 or newer, the MCM "This location" page can use Sky
 | Werewolves at night (1.0) | OFF, locked without OStim Beast Form | 3% per night hour / wait hour on a wilderness road. Travelers and companions ON, player OFF. Watch or rescue. |
 | Beast form choices (1.0) | OFF, locked without OStim Beast Form | 50% per transformation: take a beaten bandit, or claim a willing spouse / companion. |
 | Bitch in Heat (1.0) | OFF, locked without OStim Beast Form | 25% per scene between a male in full beast form (werewolf, werebear or vampire lord, 1.1.5) and a human with you in it: 1-3 more join (1.1.6: set in the MCM ahead of time, "How many join", default random 1-3; no in-game box). |
+| Lore beasts (1.1.8) | ON, does nothing without OStim Beast Form | Serana can change into a vampire lord at once; Kodlak, Skjor, Aela, Farkas and Vilkas can change into werewolves at once (SkyrimNet, same as NPCs this mod turned). Data only: no quest faction, race or vanilla script changes. Dead Companions skipped. Harkon never touched. |
 | Blood Born Pathogen (1.0, 1.1) | OFF | Anyone in a scene with a werewolf, vampire lord or werebear: 35% per form in beast form, 10% from a carrier in human form. Followers and spouse only by default (any NPC option); world cap 10; NPC scenes and you catching it ON. 1.1.1: turns at once from a werewolf, werebear or vampire lord; 'Always infect (no chance roll)' OFF; ~3 days incubation only from a human-form vampire (Cure Disease stops it). SkyrimNet beast forms ON. |
 | Saturalia (1.0) | OFF, locked without the Saturalia Holiday Pack | Countdown 22-24 Evening Star; on the 25th Agrane Peryval hands out gifts in towns and inns (3 visits). |
 | Vampire seduction | OFF | |
@@ -343,6 +347,19 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
+
+## New in 1.1.8 (lore beasts start transformed-capable)
+
+Needs **OStim Beast Form**. Blood Born Pathogen can stay off.
+
+- MCM > Beast Form: **"Lore beasts start transformed-capable"** (ON by default). Locked off without Beast Form.
+- **Serana** can change into a vampire lord at once. **Kodlak Whitemane**, **Skjor**, **Aela the Huntress**, **Farkas** and **Vilkas** can change into werewolves at once. They use the same SkyrimNet actions as NPCs this mod turned (`TransformToBeast` / `TransformBack`), including the beast skin swap, and they count as carriers (and are immune) if Blood Born Pathogen is on.
+- O'Deadly only writes its own transform data. It does not change their quest factions, races or vanilla scripts, and it does not add Growl or vanilla spells. **Harkon is never touched.**
+- Dead actors are skipped (Kodlak and Skjor once they die in the questline). Kodlak is still given the ability if he is alive, even after being cured in vanilla.
+- They do not change in night fights on their own. Turning the option off removes only O'Deadly's data. "Cure everyone" also leaves their vanilla state alone.
+- They use the existing ten infected-NPC aliases and are not counted against the world cap, but the hard limit of ten tracked NPCs still applies.
+
+Updating from 1.1.7: overwrite the old files. In-place and save-safe. The plugin is unchanged.
 
 ## New in 1.1.5 (Bitch in Heat for every beast, Growl and Sacrosanct)
 
@@ -552,7 +569,7 @@ Two listeners, not new encounter modules: O'Deadly does not start, stop or chang
 
 ## MCM pages
 
-General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships (now with Join in) — Jail & inns (now with the shared room option) — Danger (now with follower rescue, Savior Complex, and Killer Rabbit vs Vigilants) — Creatures (now with wild creatures) — Beast Form (1.0) — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
+General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers) — Night attacks — Relationships (now with Join in) — Jail & inns (now with the shared room option) — Danger (now with follower rescue, Savior Complex, and Killer Rabbit vs Vigilants) — Creatures (now with wild creatures) — Beast Form (1.0; 1.1.8 lore beasts) — More encounters (morning after, bathing, watched, Dark Gift, and the climax fauna easter egg at the very bottom) — This location — Protected followers — Debug.
 
 ## Test checklist
 
@@ -573,13 +590,14 @@ General (master switch, panic key, installed mods, scenes, SkyrimNet, modifiers)
 15. 1.0 Blood Born Pathogen: as a werewolf or vampire, turn it on (More encounters), press Debug > "Blood Born Pathogen" and finish a scene with a follower. Wait or sleep through about 3 game days and confirm the symptom narration names you, that a Cure Disease potion given during that time stops it, and (lycanthropy) that they change in a night fight and change back after about 30 seconds.
 16. 1.0 Saturalia (Saturalia Holiday Pack): turn it on, stand in a town or inn with adults around and press Debug > "Saturalia gift visit". Agrane should walk up from out of sight and hand out gifts, then be back at his camp a couple of game hours later.
 17. Check the Papyrus log for `[ODeadlySkyrim]` lines.
+18. 1.1.8 lore beasts (OStim Beast Form installed): with the master on and "Lore beasts start transformed-capable" on, load a save where Serana and the Companions are alive. Confirm `ODeadlySkyrim.log` has `lore beasts:` lines, that SkyrimNet offers TransformToBeast, that they change and change back, and that their quest factions and race are unchanged. Confirm a dead Kodlak or Skjor is skipped, and that turning the option off only removes O'Deadly's data.
 
 ## Troubleshooting / log files
 
 O'Deadly writes its own log, so you do not need to turn on Papyrus logging:
 
 - **Where:** `Data/SKSE/Plugins/ODeadlySkyrim.log`. With MO2 it lands in `overwrite/SKSE/Plugins/ODeadlySkyrim.log` (Vortex / manual: the game's `Data/SKSE/Plugins`).
-- **What it records:** a header every game load (version, game time, real date and time on each line); a startup block a few seconds after loading (SKSE, PapyrusUtil, OStim, powerofthree's Papyrus Extender, JContainers, SkyrimNet, OCreatures, OCum, OStim Beast Form and its scenes, Growl, Dirt and Blood, Bathing in Skyrim, the defeat mods and the other optional mods it found, which modules are on, Blood Born Pathogen settings, SkyrimNet settings); then one line per event: rest rolls, each event staged / started / skipped and why, defeat, ambushes, jail, join in, wild creatures, Bitch in Heat, Saturalia, follower rescue, Blood Born Pathogen (tracking, rolls, reasons, infections, changes), SkyrimNet actions (`TransformToBeast`, `TransformBack`, `AcceptBloodGift`, `GiveBloodGift`) and why one was ignored, SkyrimNet narration and memories, panic key.
+- **What it records:** a header every game load (version, game time, real date and time on each line); a startup block a few seconds after loading (SKSE, PapyrusUtil, OStim, powerofthree's Papyrus Extender, JContainers, SkyrimNet, OCreatures, OCum, OStim Beast Form and its scenes, Growl, Dirt and Blood, Bathing in Skyrim, the defeat mods and the other optional mods it found, which modules are on, Blood Born Pathogen settings, SkyrimNet settings); then one line per event: rest rolls, each event staged / started / skipped and why, defeat, ambushes, jail, join in, wild creatures, Bitch in Heat, Saturalia, follower rescue, Blood Born Pathogen (tracking, rolls, reasons, infections, changes), 1.1.8 lore beasts (who was given transform data, skipped because dead, or left already tracked), SkyrimNet actions (`TransformToBeast`, `TransformBack`, `AcceptBloodGift`, `GiveBloodGift`) and why one was ignored, SkyrimNet narration and memories, panic key.
 - **MCM:** O'Deadly Skyrim > Debug > **Write log file** (ON by default). Turn it off and nothing is written.
 - **Size:** one line per event, nothing per frame. The file starts over after 10 game loads (a small counter in `SKSE/Plugins/StorageUtilData/ODeadlySkyrim_log.json`), and one game load writes at most 3000 lines.
 - **Needs PapyrusUtil** (already required). Without it nothing is written and nothing errors.
@@ -607,7 +625,7 @@ O'Deadly writes its own log, so you do not need to turn on Papyrus logging:
 - Wild creatures and werewolves need installed scenes for the exact pair; no scene means nothing happens and the spawns are removed. The werewolf is a vanilla werewolf template; if it does not come out in beast form on your setup, the event is skipped.
 - Beast form choices appear a few seconds after the transformation, once you are out of combat. Vanilla beast form has a timer; if you change back mid-scene, how that plays is up to OStim Beast Form.
 - Bitch in Heat needs a scene for that exact cast (werewolves first, the human last). The walk-in is capped at 25 seconds; after that OStim places everyone. The newcomers walk off after the scene and are removed once out of sight (at the latest after half a game hour).
-- Blood Born Pathogen: the werewolf change is a direct race change without a transformation animation, and how armor looks during it depends on your body and Beast Form setup. 1.1.3: an NPC with its own skin gets the beast race's skin while changed and its own skin back afterwards; if a turned NPC still shows only a head, check `ODeadlySkyrim.log` for the `skin:` lines. Vampires get no eye change and no vampire lord form. Followers with Growl use Growl's own beastblood for fight changes (1.1.4: O'Deadly still gives them the beast body and handles SkyrimNet changes). Up to 10 infected NPCs at a time.
+- Blood Born Pathogen: the werewolf change is a direct race change without a transformation animation, and how armor looks during it depends on your body and Beast Form setup. 1.1.3: an NPC with its own skin gets the beast race's skin while changed and its own skin back afterwards; if a turned NPC still shows only a head, check `ODeadlySkyrim.log` for the `skin:` lines. Vampires get no eye change and no vampire lord form. Followers with Growl use Growl's own beastblood for fight changes (1.1.4: O'Deadly still gives them the beast body and handles SkyrimNet changes). Up to 10 infected NPCs at a time. 1.1.8 lore beasts (Serana and the living Circle leaders) use those same ten aliases but are not counted against the world cap; O'Deadly never changes their quest factions, races or vanilla scripts, and never touches Harkon.
 - Saturalia: Agrane is placed on the navmesh just out of sight; in small interiors he may appear in the next room. If a fight starts he stops handing out gifts.
 - Killer Rabbit vs Vigilants is locked without Mihail's The Killer Rabbit of Caerbannog. The rabbit is as strong as his race makes it; two generic Vigilants are expected to lose without help.
 

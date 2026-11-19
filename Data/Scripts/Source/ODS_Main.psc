@@ -544,6 +544,7 @@ Function OnGameLoaded()
 	PathoOnLoad()
 	PathoSkinOnLoad()    ; 1.1.3: skin swaps are not saved by the game, put them back
 	VLFOnLoad()          ; 1.1.5: vampire followers as vampire lords (skin again, SkyrimNet marks)
+	LoreBeastsSync()     ; 1.1.8: Serana / Companions transform data when Beast Form is present
 	SatOnLoad()          ; 1.0 Saturalia
 	If bRescueOn
 		RescueRelease(false)
@@ -9064,6 +9065,10 @@ Function PathoInitArrays()
 		iPTKind = new int[20]
 		bPTBeast = new bool[20]
 	EndIf
+	If bPathoLore.Length != 10
+		bool[] tLore = new bool[10]
+		bPathoLore = tLore
+	EndIf
 EndFunction
 
 string Function PlayerName()
@@ -9348,8 +9353,11 @@ string Function PathoWhyNot2(Actor a, bool deliberate)
 		return "already infected by this mod"
 	EndIf
 	int cap = PathoCapNow()
-	If PathoCount() >= cap
+	If PathoRegularCount() >= cap
 		return "limit reached (" + cap + " infected)"
+	EndIf
+	If kPatho.Find(None) < 0
+		return "no free slot (all 10 aliases in use, including lore beasts)"
 	EndIf
 	If a.IsDead()
 		return "dead"
@@ -9957,6 +9965,9 @@ Function PathoClear(int i)
 	iPathoMode[i] = 0
 	kPathoSrc[i] = None
 	iPathoWhy[i] = 0
+	If bPathoLore.Length == 10
+		bPathoLore[i] = false
+	EndIf
 EndFunction
 
 ; alias: a Cure Disease potion was handed over during incubation
@@ -10029,6 +10040,9 @@ Function PathoCombat(int i, Actor a, int st)
 	EndIf
 	If bPathoChanged[i]
 		return
+	EndIf
+	If bPathoLore.Length == 10 && bPathoLore[i]
+		return            ; 1.1.8: lore beasts only change when asked, never mid-fight on their own
 	EndIf
 	If !bPatho || !bMaster || !bPathoTransform || iPathoKind[i] == 2 || iPathoStage[i] < 3 || iPathoMode[i] != 0
 		return
@@ -10119,7 +10133,8 @@ EndFunction
 ; ---------- SkyrimNet actions (YAML in coronerra.odeadly/actions; run on the Papyrus VM, short) ----------
 Function SNTransformToBeast(Actor akSpeaker)
 	int i = PathoIndex(akSpeaker)
-	If i < 0 || !bPatho || !bMaster || !bPathoSNetForms
+	bool loreOK = i >= 0 && bPathoLore.Length == 10 && bPathoLore[i] && bLoreBeasts && BeastFormOK()
+	If i < 0 || iPathoStage[i] < 3 || !bMaster || !bPathoSNetForms || (!bPatho && !loreOK)
 		Log("SkyrimNet action TransformToBeast (" + NameOf(akSpeaker) + ") ignored: not turned by this mod, or pathogen / master / 'change at will' off")
 		return
 	EndIf
@@ -10364,13 +10379,14 @@ Function PathoSyncGlobals()
 	Else
 		StorageUtil.UnsetIntValue(None, "ODS_VLFOn")
 	EndIf
+	; 1.1.8: lore beasts can use TransformToBeast even when Blood Born Pathogen is off
+	If bMaster && bPathoSNetForms && (bPatho || (bLoreBeasts && BeastFormOK()))
+		StorageUtil.SetIntValue(None, "ODS_FormsOn", 1)
+	Else
+		StorageUtil.UnsetIntValue(None, "ODS_FormsOn")
+	EndIf
 	If bPatho && bMaster
 		StorageUtil.SetIntValue(None, "ODS_PathoOn", 1)
-		If bPathoSNetForms
-			StorageUtil.SetIntValue(None, "ODS_FormsOn", 1)
-		Else
-			StorageUtil.UnsetIntValue(None, "ODS_FormsOn")
-		EndIf
 		int k = 0
 		If PlayerHasLycanthropy() || PlayerHasVampirism()
 			k = PlayerDiseaseKind()
@@ -10382,7 +10398,6 @@ Function PathoSyncGlobals()
 		EndIf
 	Else
 		StorageUtil.UnsetIntValue(None, "ODS_PathoOn")
-		StorageUtil.UnsetIntValue(None, "ODS_FormsOn")
 		StorageUtil.UnsetIntValue(None, "ODS_PlayerBlood")
 	EndIf
 EndFunction
@@ -10590,7 +10605,7 @@ Function PathoCureAll()
 	int i = 0
 	While i < 10
 		Actor a = kPatho[i]
-		If a && iPathoStage[i] >= 3
+		If a && iPathoStage[i] >= 3 && !(bPathoLore.Length == 10 && bPathoLore[i])
 			If iPathoKind[i] != 2
 				If wf
 					a.RemoveFromFaction(wf)
@@ -10641,6 +10656,9 @@ string Function PathoListText()
 			ElseIf bPathoChanged[i]
 				st = "turned, in beast form"
 			EndIf
+			If bPathoLore.Length == 10 && bPathoLore[i]
+				st = "lore, " + st
+			EndIf
 			s += kPatho[i].GetDisplayName() + " (" + DiseaseWord(iPathoKind[i]) + ", " + st + ")"
 		EndIf
 		i += 1
@@ -10678,7 +10696,7 @@ EndFunction
 ; PapyrusUtil soft dependency: without it nothing is written and nothing errors. Light: a header
 ; per game load, one line per event, no polling. The file restarts after LOG_SESSIONS game loads
 ; (counter in StorageUtilData/ODeadlySkyrim_log.json) and each session stops at LOG_LINES_MAX lines.
-string Property ODS_VERSION = "1.1.7" AutoReadOnly
+string Property ODS_VERSION = "1.1.8" AutoReadOnly
 string Property LOG_STATE = "ODeadlySkyrim_log" AutoReadOnly
 int Property LOG_SESSIONS = 10 AutoReadOnly
 int Property LOG_LINES_MAX = 3000 AutoReadOnly
@@ -10800,6 +10818,7 @@ Function LogStartup()
 	Log("startup: on: creatures " + OnOff(bCrEnabled) + " | wild creatures " + OnOff(bCrWild) + " | werewolf at night " + OnOff(bWolfNight) + " | beast form offers " + OnOff(bBeastOffer) + " | Bitch in Heat " + OnOff(bHeat) + " (how many join " + HeatJoinText() + ", no in-game box)" + " | Saturalia " + OnOff(bSaturalia) + " | follower rescue " + OnOff(bRescue) + " | join in " + OnOff(bJoinIn) + " | morning after " + OnOff(bMorningAfter) + " | bathing " + OnOff(bBath) + " | inn share " + OnOff(bInnShare) + " | watched " + OnOff(bWatched) + " | dark gift " + OnOff(bDarkGift))
 	Log("startup: pathogen " + OnOff(bPatho) + " | always infect " + OnOff(bPathoAlways) + " | chances WW " + fPathoWWChance + " VL " + fPathoVLChance + " bear " + fPathoBearChance + " human-form " + fPathoChance + " | any NPC " + OnOff(bPathoAnyNPC) + " | NPC scenes " + OnOff(bPathoNPCs) + " | you can catch it " + OnOff(bPathoPlayerCatch) + " | SkyrimNet change at will " + OnOff(bPathoSNetForms) + " | cap " + iPathoCap)
 	Log("startup: 1.1.5 soft: Growl " + YesNo(GrowlOK()) + " (" + GrowlTotemText() + ") | Sacrosanct " + YesNo(SacrosanctOK()) + " (race change " + OnOff(bSacRace) + ") | Beast Form werebears use werewolf scenes " + YesNo(HeatBearAsWolf()) + " | werebear pool " + YesNo(WerebearRace() != None) + " | vampire lord race " + YesNo(VampireLordRace() != None) + " | vampire followers can become vampire lords " + OnOff(bVLFollowers))
+	Log("startup: 1.1.8 lore beasts " + OnOff(bLoreBeasts) + " (needs OStim Beast Form " + YesNo(BeastFormOK()) + "; Serana = vampire lord, Kodlak / Skjor / Aela / Farkas / Vilkas = werewolf; dead skipped; Harkon never touched)")
 	Log("startup: SkyrimNet narration " + OnOff(bSkyrimNetStart) + " | memories " + OnOff(bSkyrimNetLog) + " | bio check " + OnOff(bBioCheck) + " | morality filter " + OnOff(bMoralityFilter) + " | cooldown " + fCooldownHours + " h | player can be a victim " + OnOff(bPlayerVictim) + " | debug notifications " + OnOff(bDebug))
 EndFunction
 
@@ -10809,6 +10828,7 @@ EndFunction
 ; =====================================================================================
 bool Property bSacRace = false Auto Hidden        ; Sacrosanct found: turned NPCs also get its vampire race
 bool Property bVLFollowers = false Auto Hidden    ; existing vampire followers can become vampire lords
+bool Property bLoreBeasts = true Auto Hidden      ; 1.1.8: Serana / Companions start transform-capable (needs Beast Form)
 
 Actor[] kVLF
 Race[] kVLFRace
@@ -11189,3 +11209,162 @@ Function VLFOnLoad()
 EndFunction
 
 ; OnRaceSwitchComplete is not watched for these; a change from another mod is caught on the next action/load
+
+; =====================================================================================
+; 1.1.8: lore beasts. When OStim Beast Form is present, Serana and the living Companions
+; Circle leaders get O'Deadly's own transform data only (carrier, immunity, SkyrimNet
+; change at will, beast skin swap). No quest factions, no permanent race change, no
+; vanilla spells or scripts, and Harkon is never touched.
+; =====================================================================================
+bool[] bPathoLore          ; true = this slot is a lore starter (Cure everyone must not undo vanilla state)
+
+int Function PathoRegularCount()
+	PathoInitArrays()
+	int n = 0
+	int i = 0
+	While i < 10
+		If kPatho[i]
+			If bPathoLore.Length != 10 || !bPathoLore[i]
+				n += 1
+			EndIf
+		EndIf
+		i += 1
+	EndWhile
+	return n
+EndFunction
+
+; persistent unique refs: Serana is DLC1SeranaRef 0x2B74 (base DLC1Serana 0x2B6C).
+; Companions use their Skyrim.esm placed refs, not the actor bases.
+Actor Function LoreActorOf(string plugin, int refId, int baseId)
+	If !ModLoaded(plugin)
+		return None
+	EndIf
+	Actor a = Game.GetFormFromFile(refId, plugin) as Actor
+	If a
+		return a
+	EndIf
+	return Game.GetFormFromFile(baseId, plugin) as Actor
+EndFunction
+
+bool Function LoreBeastRegister(Actor a, int kind, string label)
+	PathoInitArrays()
+	int i = kPatho.Find(None)
+	If i < 0
+		Log("lore beasts: " + label + " (" + NameOf(a) + ") not added: no free slot (all 10 in use)")
+		return false
+	EndIf
+	If ODS_PathoQuest == None
+		Log("lore beasts: " + label + " (" + NameOf(a) + ") not added: ODS_PathoQuest missing")
+		return false
+	EndIf
+	If !ODS_PathoQuest.IsRunning()
+		ODS_PathoQuest.Start()
+		If !ODS_PathoQuest.IsRunning()
+			Log("lore beasts: ODS_PathoQuest did not start (continuing; the alias only watches for Cure Disease)")
+		EndIf
+	EndIf
+	ODS_PathoAlias al = PathoAlias(i)
+	If al == None
+		Log("lore beasts: " + label + " (" + NameOf(a) + ") not added: alias Infected" + (i + 1) + " missing or without its ODS_PathoAlias script")
+		return false
+	EndIf
+	; If this actor is mid vampire-lord change through the follower path, leave that path alone.
+	VLFInit()
+	If kVLF.Length == 5
+		int s = kVLF.Find(a)
+		If s >= 0 && bVLFChanged[s]
+			Log("lore beasts: " + NameOf(a) + " is already a vampire lord through the follower path - skipped this load")
+			return false
+		EndIf
+	EndIf
+	kPatho[i] = a
+	iPathoKind[i] = kind
+	iPathoStage[i] = 3
+	fPathoStart[i] = Utility.GetCurrentGameTime()
+	kPathoRace[i] = None
+	kPathoSkin[i] = None
+	bPathoSkinSwap[i] = false
+	bPathoFirst[i] = false
+	bPathoChanged[i] = false
+	bPathoBusy[i] = false
+	fPathoCD[i] = 0.0
+	iPathoMode[i] = 0
+	kPathoSrc[i] = None
+	iPathoWhy[i] = 0
+	bPathoLore[i] = true
+	al.ForceRefTo(a)
+	al.Watch(CurePotion())
+	PathoSetKeys(i)
+	If SNetOK()
+		SkyrimNetApi.UpdateActorDynamicBio(a)
+	EndIf
+	Log("lore beasts: " + NameOf(a) + " given O'Deadly " + FormWord(kind) + " transform data (carrier, immune, SkyrimNet change at will; no faction, race or vanilla script changes)")
+	return true
+EndFunction
+
+Function LoreBeastTry(string label, string plugin, int refId, int baseId, int kind)
+	Actor a = LoreActorOf(plugin, refId, baseId)
+	If a == None
+		Log("lore beasts: " + label + " not found in " + plugin + " - skipped")
+		return
+	EndIf
+	If a.IsDead()
+		int d = PathoIndex(a)
+		If d >= 0 && bPathoLore.Length == 10 && bPathoLore[d]
+			PathoClear(d)
+			Log("lore beasts: " + NameOf(a) + " is dead - O'Deadly data cleared")
+		Else
+			Log("lore beasts: " + NameOf(a) + " is dead - skipped")
+		EndIf
+		return
+	EndIf
+	int i = PathoIndex(a)
+	If i >= 0
+		If bPathoLore.Length == 10 && bPathoLore[i]
+			PathoSetKeys(i)
+			Log("lore beasts: " + NameOf(a) + " already has O'Deadly " + FormWord(iPathoKind[i]) + " data - left as is")
+		Else
+			Log("lore beasts: " + NameOf(a) + " already tracked by the pathogen - left as is")
+		EndIf
+		return
+	EndIf
+	LoreBeastRegister(a, kind, label)
+EndFunction
+
+Function LoreBeastsClear()
+	PathoInitArrays()
+	If bPathoLore.Length != 10
+		return
+	EndIf
+	int i = 0
+	While i < 10
+		If bPathoLore[i]
+			Actor a = kPatho[i]
+			string nm = NameOf(a)
+			If a && bPathoChanged[i]
+				PathoRevert(i)
+			EndIf
+			PathoClear(i)
+			Log("lore beasts: " + nm + " O'Deadly transform data removed (toggle off or no Beast Form)")
+		EndIf
+		i += 1
+	EndWhile
+EndFunction
+
+; game load and MCM: idempotent. Only O'Deadly data; never Harkon.
+Function LoreBeastsSync()
+	PathoInitArrays()
+	If !bLoreBeasts || !BeastFormOK()
+		LoreBeastsClear()
+		PathoSyncGlobals()
+		return
+	EndIf
+	LoreBeastTry("Serana", "Dawnguard.esm", 0x00002B74, 0x00002B6C, 2)
+	LoreBeastTry("Kodlak Whitemane", "Skyrim.esm", 0x0001A68F, 0x0001A68E, 1)
+	LoreBeastTry("Skjor", "Skyrim.esm", 0x0001A691, 0x0001A690, 1)
+	LoreBeastTry("Aela the Huntress", "Skyrim.esm", 0x0001A697, 0x0001A696, 1)
+	LoreBeastTry("Farkas", "Skyrim.esm", 0x0001A693, 0x0001A692, 1)
+	LoreBeastTry("Vilkas", "Skyrim.esm", 0x0001A695, 0x0001A694, 1)
+	PathoSyncGlobals()
+	VLFScan()
+EndFunction

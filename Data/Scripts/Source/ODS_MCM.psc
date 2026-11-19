@@ -1,5 +1,5 @@
 Scriptname ODS_MCM extends SKI_ConfigBase
-{O'Deadly Skyrim v1.1.7 MCM (SkyUI). By That Guy (Coronerra).}
+{O'Deadly Skyrim v1.1.8 MCM (SkyUI). By That Guy (Coronerra).}
 
 ODS_Main Property Main Auto
 
@@ -60,12 +60,12 @@ int oForceSavior
 int oForceBunnyFight
 
 int Function GetVersion()
-	return 14
+	return 15
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11), pathogen notify / protected options (v12), pathogen diagnostics + log file (v13), 1.1 pathogen for everyone + SkyrimNet beast forms + blood gift (v14)
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11), pathogen notify / protected options (v12), pathogen diagnostics + log file (v13), 1.1 pathogen for everyone + SkyrimNet beast forms + blood gift (v14), 1.1.8 lore beasts (v15)
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -368,6 +368,8 @@ bool Function GetB(string k)
 		return Main.bSacRace
 	ElseIf k == "vlf"
 		return Main.bVLFollowers
+	ElseIf k == "lorebeasts"
+		return Main.bLoreBeasts
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		return Main.bCrType[StringUtil.Substring(k, 2) as int]
 	EndIf
@@ -597,6 +599,8 @@ Function SetB(string k, bool v)
 		Main.bSacRace = v
 	ElseIf k == "vlf"
 		Main.bVLFollowers = v
+	ElseIf k == "lorebeasts"
+		Main.bLoreBeasts = v
 	ElseIf StringUtil.Substring(k, 0, 2) == "ct"
 		Main.bCrType[StringUtil.Substring(k, 2) as int] = v
 	EndIf
@@ -1495,6 +1499,11 @@ Function PageBeast()
 	AddS("Chance per beast-form scene", "heatch", Flag(h))
 	AddS("How many join (0 = random 1-3)", "heatjoin", Flag(h))
 	AddTextOption("  Werebears use werewolf scenes (Beast Form)", YesNo(Main.HeatBearAsWolf()), OPTION_FLAG_DISABLED)
+	AddHeaderOption("Lore beasts")
+	If !Main.BeastFormOK()
+		AddTextOption("Needs OStim Beast Form", "", OPTION_FLAG_DISABLED)
+	EndIf
+	AddT("Lore beasts start transformed-capable", "lorebeasts", Flag(Main.BeastFormOK()))
 EndFunction
 
 ; 0.2 modules, one column, top to bottom. The climax fauna easter egg is deliberately the last module.
@@ -1816,6 +1825,9 @@ Event OnOptionSelect(int o)
 			EndIf
 			Main.PathoSyncGlobals()
 			Main.VLFScan()              ; 1.1.5: marks vampire followers nearby for SkyrimNet
+		EndIf
+		If k == "lorebeasts"
+			Main.LoreBeastsSync()       ; 1.1.8: add or remove O'Deadly data only
 		EndIf
 		If k == "jail" || k == "travel" || k == "cr" || k == "crwild" || k == "wolfnight"
 			If Main.bMaster
@@ -2271,6 +2283,8 @@ string Function Hint(string k)
 		return "1.1. ON (default): you can catch it from a partner who is a werewolf, vampire lord, werebear or vampire. 1.1.1: from a werewolf or werebear you turn at once (vanilla Beast Form power); from a vampire lord you become a vampire at once (VampireChange, Sacrosanct-aware, plus the Vampire Lord power); from a vampire in human form it is the vanilla Sanguinare Vampiris. Never if you already are one."
 	ElseIf k == "sacrace"
 		return "1.1.5. OFF (default). Needs Sacrosanct. ON: an NPC this mod turns into a vampire also gets Sacrosanct's matching vampire race (NordRace -> NordRaceVampire and so on). Skipped (and logged) when the NPC's own skin has no body for that race. Taken back by 'Cure everyone'. With Sacrosanct, turned vampires always get its NPC treatment (VampireVampirism, sun damage, resistances, drain by level) without the Foster Childe message."
+	ElseIf k == "lorebeasts"
+		return "1.1.8. ON (default). Only does anything when OStim Beast Form is installed. Serana can change into a vampire lord at once, and Kodlak, Skjor, Aela, Farkas and Vilkas can change into werewolves at once, through SkyrimNet (same as NPCs this mod turned). O'Deadly only adds its own transform data: change at will, skin swap, carrier and immunity. It does not change their quest factions, races or vanilla scripts. Dead Companions are skipped. Harkon is never touched. They do not change in night fights on their own. Turning this off removes only O'Deadly's data."
 	ElseIf k == "vlf"
 		return "1.1.5. OFF (default). Needs Dawnguard and SkyrimNet. ON: followers who already are vampires (Serana and others) can change into a vampire lord through SkyrimNet when you ask or when it fits, and back when asked. A follower with their own body skin wears the vampire lord skin while changed."
 	ElseIf k == "pathosnet"

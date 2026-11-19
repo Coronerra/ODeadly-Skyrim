@@ -143,6 +143,20 @@ All new settings, `Message` properties and runtime variables are declared at the
 - Blood gift: `PathoGiftTo(a)` -> `PathoInfect(a, kind, PlayerRef, gift=true)` -> stage 3 + `PathoTurn` (Growl `0xAA06` for any werewolf / werebear gift). Key `iBloodGiftKey` (registered with the panic key) + `ODS_BloodGiftChoice`.
 - `BFStartFor`: `OBFWerewolfIdleFM` / `OBFWerewolfIdleFF` / `OBFVampireLordIdleFM` first, `OCr*Idle*` as `alt`.
 
+### 1.1.8 Lore beasts start transformed-capable (`ODS_Main`, `ODS_MCM`; SkyrimNet pack comment / manifest 1.1.8)
+
+`bLoreBeasts` (default ON, declared after `bVLFollowers` for save safety). MCM GetVersion 15. Only runs when `BeastFormOK()` (`OStim_Beast_Form_Merged.esp` or `OStim_Beast_Form_TWO.esp`). No new plugin masters. The ESP is unchanged.
+
+`LoreBeastsSync()` on game load (after `VLFOnLoad`) and when the MCM toggle changes. Idempotent. Soft `Game.GetFormFromFile` lookups, missing/dead handled and logged (`lore beasts:` in `ODeadlySkyrim.log`):
+
+- Serana: Dawnguard.esm `DLC1SeranaRef` 0x00002B74 (Actor), base `DLC1Serana` 0x00002B6C. Kind 2 (vampire lord).
+- Kodlak Whitemane 0x0001A68F / base 0x0001A68E, Skjor 0x0001A691 / 0x0001A690, Aela 0x0001A697 / 0x0001A696, Farkas 0x0001A693 / 0x0001A692, Vilkas 0x0001A695 / 0x0001A694, all Skyrim.esm placed refs. Kind 1 (werewolf).
+- Harkon is never looked up or changed.
+
+Registration writes O'Deadly data only into the existing `kPatho` / `ODS_PathoQuest` slots: stage 3, `iPathoMode` 0, `bPathoLore` true, `kPathoSrc` None (bio has no "blood came from"), `PathoSetKeys` (`ODS_BeastKind`). It does **not** call `PathoTurn2` / `PathoVampirize` / `PathoSacRace`, does not add or remove factions or spells, and does not `SetRace` except later, temporarily, if they actually change through SkyrimNet (`PathoChangeTo` / `PathoRevert` / skin swap). `PathoCureAll` and turning the toggle off only `PathoClear` lore slots (after a revert if we had changed them). Dead lore actors are cleared and skipped. Already-tracked non-lore entries are left alone.
+
+`PathoRegularCount()` excludes lore slots from the world cap; a full alias table still blocks new infections. Lore beasts do not auto-change in night fights (`PathoCombat`). `SNTransformToBeast` and `ODS_FormsOn` work for lore beasts when the master switch and `bPathoSNetForms` are on, even if `bPatho` is off. `VLFScan` afterwards drops Serana from the 1.1.5 vampire-follower marks if she is now a lore carrier (and she is skipped this load if she is mid-change on that path).
+
 ## 6. Known limits
 
 - No hook for vanilla arrest dialogue; the stand-in clears the bounty after a jail scene with the player.
@@ -182,4 +196,4 @@ python3 tools/verify.py build/ODeadlySkyrim.esp
 
 ## 8. Credit and publishing
 
-Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The latest published release is [v1.1.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1.7) (`ODeadly_Skyrim_1.1.7.zip`). Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.
+Public credit is "That Guy (Coronerra)". Do not add personal names, home paths or machine names to shipped files or docs. This repo is the public source, including full notes, Papyrus source and the installable zip on [Releases](https://github.com/Coronerra/ODeadly-Skyrim/releases). The current tree is v1.1.8 (`ODeadly_Skyrim_1.1.8.zip`). The latest published release remains [v1.1.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1.7) until 1.1.8 is published. Feedback welcome: please report issues on [GitHub Issues](https://github.com/Coronerra/ODeadly-Skyrim/issues). Do not treat a Nexus listing as authorized unless the author says so.
