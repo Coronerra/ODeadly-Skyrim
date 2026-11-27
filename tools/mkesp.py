@@ -82,7 +82,9 @@ main_props = [pobj('PlayerRef', 0x14),
     pobj('HeatWolf1Alias', OWN | 0x82A, 0), pobj('HeatWolf2Alias', OWN | 0x82A, 1), pobj('HeatWolf3Alias', OWN | 0x82A, 2)] + [  # 1.0 Saturalia / Blood Born Pathogen
     pobj('ODS_SatQuest', OWN | 0x82B), pobj('SatAgraneAlias', OWN | 0x82B, 0), pobj('ODS_PathoQuest', OWN | 0x82C)] + [  # 1.1
     pobj('ODS_BloodGiftChoice', OWN | 0x82D)]
-v_main = vmad_quest([script('ODS_Main', main_props)],
+# 1.2.0: the module scripts are extra scripts on the same, already-running main quest (no new quest,
+# no new FormID). They have no filled properties: they reach ODS_Main with (Self as Quest) as ODS_Main.
+v_main = vmad_quest([script('ODS_Main', main_props), script('ODS_Heat', []), script('ODS_Rescue', []), script('ODS_Bridges', [])],
     [(aid, MAINQ, [script(sc, [])]) for aid, _, _, _, sc in aliases if sc])
 alias_subs = []
 for aid, nm, flg, forced, _ in aliases:
@@ -107,7 +109,7 @@ def mesg(fid, edid, desc, buttons, box=True, conds=None):
     return rec('MESG', fid, subs_)
 
 savior_msg = mesg(OWN | 0x81F, 'ODS_SaviorChoice',
-    'On the road ahead, a bandit is raping a traveler. What do you do?',
+    'On the road ahead, a bandit is forcefully taking a traveler. What do you do?',
     ('Watch', 'Join in', 'Rescue'))
 # 1.0: appended message boxes (0x820-0x823); existing FormIDs are never renumbered
 msgs10 = [
@@ -161,7 +163,7 @@ gift_msg = mesg(OWN | 0x82D, 'ODS_BloodGiftChoice',
 heat_recs += 1
 nrec = 2 + len(fl) + 1 + len(msgs10) + heat_recs
 hdr = rec('TES4', 0, [sub('HEDR', struct.pack('<fII', 1.71, nrec, 0x82E)), sub('CNAM', z('That Guy (Coronerra)')),
-    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v1.1. By That Guy (Coronerra).")),
+    sub('SNAM', z("O'Deadly Skyrim (A SkyrimNet environmental mod) v1.2.0. By That Guy (Coronerra).")),
     sub('MAST', z('Skyrim.esm')), sub('DATA', struct.pack('<Q', 0))], flags=0x200)
 out = sys.argv[1] if len(sys.argv) > 1 else 'ODeadlySkyrim.esp'
 open(out, 'wb').write(hdr + grup('GLOB', heat_globs) + grup('FACT', [heat_fact]) + grup('QUST', [qmain, qmcm, qheat, qsat, qpatho]) +

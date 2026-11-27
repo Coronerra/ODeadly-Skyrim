@@ -2,13 +2,15 @@
 
 # O'Deadly Skyrim (A SkyrimNet environmental mod)
 
-**v1.1.8**
+**v1.2.0**
 By **That Guy (Coronerra)**
 Skyrim SE / AE · ESL-flagged plugin · Adults only
 
-**[Download v1.1.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1.8)** · [Changelog](CHANGELOG.md) · [Earlier v1.1.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1.7) · [v1.0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.1) · [v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0) · [v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
+**[Download v1.2.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.2.0)** · [Changelog](CHANGELOG.md) · [Earlier v1.1.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1.8) · [v1.1.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.1.7) · [v1.0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0.1) · [v1.0](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v1.0) · [v0.9](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.9) · [v0.8](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.8) · [v0.7](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.7) · [v0.6](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.6) · [v0.5](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.5) · [v0.4](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.4) · [v0.3](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.3) · [v0.2](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.2) · [v0.1](https://github.com/Coronerra/ODeadly-Skyrim/releases/tag/v0.1)
 
 > **Talking to a victim during a scene:** pressing **E** (activate) on a victim counts as you trying to save them. It breaks the scene on purpose, and the attackers may turn on you. If you just want to talk to them, use SkyrimNet (its talk / voice input); that does not interrupt the scene. See [Playing the hero](#playing-the-hero).
+
+Version 1.2.0 (`ODeadly_Skyrim_1.2.0.zip`) splits the big script into modules so one module's wait no longer holds up the others, moves the narration text into an editable file (`Data/SKSE/Plugins/ODeadlySkyrim/narration.json`), adds a "Joining beasts" choice to Bitch in Heat (Match the first beast, Werewolves only, Werebears only, Mixed pack), and adds a final age check over the actor list right where every scene starts. Safe to update over 1.1.8; update with no O'Deadly event running. See [New in 1.2.0](#new-in-120-modules-narration-file-joining-beasts).
 
 Version 1.1.8 (`ODeadly_Skyrim_1.1.8.zip`) gives Serana the ability to change into a vampire lord, and Kodlak, Skjor, Aela, Farkas and Vilkas the ability to change into werewolves, as soon as OStim Beast Form is installed. O'Deadly only adds its own transform data; it does not change their quest factions, races or vanilla scripts, and it never touches Harkon. See [New in 1.1.8](#new-in-118-lore-beasts-start-transformed-capable).
 
@@ -75,6 +77,7 @@ If you like it, just [reply with a thumbs up](https://github.com/Coronerra/ODead
 - [New in 0.4](#new-in-04-killer-rabbit-of-caerbannog-climax-fauna-option)
 - [New in 0.5](#new-in-05-baka-defeat--ostim-edition-support)
 - [New in 0.6](#new-in-06-bug-fix-scenes-never-started)
+- [New in 1.2.0](#new-in-120-modules-narration-file-joining-beasts)
 - [New in 1.1.8](#new-in-118-lore-beasts-start-transformed-capable)
 - [New in 1.1.5](#new-in-115-bitch-in-heat-for-every-beast-growl-and-sacrosanct)
 - [New in 1.0](#new-in-10-join-in-wild-creatures-ostim-beast-form)
@@ -347,6 +350,14 @@ Every one of these is **OFF by default**, needs the master switch, is stopped by
 
 - The very last option in the MCM, now a three-way menu: **Off** (default), **Vanilla rabbits**, or **Killer Rabbit of Caerbannog**. 5% after your climax: twenty of them appear in a ring around you, glare, and charge once the scene is over, while a cloud of butterflies swirls around you. Everything vanishes again a minute later. It is exactly as silly as it sounds.
 - The third option needs [Mihail's The Killer Rabbit of Caerbannog](https://www.nexusmods.com/skyrimspecialedition/mods/88905) (`mihailkillerbunny.esp`). Without that plugin it is locked and labelled "not installed". None of his files are included, and his plugin is not a master. The unique rabbit in the Cave of Caerbannog is never moved or copied; the burst uses vanilla hares reskinned to his killer-rabbit race. If the race cannot be found, it falls back to vanilla rabbits.
+
+## New in 1.2.0 (modules, narration file, joining beasts)
+
+- **Final age check.** Right where every scene is created (the normal encounter, the follower rescue and Bitch in Heat), the actor list is checked once more for children, and the scene is cancelled if one is in it. Children are never part of a scene; there is no toggle.
+- **Joining beasts** (MCM > Beast Form, Bitch in Heat). When more beasts join the scene you are in, choose **Match the first beast** (default, as before), **Werewolves only**, **Werebears only** or **Mixed pack**. Werebears need the Dragonborn DLC. If the other kind cannot share a group scene (OStim Beast Form's "werebears use werewolf scenes" is off), the pack matches the first beast, and the log says why.
+- **Narration file.** The lines O'Deadly sends to SkyrimNet from the follower rescue, the Kidnapped Redux / ODefeat Reforged / Baka Defeat bridges and Bitch in Heat are read from `Data/SKSE/Plugins/ODeadlySkyrim/narration.json`. Edit it in any text editor (keys are fixed, change the values) and reload your save. If the file or a key is missing, a short neutral built-in line is used.
+- **Modules.** `ODS_Heat` (Bitch in Heat), `ODS_Rescue` (follower rescue) and `ODS_Bridges` (the three SkyrimNet bridges) are separate scripts on the same main quest. Behaviour is unchanged. Blood Born Pathogen is still inside `ODS_Main`.
+- **Updating.** Overwrite 1.1.8 with 1.2.0. No setting is lost, no FormID changed, no new plugin or quest. For safety, update with no O'Deadly event running: not in the middle of a scene, a Bitch in Heat visit, a follower rescue, or a kidnapping / defeat. A script paused inside a moved function in a save made mid-event is dropped by the game when it loads; the cleanup on load and the panic key recover any leftover flag.
 
 ## New in 1.1.8 (lore beasts start transformed-capable)
 

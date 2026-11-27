@@ -1,5 +1,5 @@
 Scriptname ODS_MCM extends SKI_ConfigBase
-{O'Deadly Skyrim v1.1.8 MCM (SkyUI). By That Guy (Coronerra).}
+{O'Deadly Skyrim v1.2.0 MCM (SkyUI). By That Guy (Coronerra).}
 
 ODS_Main Property Main Auto
 
@@ -58,14 +58,16 @@ string[] jailOpts
 string[] faunaOpts
 int oForceSavior
 int oForceBunnyFight
+int oHeatKind          ; 1.2.0: Bitch in Heat "Joining beasts" menu
+string[] heatKindOpts
 
 int Function GetVersion()
-	return 15
+	return 16
 EndFunction
 
 Event OnVersionUpdate(int a_version)
 	If a_version >= 2
-		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11), pathogen notify / protected options (v12), pathogen diagnostics + log file (v13), 1.1 pathogen for everyone + SkyrimNet beast forms + blood gift (v14), 1.1.8 lore beasts (v15)
+		SetupPages()    ; 0.2 adds the "More encounters" page; 0.3-0.9 rebuild them; 1.0 adds "Beast Form" (v9), Bitch in Heat (v10), Saturalia + Blood Born Pathogen (v11), pathogen notify / protected options (v12), pathogen diagnostics + log file (v13), 1.1 pathogen for everyone + SkyrimNet beast forms + blood gift (v14), 1.1.8 lore beasts (v15), 1.2.0 Bitch in Heat joining beasts menu (v16)
 	EndIf
 	If a_version >= 5
 		Main.MigrateFaunaMode()
@@ -109,6 +111,11 @@ Function SetupPages()
 	faunaOpts = new string[3]
 	faunaOpts[0] = "Off"
 	faunaOpts[1] = "Vanilla rabbits"
+	heatKindOpts = new string[4]
+	heatKindOpts[0] = "Match the first beast"
+	heatKindOpts[1] = "Werewolves only"
+	heatKindOpts[2] = "Werebears only"
+	heatKindOpts[3] = "Mixed pack"
 	RefreshFaunaOpts()
 EndFunction
 
@@ -1147,6 +1154,7 @@ Function ResetIds()
 	oMsg = -100
 	oGender = -100
 	oFauna = -100
+	oHeatKind = -100
 	oRescueGender = -100
 	oRecheck = -100
 	oForceAttack = -100
@@ -1192,7 +1200,7 @@ EndFunction
 ; ---------------- pages ----------------
 Event OnPageReset(string page)
 	ResetIds()
-	If !genderOpts || !jailOpts || !rescueGenderOpts || !faunaOpts
+	If !genderOpts || !jailOpts || !rescueGenderOpts || !faunaOpts || !heatKindOpts
 		SetupPages()
 	EndIf
 	Main.InitArrays()
@@ -1498,6 +1506,11 @@ Function PageBeast()
 	bool h = bf && Main.bHeat
 	AddS("Chance per beast-form scene", "heatch", Flag(h))
 	AddS("How many join (0 = random 1-3)", "heatjoin", Flag(h))
+	int hk = Main.iHeatJoinKind
+	If hk < 0 || hk > 3
+		hk = 0
+	EndIf
+	oHeatKind = AddMenuOption("Joining beasts", heatKindOpts[hk], Flag(h))
 	AddTextOption("  Werebears use werewolf scenes (Beast Form)", YesNo(Main.HeatBearAsWolf()), OPTION_FLAG_DISABLED)
 	AddHeaderOption("Lore beasts")
 	If !Main.BeastFormOK()
@@ -2011,6 +2024,14 @@ Event OnOptionMenuOpen(int o)
 		EndIf
 		SetMenuDialogStartIndex(start)
 		SetMenuDialogDefaultIndex(0)
+	ElseIf o == oHeatKind
+		SetMenuDialogOptions(heatKindOpts)
+		int hstart = Main.iHeatJoinKind
+		If hstart < 0 || hstart > 3
+			hstart = 0
+		EndIf
+		SetMenuDialogStartIndex(hstart)
+		SetMenuDialogDefaultIndex(0)
 	ElseIf o == oMsg
 		SetMenuDialogOptions(msgOpts)
 		SetMenuDialogStartIndex(Main.iMsgStyle)
@@ -2055,6 +2076,12 @@ Event OnOptionMenuAccept(int o, int i)
 		Main.SyncFaunaFlag()
 		SetMenuOptionValue(o, faunaOpts[i])
 		ForcePageReset()
+	ElseIf o == oHeatKind
+		If i > 3
+			return
+		EndIf
+		Main.iHeatJoinKind = i
+		SetMenuOptionValue(o, heatKindOpts[i])
 	ElseIf o == oGender
 		Main.iVictimGender = i
 		SetMenuOptionValue(o, genderOpts[i])
@@ -2336,6 +2363,8 @@ Event OnOptionHighlight(int o)
 		SetInfoText("Probe OStim again for each creature type (stand near a follower for best results).")
 	ElseIf o == oRescueGender
 		SetInfoText("Which downed followers this module can pick: Both (default), Female or Male. Only for follower rescue; the victim gender on the General page is not changed.")
+	ElseIf o == oHeatKind
+		SetInfoText("1.2.0. Which beasts come to join, once the scene's own beast is a werewolf or werebear. Match the first beast (default) = the same kind as the beast already there; Werewolves only; Werebears only (needs Dragonborn); Mixed pack = roughly half and half. Werebears and werewolves only share one group scene when OStim Beast Form's 'werebears use werewolf scenes' is on, otherwise the choice falls back (logged). A vampire lord in the scene always keeps his own kind. Never children.")
 	ElseIf o == oFauna
 		SetInfoText("Easter egg, Off by default. Vanilla rabbits is the original gag: a ring of hares and a cloud of butterflies after your climax. The third option, Killer Rabbit of Caerbannog, needs Mihail's mod; it is locked without it, and none of his files are included. The master switch and panic key stop it too.")
 	Else

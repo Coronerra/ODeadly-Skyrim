@@ -1,5 +1,5 @@
 Scriptname ODS_Main extends Quest
-{O'Deadly Skyrim (A SkyrimNet environmental mod) v1.1 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
+{O'Deadly Skyrim (A SkyrimNet environmental mod) v1.2.0 - by That Guy (Coronerra). One dangerous-world engine for OStim + SkyrimNet. Inspired by ODangerousNights (no ODN files used). Adults only: children are refused for every role.}
 
 ; ======================= properties (filled in ODeadlySkyrim.esp) =======================
 Actor Property PlayerRef Auto
@@ -56,7 +56,7 @@ float Property REST_MENU_CAP = 10.0 AutoReadOnly    ; 0.7: longest wait for the 
 float Property REST_SETTLE = 1.0 AutoReadOnly       ; 0.7: pause after the rest ends, before staging (s)
 int Property K_INNSHARE = 14 AutoReadOnly ; 0.2 inns full: one rented room for the whole party
 int Property K_DARKGIFT = 15 AutoReadOnly ; 0.2 Dark Gift: a vampire wakes the player
-int Property K_SAVIOR = 16 AutoReadOnly    ; 0.9 Savior Complex: bandit raping a traveler
+int Property K_SAVIOR = 16 AutoReadOnly    ; 0.9 Savior Complex: bandit forcefully taking a traveler
 int Property K_BUNNYFIGHT = 17 AutoReadOnly ; 0.9 Killer Rabbit vs Vigilants of Stendarr
 int Property K_CRWILD = 18 AutoReadOnly     ; 1.0 OCreatures: a creature takes a traveler / companion / the player on the road
 int Property K_WEREWOLF = 19 AutoReadOnly   ; 1.0 OStim Beast Form: a werewolf in full beast form at night in the wilderness
@@ -537,6 +537,7 @@ EndFunction
 ; called by ODS_PlayerAlias.OnPlayerLoadGame
 Function OnGameLoaded()
 	LogSessionStart()    ; 1.1.2: own log file, new session header (before anything logs)
+	ODS_Text.Reload()    ; 1.2.0: narration.json is read again after each load (edits apply without a recompile)
 	InitArrays()
 	Register()
 	HeatOnLoad()         ; 1.0
@@ -1681,6 +1682,32 @@ bool Function IsMinor(Actor a)
 	ActorBase b = a.GetLeveledActorBase()
 	If b && StringUtil.Find(b.GetName(), "Child") >= 0
 		return true
+	EndIf
+	return false
+EndFunction
+
+; 1.2.0: last check over every actor of a scene, right before OStim starts it. None entries are
+; skipped (an empty slot is not an actor). true = at least one is a minor: the caller must not start.
+bool Function SceneHasMinor(Actor[] a1, Actor[] a2, string site)
+	int i = 0
+	If a1
+		While i < a1.Length
+			If a1[i] && IsMinor(a1[i])
+				Log("final child check (" + site + "): " + NameOf(a1[i]) + " is a minor - scene not started")
+				return true
+			EndIf
+			i += 1
+		EndWhile
+	EndIf
+	i = 0
+	If a2
+		While i < a2.Length
+			If a2[i] && IsMinor(a2[i])
+				Log("final child check (" + site + "): " + NameOf(a2[i]) + " is a minor - scene not started")
+				return true
+			EndIf
+			i += 1
+		EndWhile
 	EndIf
 	return false
 EndFunction
@@ -3405,6 +3432,10 @@ int Function StartThread(Actor[] acts, Actor[] dom, string scene, string meta, i
 		OThreadBuilder.Cancel(b)
 		return -1
 	EndIf
+	If SceneHasMinor(acts, dom, "StartThread")
+		OThreadBuilder.Cancel(b)
+		return -1
+	EndIf
 	int t = OThreadBuilder.Start(b)
 	If t >= 0 && !Alive(ep)
 		OThread.Stop(t)
@@ -3545,57 +3576,58 @@ string Function StartText()
 	string an = AttackerNames()
 	string vn = Names2(kVictim, kVictim2)
 	string where = WhereName()
+	string fb = "{an} and {vn} near {where}."
 	If iKind == K_CHEAT
-		return pn + " wakes in the night to find their spouse " + kVictim.GetDisplayName() + " having sex with " + kAttacker.GetDisplayName() + " nearby, thinking " + pn + " was asleep."
+		return ODS_Text.T("start.cheat", "{x1} and {x2} near {where}.", pn, an, vn, where, kVictim.GetDisplayName(), kAttacker.GetDisplayName())
 	ElseIf iKind == K_JAIL
-		return "In the cells at " + where + ", " + an + " decide the prisoners are theirs to use and force themselves on " + vn + "."
+		return ODS_Text.T("start.jail", fb, pn, an, vn, where)
 	ElseIf iKind == K_INN
-		return "Late in the night at " + where + ", " + an + ", deep in their cups, corner " + vn + " and force themselves on them."
+		return ODS_Text.T("start.inn", fb, pn, an, vn, where)
 	ElseIf iKind == K_SPIKED
-		return "At " + where + ", " + vn + " drank something that was spiked. Dazed and barely able to stand, they are taken by " + an + "."
+		return ODS_Text.T("start.spiked", fb, pn, an, vn, where)
 	ElseIf iKind == K_DEFEAT
-		return "Beaten and bleeding at " + where + ", " + vn + " can no longer fight back, and the victorious " + an + " claim their prize."
+		return ODS_Text.T("start.defeat", fb, pn, an, vn, where)
 	ElseIf iKind == K_TRESPASS
-		return an + " finds " + vn + " sleeping uninvited in their home at " + where + " and takes payment in flesh."
+		return ODS_Text.T("start.trespass", fb, pn, an, vn, where)
 	ElseIf iKind == K_ROAD
-		return "On the road near " + where + ", " + an + " robbed " + pn + " and now forces themselves on " + vn + "."
+		return ODS_Text.T("start.road", fb, pn, an, vn, where)
 	ElseIf iKind == K_CREATURE
-		return "Out in the wild near " + where + ", " + an + " falls upon " + vn + "."
+		return ODS_Text.T("start.creature", fb, pn, an, vn, where)
 	ElseIf iKind == K_BETRAYAL
-		return pn + "'s own companion " + kAttacker.GetDisplayName() + " takes advantage of " + pn + " while they are helpless at " + where + "."
+		return ODS_Text.T("start.betrayal", "{pn} and {x1} near {where}.", pn, an, vn, where, kAttacker.GetDisplayName())
 	ElseIf iKind == K_VAMPIRE
-		return "In the dark of " + where + ", the vampire " + kAttacker.GetDisplayName() + " entrances " + vn + " and draws them into an embrace."
+		return ODS_Text.T("start.vampire", "{x1} and {vn} near {where}.", pn, an, vn, where, kAttacker.GetDisplayName())
 	ElseIf iKind == K_MORNING
-		return "After a night of heavy drinking, " + pn + " wakes up in a strange bed at " + where + ", tangled up with " + kAttacker.GetDisplayName() + ", with no memory of how they got there - and things pick up right where they left off."
+		return ODS_Text.T("start.morning", "{pn} and {x1} near {where}.", pn, an, vn, where, kAttacker.GetDisplayName())
 	ElseIf iKind == K_BATH
 		If bForcedScene
-			return "While " + vn + " is bathing, naked, near " + where + ", " + an + " comes upon them and forces themselves on " + vn + "."
+			return ODS_Text.T("start.bath_forced", fb, pn, an, vn, where)
 		EndIf
-		return "Bathing together near " + where + ", " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " let the wash turn into something more."
+		return ODS_Text.T("start.bath_shared", "{x1} and {x2} near {where}.", pn, an, vn, where, kAttacker.GetDisplayName(), kVictim.GetDisplayName())
 	ElseIf iKind == K_INNSHARE
-		return "The inn at " + where + " was full, so the party shares a single room. In the dark, " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " end up in the same bed and do not go to sleep."
+		return ODS_Text.T("start.innshare", "{x1} and {x2} near {where}.", pn, an, vn, where, kAttacker.GetDisplayName(), kVictim.GetDisplayName())
 	ElseIf iKind == K_SAVIOR
-		return "On the road near " + where + ", the bandit " + an + " is raping the traveler " + vn + "."
+		return ODS_Text.T("start.savior", fb, pn, an, vn, where)
 	ElseIf iKind == K_BUNNYFIGHT
-		return "On the road near " + where + ", two Vigilants of Stendarr are fighting a Killer Rabbit of Caerbannog, and the rabbit is beating them."
+		return ODS_Text.T("start.bunnyfight", "Something happens on the road near {where}.", pn, an, vn, where)
 	ElseIf iKind == K_CRWILD
-		return "In the wilderness near " + where + ", " + WildBeastName() + " has caught " + WildVictimText() + " and is raping them."
+		return ODS_Text.T("start.crwild", "{x1} and {x2} near {where}.", pn, an, vn, where, WildBeastName(), WildVictimText())
 	ElseIf iKind == K_WEREWOLF
-		return "Under the night sky near " + where + ", a werewolf in full beast form has caught " + WildVictimText() + " and is raping them."
+		return ODS_Text.T("start.werewolf", "A werewolf and {x1} near {where}.", pn, an, vn, where, WildVictimText())
 	ElseIf iKind == K_BEASTPREY
-		return "Near " + where + ", " + pn + ", a " + BeastWord(PlayerRef) + " in full beast form, has their beaten foe " + kVictim.GetDisplayName() + " at their mercy and is raping them."
+		return ODS_Text.T("start.beastprey", "{pn} and {x2} near {where}.", pn, an, vn, where, BeastWord(PlayerRef), kVictim.GetDisplayName())
 	ElseIf iKind == K_BEASTCLAIM
-		return "Near " + where + ", " + pn + ", a " + BeastWord(PlayerRef) + " in full beast form, claims " + BondText(kVictim) + kVictim.GetDisplayName() + ", who is willing and gives themselves to the beast. It is consensual sex."
+		return ODS_Text.T("start.beastclaim", "{pn} and {x3} near {where}.", pn, an, vn, where, BeastWord(PlayerRef), BondText(kVictim), kVictim.GetDisplayName())
 	ElseIf iKind == K_DARKGIFT
 		If bForcedScene
-			return "At " + where + ", " + pn + " wakes to the vampire " + kAttacker.GetDisplayName() + " pinning them down, fangs at their throat, taking them."
+			return ODS_Text.T("start.darkgift_forced", "{pn} and {x1} at {where}.", pn, an, vn, where, kAttacker.GetDisplayName())
 		EndIf
-		return "At " + where + ", " + pn + " wakes to the vampire " + kAttacker.GetDisplayName() + " making love to them, cold lips at their throat."
+		return ODS_Text.T("start.darkgift", "{pn} and {x1} at {where}.", pn, an, vn, where, kAttacker.GetDisplayName())
 	EndIf
 	If kVictim == PlayerRef
-		return an + " has fallen upon " + pn + " in their sleep and is forcing themselves on " + pn + "."
+		return ODS_Text.T("start.sleep_victim", "{an} and {pn}.", pn, an, vn, where)
 	EndIf
-	return "While the camp slept, " + an + " crept in and is forcing themselves on " + vn + ". " + vn + " is screaming for help, waking " + pn + "."
+	return ODS_Text.T("start.camp_attack", "{an} and {vn} near {where}.", pn, an, vn, where)
 EndFunction
 
 Function SendDrunkEvent()
@@ -3612,7 +3644,7 @@ Function SendStartEvent()
 	EndIf
 	string t = StartText()
 	If iKind == K_JAIL && bZaZ && ZaZOK() && kVictim != PlayerRef && kVictim2 != PlayerRef
-		t += " " + PlayerRef.GetDisplayName() + " is held back and made to watch."
+		t += " " + ODS_Text.T("start.jail_zaz", "{pn} watches.", PlayerRef.GetDisplayName())
 	EndIf
 	int rc = SkyrimNetApi.DirectNarration(t, None, None)
 	Log("SkyrimNet start event (rc " + rc + ")")
@@ -3627,52 +3659,53 @@ Function Wake()
 	string an = AttackerNames()
 	string vn = Names2(kVictim, kVictim2)
 	bool shake = bForcedScene
+	string fb = "{an} and {vn}."
 	If iKind == K_CHEAT
-		ShowMsg("You wake to find your spouse " + kVictim.GetDisplayName() + " in bed with " + kAttacker.GetDisplayName() + "...")
+		ShowMsg(ODS_Text.T("wake.cheat", "{x1} and {x2}.", "", an, vn, "", kVictim.GetDisplayName(), kAttacker.GetDisplayName()))
 	ElseIf iKind == K_JAIL
-		ShowMsg("The guards have come for " + vn + "...")
+		ShowMsg(ODS_Text.T("wake.jail", fb, "", an, vn))
 	ElseIf iKind == K_INN
-		ShowMsg("Rough hands drag you from your rest... " + an + "!")
+		ShowMsg(ODS_Text.T("wake.inn", fb, "", an, vn))
 	ElseIf iKind == K_SPIKED
-		ShowMsg("The drink was spiked... " + vn + " can barely stand.")
+		ShowMsg(ODS_Text.T("wake.spiked", fb, "", an, vn))
 	ElseIf iKind == K_DEFEAT
-		ShowMsg("Defeated... " + an + " claim " + vn + ".")
+		ShowMsg(ODS_Text.T("wake.defeat", fb, "", an, vn))
 	ElseIf iKind == K_TRESPASS
-		ShowMsg(kAttacker.GetDisplayName() + " found you in their home...")
+		ShowMsg(ODS_Text.T("wake.trespass", "{x1}.", "", an, vn, "", kAttacker.GetDisplayName()))
 	ElseIf iKind == K_ROAD
-		ShowMsg("Robbed on the road... and " + an + " isn't finished.")
+		ShowMsg(ODS_Text.T("wake.road", fb, "", an, vn))
 	ElseIf iKind == K_CREATURE
-		ShowMsg(an + " falls upon " + vn + "!")
+		ShowMsg(ODS_Text.T("wake.creature", fb, "", an, vn))
 	ElseIf iKind == K_BETRAYAL
-		ShowMsg(kAttacker.GetDisplayName() + " takes advantage of you...")
+		ShowMsg(ODS_Text.T("wake.betrayal", "{x1}.", "", an, vn, "", kAttacker.GetDisplayName()))
 	ElseIf iKind == K_VAMPIRE
-		ShowMsg(kAttacker.GetDisplayName() + " entrances " + vn + "...")
+		ShowMsg(ODS_Text.T("wake.vampire", "{x1} and {vn}.", "", an, vn, "", kAttacker.GetDisplayName()))
 		shake = false
 	ElseIf iKind == K_MORNING
-		ShowMsg("Your head is pounding... whose bed is this? " + kAttacker.GetDisplayName() + " is already awake.")
+		ShowMsg(ODS_Text.T("wake.morning", "{x1}.", "", an, vn, "", kAttacker.GetDisplayName()))
 		shake = false
 	ElseIf iKind == K_BATH
-		ShowMsg(an + " joins " + vn + " in the water...")
+		ShowMsg(ODS_Text.T("wake.bath", fb, "", an, vn))
 	ElseIf iKind == K_INNSHARE
-		ShowMsg("One room, one party... " + kAttacker.GetDisplayName() + " and " + kVictim.GetDisplayName() + " aren't sleeping.")
+		ShowMsg(ODS_Text.T("wake.innshare", "{x1} and {x2}.", "", an, vn, "", kAttacker.GetDisplayName(), kVictim.GetDisplayName()))
 		shake = false
 	ElseIf iKind == K_SAVIOR
-		ShowMsg("On the road ahead, " + an + " is raping " + vn + "...")
+		ShowMsg(ODS_Text.T("wake.savior", fb, "", an, vn))
 	ElseIf iKind == K_BUNNYFIGHT
-		ShowMsg("Two Vigilants of Stendarr are fighting a Killer Rabbit of Caerbannog... and they are losing!")
+		ShowMsg(ODS_Text.T("wake.bunnyfight", "Something is happening on the road.", "", an, vn))
 	ElseIf iKind == K_CRWILD || iKind == K_WEREWOLF
-		ShowMsg(kAttacker.GetDisplayName() + " has " + vn + " pinned down...")
+		ShowMsg(ODS_Text.T("wake.wild", "{x1} and {vn}.", "", an, vn, "", kAttacker.GetDisplayName()))
 	ElseIf iKind == K_BEASTPREY
-		ShowMsg("The beast claims its prey...")
+		ShowMsg(ODS_Text.T("wake.beastprey", "The beast acts.", "", an, vn))
 	ElseIf iKind == K_BEASTCLAIM
-		ShowMsg(kVictim.GetDisplayName() + " gives in to the beast...")
+		ShowMsg(ODS_Text.T("wake.beastclaim", "{x1}.", "", an, vn, "", kVictim.GetDisplayName()))
 		shake = false
 	ElseIf iKind == K_DARKGIFT
-		ShowMsg("Cold lips at your throat... " + kAttacker.GetDisplayName() + " has come for you.")
+		ShowMsg(ODS_Text.T("wake.darkgift", "{x1}.", "", an, vn, "", kAttacker.GetDisplayName()))
 	ElseIf kVictim == PlayerRef
-		ShowMsg("You wake to rough hands on you... " + an + "!")
+		ShowMsg(ODS_Text.T("wake.sleep_victim", fb, "", an, vn))
 	Else
-		ShowMsg("You wake to screams... " + vn + " is being taken by " + an + "!")
+		ShowMsg(ODS_Text.T("wake.camp", fb, "", an, vn))
 	EndIf
 	If shake
 		Game.ShakeCamera(None, 0.35, 1.2)
@@ -3834,12 +3867,12 @@ Function CaughtCheck(int id)
 		rel = "spouse "
 	EndIf
 	If SNetOK() && bSkyrimNetStart
-		SkyrimNetApi.DirectNarration(pn + "'s " + rel + catcher.GetDisplayName() + " walks in and catches " + pn + " having sex with " + partner.GetDisplayName() + ".", catcher, PlayerRef)
+		SkyrimNetApi.DirectNarration(ODS_Text.T("caught.narration", "{x2} and {pn}, caught by {x1}.", pn, "", "", "", rel + catcher.GetDisplayName(), partner.GetDisplayName()), catcher, PlayerRef)
 	EndIf
 	If SNetOK() && bSkyrimNetLog
-		SkyrimNetApi.RegisterPersistentEvent(catcher.GetDisplayName() + " caught " + pn + " having sex with " + partner.GetDisplayName() + " at " + WhereName() + ".", catcher, PlayerRef)
+		SkyrimNetApi.RegisterPersistentEvent(ODS_Text.T("caught.memory", "{x1} caught {pn} with {x2} at {where}.", pn, "", "", WhereName(), catcher.GetDisplayName(), partner.GetDisplayName()), catcher, PlayerRef)
 	EndIf
-	HeatNote(catcher.GetDisplayName() + " has seen you...")     ; 1.1.7: OStim scene start: corner notification only, never a box
+	HeatNote(ODS_Text.T("caught.note", "{x1} has seen you.", "", "", "", "", catcher.GetDisplayName()))     ; 1.1.7: OStim scene start: corner notification only, never a box
 	Log("caught: " + NameOf(catcher) + " has seen you (notification, no box)")
 EndFunction
 
@@ -3942,42 +3975,42 @@ Function LogSkyrimNet()
 	string where = WhereName()
 	string txt
 	If iKind == K_CHEAT
-		txt = "While " + pn + " slept, " + pn + "'s spouse " + kVictim.GetDisplayName() + " had sex with " + kAttacker.GetDisplayName() + ". " + pn + " woke and saw it"
+		txt = ODS_Text.T("log.cheat", "{x1} and {x2}", pn, an, vn, where, kVictim.GetDisplayName(), kAttacker.GetDisplayName())
 		If iJoinChoice >= 2
 			txt += "." + JoinMemoryText()
 		ElseIf bIntervened
-			txt += " and interrupted them."
+			txt += " " + ODS_Text.T("log.cheat_interrupted", "and it was interrupted.", pn, an, vn, where)
 		Else
 			txt += "."
 		EndIf
 	ElseIf iKind == K_VAMPIRE
-		txt = "At " + where + ", the vampire " + kAttacker.GetDisplayName() + " entranced " + vn + " and had their way with them."
+		txt = ODS_Text.T("log.vampire", "{x1} and {vn} at {where}.", pn, an, vn, where, kAttacker.GetDisplayName())
 	ElseIf iKind == K_ATTACK && kVictim != PlayerRef
-		txt = "While " + pn + " slept, " + an + " crept into camp and forced themselves on " + vn + "."
+		txt = ODS_Text.T("log.attack_camp", "{an} and {vn} near the camp.", pn, an, vn, where)
 		If bIntervened
-			txt += " " + pn + " woke to the screams and fought them off."
+			txt += " " + ODS_Text.T("log.attack_camp_stopped", "{pn} intervened.", pn, an, vn, where)
 		Else
-			txt += " " + pn + " woke to the screams but did not intervene."
+			txt += " " + ODS_Text.T("log.attack_camp_watched", "{pn} did not intervene.", pn, an, vn, where)
 		EndIf
 	ElseIf iKind == K_ATTACK
-		txt = an + " fell upon " + pn + " in the night while the camp slept and forced themselves on " + pn + "."
+		txt = ODS_Text.T("log.attack_victim", "{an} and {pn} at night.", pn, an, vn, where)
 	ElseIf iKind == K_SAVIOR
 		If iSaviorChoice == 2
-			txt = "On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and joined in."
+			txt = ODS_Text.T("log.savior_join", "{pn} joined {an} and {vn} near {where}.", pn, an, vn, where)
 		Else
-			txt = "On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and stood and watched, without intervening."
+			txt = ODS_Text.T("log.savior_watch", "{pn} watched {an} and {vn} near {where}.", pn, an, vn, where)
 		EndIf
 	ElseIf (iKind == K_CRWILD || iKind == K_WEREWOLF) && kVictim != PlayerRef
 		txt = StartText()
 		If iSaviorChoice == 1
-			txt += " " + pn + " saw it and stood and watched, without intervening."
+			txt += " " + ODS_Text.T("log.wild_watch", "{pn} watched.", pn, an, vn, where)
 		EndIf
 	Else
 		txt = StartText()
 		If iJoinChoice >= 2
 			txt += JoinMemoryText()
 		ElseIf bIntervened
-			txt += " " + pn + " stepped in and stopped it."
+			txt += " " + ODS_Text.T("log.stepped_in", "{pn} stepped in.", pn, an, vn, where)
 		EndIf
 	EndIf
 	txt += MessyText()
@@ -4856,7 +4889,7 @@ bool Function StageBath(int ep)
 		EndIf
 		i += 1
 	EndWhile
-	string sit = vic.GetDisplayName() + " is bathing, naked, in the water near " + WhereName()
+	string sit = ODS_Text.T("bath.sit", "{vn} is bathing near {where}.", "", "", vic.GetDisplayName(), WhereName())
 	i = 0
 	While partner == None && i < near.Length && Alive(ep)
 		Actor b = near[i]
@@ -5090,9 +5123,9 @@ Function WatchCheck(int id)
 	; what they saw: where, who, what
 	string who = NamesOf(acts)
 	string sc = OThread.GetScene(id)
-	string how = "together, clearly enjoying themselves"
+	string how = ODS_Text.T("watch.how_willing", "a scene")
 	If IsAggroScene(sc)
-		how = "and it looks rough, maybe not willing"
+		how = ODS_Text.T("watch.how_rough", "a rough scene")
 	EndIf
 	string pose = OMetaData.GetName(sc)
 	If pose != "" && StringUtil.Find(pose, "$") != 0
@@ -5106,13 +5139,14 @@ Function WatchCheck(int id)
 		role = "a hunter"
 	EndIf
 	int r = Utility.RandomInt(0, 2)
-	string act = "decides to slip away quietly and keep it to themselves for now"
+	string wn = w.GetDisplayName()
+	string act = ODS_Text.T("watch.act_leave", "{pn} leaves.", wn)
 	If r == 1
-		act = "calls out to them from where they stand"
+		act = ODS_Text.T("watch.act_call", "{pn} calls out.", wn)
 	ElseIf r == 2
-		act = "starts to come closer for a better look"
+		act = ODS_Text.T("watch.act_closer", "{pn} comes closer.", wn)
 	EndIf
-	string txt = w.GetDisplayName() + ", " + role + " out in the wilds near " + WhereName() + ", spots " + who + " having sex out in the open, about " + metres + " metres to the " + Compass(dx, dy) + ", " + how + ". " + w.GetDisplayName() + " " + act + "."
+	string txt = ODS_Text.T("watch.narration", "{pn}, {vn}, sees {an} near {where}, {x1} metres to the {x2}: {x3}.", wn, who, role, WhereName(), metres, Compass(dx, dy), how) + " " + act
 	Actor tgt = acts[0]
 	If acts.Find(PlayerRef) >= 0
 		tgt = PlayerRef
@@ -5121,11 +5155,11 @@ Function WatchCheck(int id)
 	If SNetOK() && bSkyrimNetStart
 		SkyrimNetApi.DirectNarration(txt, w, tgt)
 	Else
-		HeatNote("You feel eyes on you... someone is watching from a distance.")     ; 1.1.7: OStim scene start: never a box
+		HeatNote(ODS_Text.T("watch.note", "Someone is watching from a distance."))     ; 1.1.7: OStim scene start: never a box
 		Log("watched: someone is watching from a distance (notification, no box)")
 	EndIf
 	If SNetOK() && bSkyrimNetLog
-		SkyrimNetApi.RegisterPersistentEvent(w.GetDisplayName() + " saw " + who + " having sex out in the open near " + WhereName() + ".", w, tgt)
+		SkyrimNetApi.RegisterPersistentEvent(ODS_Text.T("watch.memory", "{pn} saw {an} near {where}.", w.GetDisplayName(), who, "", WhereName()), w, tgt)
 	EndIf
 	If r == 2 && Alive(ep)
 		w.PathToReference(acts[0], 0.4)
@@ -5644,16 +5678,16 @@ Function SaviorChosen(int choice, int ep)
 	string where = WhereName()
 	If choice == 1
 		iSaviorChoice = 2
-		TalkNet("On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and chose to join in.", kAttacker, kVictim, true, true)
-		ShowMsg("You join in...")
+		TalkNet(ODS_Text.T("savior.join", "{pn} joins {an} and {vn} near {where}.", pn, an, vn, where), kAttacker, kVictim, true, true)
+		ShowMsg(ODS_Text.T("savior.join_msg", "You join in."))
 		SaviorJoin(ep)
 	ElseIf choice == 2
-		TalkNet("On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and chose to rescue " + vn + ". The bandit turns on " + pn + ".", kAttacker, kVictim, true, true)
+		TalkNet(ODS_Text.T("savior.rescue", "{pn} steps in for {vn} near {where}.", pn, an, vn, where), kAttacker, kVictim, true, true)
 		SaviorRescue(ep)
 	Else
 		iSaviorChoice = 1
-		TalkNet("On the road near " + where + ", " + pn + " came upon the bandit " + an + " raping the traveler " + vn + " and chose to stand and watch, without intervening.", kAttacker, kVictim, true, true)
-		ShowMsg("You stand and watch...")
+		TalkNet(ODS_Text.T("savior.watch", "{pn} watches {an} and {vn} near {where}.", pn, an, vn, where), kAttacker, kVictim, true, true)
+		ShowMsg(ODS_Text.T("savior.watch_msg", "You stand and watch."))
 	EndIf
 EndFunction
 
@@ -5759,20 +5793,20 @@ Function SaviorVictory()
 		vn = kVictim.GetDisplayName()
 	EndIf
 	string where = WhereName()
-	string t = pn + " killed the bandit who had been raping " + vn + " on the road near " + where + " and saved them."
+	string t = ODS_Text.T("savior.victory_bandit", "{pn} killed the bandit near {where}; {vn} is saved.", pn, "", vn, where)
 	If iKind == K_CRWILD || iKind == K_WEREWOLF
-		t = pn + " killed " + WildBeastName() + " that had been raping " + vn + " near " + where + " and saved them."
+		t = ODS_Text.T("savior.victory_wild", "{pn} killed {x1} near {where}; {vn} is saved.", pn, "", vn, where, WildBeastName())
 	EndIf
 	If kVictim && !kVictim.IsDead()
-		t += " " + vn + " thanks " + pn + " for the rescue."
-		ShowMsg(vn + " thanks you for stepping in.")
+		t += " " + ODS_Text.T("savior.victory_thanks", "{vn} thanks {pn}.", pn, "", vn, where)
+		ShowMsg(ODS_Text.T("savior.victory_msg", "{vn} thanks you.", pn, "", vn))
 		TalkNet(t, kVictim, PlayerRef, true, true)
 	Else
 		TalkNet(t, kAttacker, PlayerRef, true, true)
 		If iKind == K_SAVIOR
-			ShowMsg("The bandit is dead.")
+			ShowMsg(ODS_Text.T("savior.dead_bandit", "The bandit is dead."))
 		Else
-			ShowMsg("It is dead.")
+			ShowMsg(ODS_Text.T("savior.dead_other", "It is dead."))
 		EndIf
 	EndIf
 	FinishRoadEvent()
@@ -5972,234 +6006,106 @@ EndFunction
 ; ---------- OStim Kidnapped Redux ----------
 ; The events carry no actors, so the text names the player and the place only.
 ; OKidnapped_Refused only answers OKidnapped_Take, which O'Deadly never sends: not listened to.
-bool Function OKRTalk()
-	return bMaster && bOKRSkyrimNet && SNetOK()
+; 1.2.0: the bridge bodies now live in ODS_Bridges (same quest). The mod-event handlers below keep
+; their names, so RegisterForModEvent registrations (and any saved ones) still land on ODS_Main.
+ODS_Bridges Function BridgeMod()
+	ODS_Bridges b = (Self as Quest) as ODS_Bridges
+	If !b
+		ModMissing("ODS_Bridges")
+	EndIf
+	return b
 EndFunction
 
-; strArg "" / numArg 1 = another mod handed the player over (OKidnapped_Take), 0 = its own ambush
 Event OnOKRTaken(string eventName, string strArg, float numArg, Form sender)
-	sOKRWhere = WhereName()                              ; still at the ambush spot: the player is moved afterwards
-	fOKRHeldUntil = Utility.GetCurrentGameTime() + 1.0   ; cleared by OKidnapped_End, lapses after a game day
-	bool requested = numArg >= 1.0
-	Log("Kidnapped Redux: taken near " + sOKRWhere + " (requested " + requested + ")")
-	If !OKRTalk()
-		return
-	EndIf
-	string pn = PlayerRef.GetDisplayName()
-	If bSkyrimNetStart
-		If requested
-			SkyrimNetApi.DirectNarration("Already beaten and helpless near " + sOKRWhere + ", " + pn + " is handed over to a gang of kidnappers, who drag them off to their hideout.", None, None)
-		Else
-			SkyrimNetApi.DirectNarration("Kidnappers jump " + pn + " near " + sOKRWhere + ", knock them down and drag them off to their hideout.", None, None)
-		EndIf
-	EndIf
-	If bSkyrimNetLog
-		If requested
-			SkyrimNetApi.RegisterPersistentEvent(pn + " was handed over to kidnappers near " + sOKRWhere + " and dragged off to their hideout.", None, PlayerRef)
-		Else
-			SkyrimNetApi.RegisterPersistentEvent("Kidnappers ambushed " + pn + " near " + sOKRWhere + " and dragged them off to their hideout.", None, PlayerRef)
-		EndIf
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnOKRTaken(eventName, strArg, numArg, sender)
 	EndIf
 EndEvent
 
 Event OnOKRDodged(string eventName, string strArg, float numArg, Form sender)
-	string w = WhereName()
-	Log("Kidnapped Redux: dodged near " + w)
-	If OKRTalk() && bSkyrimNetStart
-		string pn = PlayerRef.GetDisplayName()
-		SkyrimNetApi.DirectNarration("Kidnappers try to jump " + pn + " near " + w + ", but " + pn + " slips the ambush.", None, None)
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnOKRDodged(eventName, strArg, numArg, sender)
 	EndIf
 EndEvent
 
-; strArg "escaped", "released" or "slavery"
 Event OnOKREnd(string eventName, string strArg, float numArg, Form sender)
-	fOKRHeldUntil = 0.0
-	string w = sOKRWhere
-	sOKRWhere = ""
-	Log("Kidnapped Redux: end (" + strArg + ")")
-	If !OKRTalk() || (strArg != "escaped" && strArg != "released" && strArg != "slavery")
-		return
-	EndIf
-	string pn = PlayerRef.GetDisplayName()
-	string who = "The kidnappers who took " + pn
-	If w != ""
-		who += " near " + w
-	EndIf
-	string n
-	string m
-	If strArg == "escaped"
-		n = pn + " breaks free and gets out of the kidnappers' hideout."
-		m = who + " held them captive in their hideout and had their way with them, but " + pn + " escaped."
-	ElseIf strArg == "released"
-		n = pn + " comes to, exhausted, after the kidnappers are finished with them and let them go."
-		m = who + " had their way with them in their hideout until " + pn + " passed out, then let them go. " + pn + " woke up exhausted."
-	Else
-		n = "After " + pn + " passes out in their hideout, the kidnappers sell them on into slavery."
-		m = who + " had their way with them in their hideout until " + pn + " passed out, then sold them into slavery."
-	EndIf
-	If bSkyrimNetStart
-		SkyrimNetApi.DirectNarration(n, None, None)
-	EndIf
-	If bSkyrimNetLog
-		SkyrimNetApi.RegisterPersistentEvent(m, None, PlayerRef)
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnOKREnd(eventName, strArg, numArg, sender)
 	EndIf
 EndEvent
-
-; ---------- ODefeat Reforged ----------
-; Its defeat scenes carry the OStim metadata "odefeat" + the victim's FormID, and it rebroadcasts
-; ostim_start as "ODefeatAnimStart_" + each token. An escape tags the scene "odefeat_escaped"
-; before stopping it; otherwise one outcome event follows the scene (robbery, safe wakeup, kill,
-; arrest, or a third-party one such as "SSLV Entry"). Only OStim's own OJson is used to read the
-; scene: no ODefeat script types.
-bool Function ODefTalk()
-	return bMaster && bODefSkyrimNet && SNetOK()
-EndFunction
-
-bool Function ODefPlayerScene(string json)
-	string[] meta = OJson.GetMetadata(json)
-	return meta && meta.Find("odefeat") >= 0 && meta.Find(PlayerRef.GetFormID() as string) >= 0
-EndFunction
-
-; "<winner> beat <player> near <place>" opener; falls back to "Someone"
-string Function ODefWho()
-	string w = sODefWhere
-	If w == ""
-		w = WhereName()
-	EndIf
-	string by = sODefBy
-	If by == ""
-		by = "Someone"
-	EndIf
-	return by + " beat " + PlayerRef.GetDisplayName() + " near " + w
-EndFunction
 
 Event OnODefStart(string eventName, string strArg, float numArg, Form sender)
-	If !ODefPlayerScene(strArg)
-		return      ; an NPC's defeat scene
-	EndIf
-	If Utility.GetCurrentGameTime() < fBakaUntil
-		Log("ODefeat: player scene while Baka Defeat has the player, not narrated twice")
-		return
-	EndIf
-	fODefUntil = Utility.GetCurrentGameTime() + 0.25     ; cleared by the outcome, lapses after 6 game hours
-	bODefAwait = false
-	sODefWhere = WhereName()
-	sODefBy = ""
-	Actor[] acts = OJson.GetActors(strArg)
-	int i = 0
-	While acts && i < acts.Length && sODefBy == ""
-		If acts[i] && acts[i] != PlayerRef && !IsMinor(acts[i])
-			sODefBy = acts[i].GetDisplayName()
-		EndIf
-		i += 1
-	EndWhile
-	Log("ODefeat: player defeated near " + sODefWhere + " by " + sODefBy)
-	If ODefTalk() && bSkyrimNetStart
-		string pn = PlayerRef.GetDisplayName()
-		If sODefBy != ""
-			SkyrimNetApi.DirectNarration(sODefBy + " has beaten " + pn + " near " + sODefWhere + ", and " + pn + " is at their mercy.", None, None)
-		Else
-			SkyrimNetApi.DirectNarration(pn + " has been beaten near " + sODefWhere + " and is at the mercy of whoever won the fight.", None, None)
-		EndIf
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnODefStart(eventName, strArg, numArg, sender)
 	EndIf
 EndEvent
 
 ; from OnOStimThreadEnd while a player defeat is in progress
 Function ODefSceneEnded(string json)
-	If !ODefPlayerScene(json)
-		return
-	EndIf
-	string[] meta = OJson.GetMetadata(json)
-	If meta.Find("odefeat_escaped") < 0
-		bODefAwait = true       ; an outcome event follows
-		return
-	EndIf
-	Log("ODefeat: player escaped")
-	string pn = PlayerRef.GetDisplayName()
-	string m = ODefWho() + " and forced themselves on them, but " + pn + " broke free and escaped."
-	ODefClear()
-	If ODefTalk()
-		If bSkyrimNetStart
-			SkyrimNetApi.DirectNarration(pn + " breaks free and escapes.", None, None)
-		EndIf
-		If bSkyrimNetLog
-			SkyrimNetApi.RegisterPersistentEvent(m, None, PlayerRef)
-		EndIf
-	EndIf
-EndFunction
-
-Function ODefClear()
-	fODefUntil = 0.0
-	bODefAwait = false
-	sODefWhere = ""
-	sODefBy = ""
-EndFunction
-
-Function ODefSay(string n, string m)
-	ODefClear()
-	If !ODefTalk()
-		return
-	EndIf
-	If bSkyrimNetStart && n != ""
-		SkyrimNetApi.DirectNarration(n, None, None)
-	EndIf
-	If bSkyrimNetLog && m != ""
-		SkyrimNetApi.RegisterPersistentEvent(m, None, PlayerRef)
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.ODefSceneEnded(json)
 	EndIf
 EndFunction
 
 Event OnODefRobbery(string eventName, string strArg, float numArg, Form sender)
-	Log("ODefeat: robbery")
-	string pn = PlayerRef.GetDisplayName()
-	string keeper = "Whoever beat them"
-	If sODefBy != ""
-		keeper = sODefBy
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnODefRobbery(eventName, strArg, numArg, sender)
 	EndIf
-	ODefSay(pn + " comes to not far from where they fell, beaten and missing some of their valuables. " + keeper + " may still have them.", ODefWho() + ", had their way with them and robbed them of some valuables.")
 EndEvent
 
 Event OnODefSafeWakeup(string eventName, string strArg, float numArg, Form sender)
-	Log("ODefeat: safe wakeup")
-	string pn = PlayerRef.GetDisplayName()
-	ODefSay(pn + " comes to not far from where they fell, beaten and left behind.", ODefWho() + ", had their way with them and left them there.")
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnODefSafeWakeup(eventName, strArg, numArg, sender)
+	EndIf
 EndEvent
 
 Event OnODefArrest(string eventName, string strArg, float numArg, Form sender)
-	Log("ODefeat: arrest")
-	string pn = PlayerRef.GetDisplayName()
-	string by = "a guard"
-	If sODefBy != ""
-		by = sODefBy
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnODefArrest(eventName, strArg, numArg, sender)
 	EndIf
-	string w = sODefWhere
-	If w == ""
-		w = WhereName()
-	EndIf
-	string m = by + " beat " + pn + " near " + w + ", had their way with them and had them hauled off to jail."
-	ODefSay("Beaten by " + by + " near " + w + ", " + pn + " is hauled off to jail.", m)
 EndEvent
 
-; the last save is reloaded right after, so a short narration only
 Event OnODefKill(string eventName, string strArg, float numArg, Form sender)
-	Log("ODefeat: kill")
-	string pn = PlayerRef.GetDisplayName()
-	string by = "The winner"
-	If sODefBy != ""
-		by = sODefBy
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnODefKill(eventName, strArg, numArg, sender)
 	EndIf
-	ODefSay(by + " finishes " + pn + " off.", "")
 EndEvent
 
-; "SSLV Entry" is shared by several mods: only ours if a player defeat scene just ended without
-; an escape, and Kidnapped Redux is not the one holding the player (it sends its own end event)
 Event OnODefSlavery(string eventName, string strArg, float numArg, Form sender)
-	float now = Utility.GetCurrentGameTime()
-	If !bODefAwait || now >= fODefUntil || now < fOKRHeldUntil
-		return
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnODefSlavery(eventName, strArg, numArg, sender)
 	EndIf
-	Log("ODefeat: sold into slavery")
-	string pn = PlayerRef.GetDisplayName()
-	ODefSay("After the defeat, " + pn + " is sold on into slavery.", ODefWho() + ", had their way with them and sold them into slavery.")
+EndEvent
+
+Event OnBakaSceneStart(string eventName, string strArg, float numArg, Form sender)
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnBakaSceneStart(eventName, strArg, numArg, sender)
+	EndIf
+EndEvent
+
+Event OnBakaSceneEnd(string eventName, string strArg, float numArg, Form sender)
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnBakaSceneEnd(eventName, strArg, numArg, sender)
+	EndIf
+EndEvent
+
+Event OnBakaPostAssault(string eventName, string strArg, float numArg, Form sender)
+	ODS_Bridges b = BridgeMod()
+	If b
+		b.OnBakaPostAssault(eventName, strArg, numArg, sender)
+	EndIf
 EndEvent
 
 ; ======================= 0.5: BAKA DEFEAT (OStim Edition) BRIDGE (listener only) =======================
@@ -6215,199 +6121,7 @@ EndEvent
 ; Baka does not broadcast the knockdown, surrender or the struggle itself, so the defeat is told
 ; when the first scene with the player as victim starts. Master switch off / panic: no text.
 ; Adults only: a scene with a child in it is never narrated or remembered.
-bool Function BakaTalk()
-	return bMaster && bBakaSkyrimNet && SNetOK()
-EndFunction
-
-Function BakaSay(string n, string m, Actor a1, Actor a2)
-	If !BakaTalk()
-		return
-	EndIf
-	If bSkyrimNetStart && n != ""
-		SkyrimNetApi.DirectNarration(n, a1, a2)
-	EndIf
-	If bSkyrimNetLog && m != ""
-		Actor who = a1
-		If who == None
-			who = PlayerRef
-		EndIf
-		SkyrimNetApi.RegisterPersistentEvent(m, who, a2)
-	EndIf
-EndFunction
-
-int Function BakaSlot(int tid)
-	If !iBakaTid || !iBakaKind
-		InitArrays()
-	EndIf
-	int i = 0
-	While i < 8
-		If iBakaKind[i] > 0 && iBakaTid[i] == tid
-			return i
-		EndIf
-		i += 1
-	EndWhile
-	return -1
-EndFunction
-
-int Function BakaFreeSlot()
-	int i = 0
-	While i < 8
-		If iBakaKind[i] == 0
-			return i
-		EndIf
-		i += 1
-	EndWhile
-	return 0     ; all busy (stale): reuse the first
-EndFunction
-
-; "<who> beat <player> near <place>"
-string Function BakaWho()
-	string w = sBakaWhere
-	If w == ""
-		w = WhereName()
-	EndIf
-	string by = sBakaBy
-	If by == ""
-		by = "Someone"
-	EndIf
-	return by + " beat " + PlayerRef.GetDisplayName() + " near " + w
-EndFunction
-
-Function BakaClear()
-	sBakaWhere = ""
-	sBakaBy = ""
-	bBakaMemDone = false
-EndFunction
-
-Event OnBakaSceneStart(string eventName, string strArg, float numArg, Form sender)
-	int tid = numArg as int
-	DefeatOStimThread t = sender as DefeatOStimThread
-	If t == None || tid < 0
-		return
-	EndIf
-	string hook = t.Hook
-	Actor vic = t.VictimRef
-	If vic == None || hook == "DefeatNecro" || hook == "DefeatCons"
-		return       ; consensual, paid or a corpse: not told
-	EndIf
-	Actor[] acts = OThread.GetActors(tid)
-	If !acts || acts.Length < 2 || acts.Find(vic) < 0
-		return
-	EndIf
-	Actor agg = None
-	int i = 0
-	While i < acts.Length
-		If acts[i] == None || IsMinor(acts[i])
-			Log("Baka Defeat: scene " + tid + " has a child or an empty slot, not narrated")
-			return
-		EndIf
-		If agg == None && acts[i] != vic
-			agg = acts[i]
-		EndIf
-		i += 1
-	EndWhile
-	bool playerIn = acts.Find(PlayerRef) >= 0
-	int kind = 4
-	If vic == PlayerRef
-		kind = 1
-	ElseIf playerIn
-		kind = 3
-		agg = PlayerRef
-	ElseIf IsFollowerActor(vic)
-		kind = 2
-	EndIf
-	int s = BakaSlot(tid)
-	If s < 0
-		s = BakaFreeSlot()
-	EndIf
-	iBakaTid[s] = tid
-	iBakaKind[s] = kind
-	kBakaVic[s] = vic
-	kBakaAgg[s] = agg
-	string pn = PlayerRef.GetDisplayName()
-	string w = WhereName()
-	string an = agg.GetDisplayName()
-	string vn = vic.GetDisplayName()
-	Log("Baka Defeat: scene " + tid + " hook " + hook + " kind " + kind + " victim " + vn + " by " + an)
-	If kind == 1
-		float now = Utility.GetCurrentGameTime()
-		bool fresh = now >= fBakaUntil
-		fBakaUntil = now + 0.25        ; cleared by the outcome, lapses after 6 game hours
-		If now < fODefUntil
-			ODefClear()                ; both installed: Baka is the one telling this defeat
-		EndIf
-		If fresh
-			BakaClear()
-			sBakaWhere = w
-			sBakaBy = an
-			BakaSay(an + " has beaten " + pn + " near " + w + ". " + pn + " lies on the ground, disarmed and helpless, and " + an + " forces themselves on them.", "", agg, PlayerRef)
-		Else
-			BakaSay(an + " takes their turn with the beaten " + pn + ".", "", agg, PlayerRef)
-		EndIf
-	ElseIf kind == 2
-		BakaSay(an + " drags " + pn + "'s companion " + vn + " down near " + w + " and forces themselves on them while the fight is lost.", "", agg, vic)
-	ElseIf kind == 3
-		BakaSay(pn + " pins the beaten " + vn + " to the ground near " + w + " and forces themselves on them.", "", PlayerRef, vic)
-	Else
-		BakaSay(an + " has beaten " + vn + " near " + w + " and forces themselves on them.", "", agg, vic)
-	EndIf
-EndEvent
-
-Event OnBakaSceneEnd(string eventName, string strArg, float numArg, Form sender)
-	int s = BakaSlot(numArg as int)
-	If s < 0
-		return
-	EndIf
-	int kind = iBakaKind[s]
-	Actor vic = kBakaVic[s]
-	Actor agg = kBakaAgg[s]
-	iBakaKind[s] = 0
-	iBakaTid[s] = -1
-	kBakaVic[s] = None
-	kBakaAgg[s] = None
-	If vic == None || agg == None
-		return
-	EndIf
-	string pn = PlayerRef.GetDisplayName()
-	string w = WhereName()
-	If kind == 1
-		If !bBakaMemDone
-			bBakaMemDone = true
-			BakaSay("", BakaWho() + " in a fight and had their way with them while " + pn + " lay helpless.", agg, PlayerRef)
-		EndIf
-	ElseIf kind == 2
-		BakaSay("", agg.GetDisplayName() + " overpowered " + vic.GetDisplayName() + ", " + pn + "'s companion, near " + w + " and had their way with them.", agg, vic)
-	ElseIf kind == 3
-		BakaSay("", pn + " beat " + vic.GetDisplayName() + " near " + w + " and forced themselves on them.", PlayerRef, vic)
-	Else
-		BakaSay("", agg.GetDisplayName() + " beat " + vic.GetDisplayName() + " near " + w + " and had their way with them.", agg, vic)
-	EndIf
-EndEvent
-
-; the player's post-assault events (Baka sends them only for the player)
-Event OnBakaPostAssault(string eventName, string strArg, float numArg, Form sender)
-	Log("Baka Defeat: post assault " + strArg)
-	string pn = PlayerRef.GetDisplayName()
-	float now = Utility.GetCurrentGameTime()
-	If strArg == "DefeatedBegin"
-		fBakaUntil = now + 0.04
-		BakaSay(pn + " comes to in a rented bed at an inn, bruised and used. Someone hauled them off the field after the defeat.", BakaWho() + ". " + pn + " woke up later in a bed at an inn.", None, PlayerRef)
-	ElseIf strArg == "LFDBegin"
-		fBakaUntil = now + 0.04
-		BakaSay("Hours later, " + pn + " comes to where the winners dumped them and left them for dead.", BakaWho() + ", used them and left them for dead.", None, PlayerRef)
-	ElseIf strArg == "RobEnd"
-		fBakaUntil = now + 0.04
-		string by = "The ones who beat them"
-		If sBakaBy != ""
-			by = sBakaBy
-		EndIf
-		BakaSay(by + " goes through " + pn + "'s belongings and takes what is worth taking.", BakaWho() + " and robbed them of their valuables.", None, PlayerRef)
-	ElseIf strArg == "EscapeEnd"
-		fBakaUntil = 0.0
-		BakaSay(pn + " gets away from the ones who beat them.", BakaWho() + ", but " + pn + " got away.", None, PlayerRef)
-		BakaClear()
-	EndIf
-EndEvent
+; (the Baka Defeat bridge body is in ODS_Bridges; its three event handlers are the forwarders above)
 
 ; ======================= 0.3: FOLLOWER RESCUE (mid-battle) =======================
 ; A follower who goes down in a fight may be taken by one nearby hostile while the rest of the
@@ -6423,217 +6137,50 @@ EndEvent
 ; = the player did not get there in time. Either way both actors are released and the attacker
 ; goes back to the fight. Event-based: bleedout, OnHit / OnDeath, ostim_thread_end, panic.
 
-bool Function RescueGenderOK(Actor a)
-	If iRescueGender == 0
-		return true
+; 1.2.0: the follower rescue body now lives in ODS_Rescue (same quest). These forwarders keep the
+; names and signatures that ODS_AttackerAlias, OnActorBleedout, OnOStimThreadEnd and AbortAll use.
+ODS_Rescue Function RescueMod()
+	ODS_Rescue r = (Self as Quest) as ODS_Rescue
+	If !r
+		ModMissing("ODS_Rescue")
 	EndIf
-	int sex = a.GetLeveledActorBase().GetSex()
-	If iRescueGender == 1
-		return sex == 1
-	EndIf
-	return sex == 0
+	return r
 EndFunction
 
 bool Function IsRescueAlias(ReferenceAlias r)
-	return bRescueOn && r == Extra3Alias
+	ODS_Rescue m = RescueMod()
+	If !m
+		return false
+	EndIf
+	return m.IsRescueAlias(r)
 EndFunction
 
 ; from OnActorBleedout for a downed follower. true = handled here (the full Defeat path is skipped)
 bool Function TryFollowerRescue(Actor vic)
-	If !Ready() || !bRescue || bRescueOn || bBusy || vic == None || vic == PlayerRef
+	ODS_Rescue m = RescueMod()
+	If !m
 		return false
 	EndIf
-	If !IsFollowerActor(vic) || IsMinor(vic) || IsProtected(vic) || vic.IsDead() || OActor.IsInOStim(vic)
-		return false
-	EndIf
-	If (!bGuardVictims && IsGuardActor(vic)) || !RescueGenderOK(vic)
-		return false
-	EndIf
-	If PlayerRef.IsDead() || PlayerRef.IsBleedingOut() || OActor.IsInOStim(PlayerRef)
-		return false
-	EndIf
-	float now = Utility.GetCurrentGameTime()
-	If now < fOKRHeldUntil || now < fODefUntil || now < fBakaUntil || (now - fLastRescue) * 24.0 < 1.0
-		return false
-	EndIf
-	If Utility.RandomFloat(0.0, 100.0) >= fRescueChance
-		return false
-	EndIf
-	; one nearby hostile with an aggressive scene for the pair
-	Actor att = None
-	string scene = ""
-	Actor[] acts = new Actor[2]
-	Actor[] near = OActorUtil.GetActorsInRangeV2(vic, 1500.0, false, false, false)
-	int i = 0
-	While i < near.Length && att == None
-		Actor x = near[i]
-		If x && !IsFollowerActor(x) && !x.IsBleedingOut() && (x.IsHostileToActor(PlayerRef) || x.IsHostileToActor(vic)) && BaseEligible(x, true) && CreatureAllowed(x) && (bGuardAttackers || !IsGuardActor(x))
-			Actor[] a1 = new Actor[1]
-			a1[0] = x
-			Actor[] v1 = new Actor[1]
-			v1[0] = vic
-			string s = SceneForSet(a1, 1, v1, 1, true, acts)
-			If s != ""
-				att = x
-				scene = s
-			EndIf
-		EndIf
-		i += 1
-	EndWhile
-	If att == None
-		Log("rescue: no hostile with a scene near " + vic.GetDisplayName())
-		return false
-	EndIf
-	int ep = iEpoch
-	bRescueOn = true
-	bRescueDone = false
-	iRescueThread = -1
-	kRescueVic = vic
-	kRescueAtt = att
-	sRescueWhere = WhereName()
-	fLastRescue = now
-	; calm only this pair
-	fRescueAgg = att.GetActorValue("Aggression")
-	att.StopCombat()
-	att.StopCombatAlarm()
-	bRescueFac = !att.IsInFaction(PlayerFaction)
-	If bRescueFac
-		att.AddToFaction(PlayerFaction)
-	EndIf
-	att.SetActorValue("Aggression", 0.0)
-	vic.StopCombat()
-	vic.RestoreActorValue("Health", vic.GetBaseActorValue("Health") * 0.5)
-	bRescueProt = false
-	ActorBase vb = vic.GetActorBase()
-	If vb && !vb.IsEssential() && !vb.IsProtected() && !vic.IsEssential()
-		vb.SetProtected(true)
-		bRescueProt = true
-	EndIf
-	Extra3Alias.ForceRefTo(att)
-	Utility.Wait(1.0)      ; one bounded wait: let the follower come out of bleedout
-	If !Alive(ep) || !bRescueOn || att.IsDead() || vic.IsDead()
-		RescueRelease(true)
-		return true
-	EndIf
-	Actor[] dom = new Actor[1]
-	dom[0] = att
-	LeaveFurniture(acts)      ; 0.8
-	int b = OThreadBuilder.Create(acts)
-	If b < 0
-		Log("rescue: OThreadBuilder.Create failed")
-		RescueRelease(true)
-		return false
-	EndIf
-	OThreadBuilder.SetDominantActors(b, dom)
-	OThreadBuilder.SetStartingAnimation(b, scene)
-	float mn = fMinDuration
-	float mx = fMaxDuration
-	If mx < mn
-		mx = mn
-	EndIf
-	OThreadBuilder.SetDuration(b, Utility.RandomFloat(mn, mx))
-	OThreadBuilder.UndressActors(b)
-	OThreadBuilder.NoPostDialogue(b)
-	OThreadBuilder.NoFurniture(b)
-	OThreadBuilder.NoPlayerControl(b)
-	OThreadBuilder.SetMetadataCSV(b, "odangerous,aggressive,follower_rescue")
-	If !Alive(ep) || !bRescueOn
-		OThreadBuilder.Cancel(b)
-		RescueRelease(true)
-		return true
-	EndIf
-	int t = OThreadBuilder.Start(b)
-	If t < 0
-		Log("rescue: thread did not start")
-		RescueRelease(true)
-		return false
-	EndIf
-	iRescueThread = t
-	If !Alive(ep) || !bRescueOn
-		RescueRelease(true)
-		return true
-	EndIf
-	Log("rescue: " + att.GetDisplayName() + " takes " + vic.GetDisplayName() + " at " + sRescueWhere + ", thread " + t + ", scene " + scene)
-	If bSkyrimNetStart && SNetOK()
-		SkyrimNetApi.DirectNarration(vic.GetDisplayName() + " has fallen near " + sRescueWhere + ", and " + att.GetDisplayName() + " is taking them right there while the fight goes on.", att, vic)
-	EndIf
-	return true
+	return m.TryFollowerRescue(vic)
 EndFunction
 
 ; how: 1 = player hit / pulled the attacker away, 2 = attacker died, 0 = the scene ended on its own
 Function RescueOutcome(int how)
-	If !bRescueOn || bRescueDone
-		return
-	EndIf
-	bRescueDone = true
-	Actor att = kRescueAtt
-	Actor vic = kRescueVic
-	string w = sRescueWhere
-	RescueRelease(true)
-	If !bMaster || !SNetOK() || att == None || vic == None
-		return
-	EndIf
-	string pn = PlayerRef.GetDisplayName()
-	string vn = vic.GetDisplayName()
-	string an = att.GetDisplayName()
-	string n
-	string m
-	If how == 1
-		n = pn + " pulls " + vn + " away from " + an + "."
-		m = pn + " pulled " + vn + " away from " + an + ", who had started forcing themselves on " + vn + " in the middle of a fight near " + w + "."
-	ElseIf how == 2
-		n = an + " falls, and " + vn + " is free."
-		m = an + " was killed in the middle of a fight near " + w + " while forcing themselves on " + vn + ", and " + vn + " got away."
-	Else
-		n = an + " leaves " + vn + " on the ground and turns back to the fight."
-		m = an + " forced themselves on " + vn + " in the middle of a fight near " + w + ", and " + pn + " did not get there in time."
-	EndIf
-	If bSkyrimNetStart
-		SkyrimNetApi.DirectNarration(n, att, vic)
-	EndIf
-	If bSkyrimNetLog
-		SkyrimNetApi.RegisterPersistentEvent(m, att, vic)
+	ODS_Rescue m = RescueMod()
+	If m
+		m.RescueOutcome(how)
 	EndIf
 EndFunction
 
 ; stop the side scene and give both actors back (also used by panic, master off and game load)
 Function RescueRelease(bool fight)
-	int t = iRescueThread
-	iRescueThread = -1
-	Actor att = kRescueAtt
-	Actor vic = kRescueVic
-	kRescueAtt = None
-	kRescueVic = None
-	bRescueOn = false
-	If t >= 0 && OThread.IsRunning(t)
-		OThread.Stop(t)       ; OStim redresses the actors it undressed
+	ODS_Rescue m = RescueMod()
+	If m
+		m.RescueRelease(fight)
+	Else
+		bRescueOn = false     ; module missing: at least drop the flag so nothing waits on it
+		iRescueThread = -1
 	EndIf
-	If att && Extra3Alias.GetReference() == att
-		Extra3Alias.Clear()
-	EndIf
-	If att
-		If bRescueFac
-			att.RemoveFromFaction(PlayerFaction)
-		EndIf
-		If !att.IsDead()
-			att.SetActorValue("Aggression", fRescueAgg)
-			att.EvaluatePackage()
-			If fight && bMaster && att.IsHostileToActor(PlayerRef)
-				att.StartCombat(PlayerRef)
-			EndIf
-		EndIf
-	EndIf
-	bRescueFac = false
-	If vic
-		If bRescueProt && vic.GetActorBase()
-			vic.GetActorBase().SetProtected(false)
-		EndIf
-		If !vic.IsDead()
-			vic.RestoreActorValue("Health", vic.GetBaseActorValue("Health") * 0.5)
-			vic.EvaluatePackage()
-		EndIf
-	EndIf
-	bRescueProt = false
 EndFunction
 
 ; ======================= protect list helper (MCM) =======================
@@ -6939,7 +6486,7 @@ Function JoinIn(Actor lover, Actor other, int ep)
 	EndIf
 	If sc == ""
 		iJoinChoice = 1
-		ShowMsg("No installed scene has room for you. You stay and watch.")
+		ShowMsg(ODS_Text.T("join.no_room", "You stay and watch."))
 		Log("join: no three-person or take-over scene for this cast")
 		return
 	EndIf
@@ -6965,18 +6512,18 @@ Function JoinIn(Actor lover, Actor other, int ep)
 	iThread = StartThread(acts, kNoActors, sc, "odangerous,cheating,joined", ep)
 	If iThread < 0
 		iJoinChoice = 1
-		ShowMsg("You could not join them.")
+		ShowMsg(ODS_Text.T("join.failed", "You could not join them."))
 		bAftermathDone = false
 		RegisterForSingleUpdate(5.0)
 		return
 	EndIf
 	If mode == 3
 		other.EvaluatePackage()
-		ShowMsg("You push " + on + " aside and take over...")
-		TalkNet(pn + " walked in on their " + rel + ln + " having sex with " + on + ", shoved " + on + " aside and took over. " + pn + " is now having sex with " + ln + " while " + on + " watches.", lover, PlayerRef, true, false)
+		ShowMsg(ODS_Text.T("join.takeover_msg", "You take over from {vn}.", pn, ln, on))
+		TalkNet(ODS_Text.T("join.takeover", "{pn} takes over from {vn} with {x1}.", pn, ln, on, "", rel + ln), lover, PlayerRef, true, false)
 	Else
-		ShowMsg("You join them...")
-		TalkNet(pn + " walked in on their " + rel + ln + " having sex with " + on + " and joined in. " + pn + ", " + ln + " and " + on + " are now having a threesome.", lover, PlayerRef, true, false)
+		ShowMsg(ODS_Text.T("join.threesome_msg", "You join them."))
+		TalkNet(ODS_Text.T("join.threesome", "{pn} joins {an} and {vn}.", pn, ln, on, "", rel + ln), lover, PlayerRef, true, false)
 	EndIf
 	bAftermathDone = false
 	iCleanupTicks = 0
@@ -7265,12 +6812,12 @@ Function WildChosen(int choice, int ep)
 	string vn = WildVictimText()
 	Log("wild: player chose " + choice + " (1 = rescue, else watch)")
 	If choice == 1
-		TalkNet(pn + " sees " + an + " raping " + vn + " and charges in to rescue them.", kAttacker, kVictim, true, false)
+		TalkNet(ODS_Text.T("wild.rescue", "{pn} steps in for {vn} against {an}.", pn, an, vn), kAttacker, kVictim, true, false)
 		SaviorRescue(ep)
 	Else
 		iSaviorChoice = 1
-		TalkNet(pn + " sees " + an + " raping " + vn + " and chooses to stand and watch, without intervening.", kAttacker, kVictim, true, false)
-		ShowMsg("You stand and watch...")
+		TalkNet(ODS_Text.T("wild.watch", "{pn} watches {an} and {vn}.", pn, an, vn), kAttacker, kVictim, true, false)
+		ShowMsg(ODS_Text.T("wild.watch_msg", "You stand and watch."))
 	EndIf
 EndFunction
 
@@ -7426,7 +6973,7 @@ bool Function BeastMateWilling(Actor a)
 	If IsSpouse(a)
 		return true
 	EndIf
-	int r = AskConsent(a, PlayerRef.GetDisplayName() + ", their travelling companion, is in full " + BeastWord(PlayerRef) + " beast form and wants to have sex with them right now, near " + WhereName() + ".")
+	int r = AskConsent(a, ODS_Text.T("beastmate.consent", "{pn} is in beast form near {where}. {x1}.", PlayerRef.GetDisplayName(), "", "", WhereName(), BeastWord(PlayerRef)))
 	If r == 1
 		return true
 	ElseIf r == 0
@@ -7535,6 +7082,7 @@ float Property fHeatChance = 25.0 Auto Hidden
 bool Property bHeatAsk = true Auto Hidden          ; 1.1.6: retired (no in-game box any more), kept for old saves
 int Property iHeatMax = 3 Auto Hidden              ; 1.1.6: retired (replaced by iHeatJoin), kept for old saves
 int Property iHeatJoin = 0 Auto Hidden             ; 1.1.6: how many join: 1-3, 0 = random 1-3 (MCM, no in-game box)
+int Property iHeatJoinKind = 0 Auto Hidden         ; 1.2.0: joining beasts: 0 match the first beast (1.1.8), 1 werewolves, 2 werebears, 3 mixed
 bool Property bForceHeat = false Auto Hidden       ; debug: next eligible scene, no chance roll
 FormList Property ODS_PoolHeatWolf Auto            ; EncWerewolf01-06 (Skyrim.esm, WerewolfBeastRace)
 Faction Property ODS_HeatPackFaction Auto          ; friend (never ally) to the player and followers
@@ -7560,15 +7108,6 @@ Actor kHeatBeast
 ObjectReference kHeatMarker
 int iHeatCount = 0
 
-ODS_HeatWolfAlias Function HeatAlias(int i)
-	If i == 0
-		return HeatWolf1Alias as ODS_HeatWolfAlias
-	ElseIf i == 1
-		return HeatWolf2Alias as ODS_HeatWolfAlias
-	EndIf
-	return HeatWolf3Alias as ODS_HeatWolfAlias
-EndFunction
-
 ; ---------- 1.1.5: which beast, and how they join ----------
 ; 1.1.5: any male beast in FULL beast form counts (werewolf, werebear, vampire lord); human-form
 ; werewolves and vampires never do. Werewolves (and werebears with OStim Beast Form's "werebears
@@ -7582,1053 +7121,120 @@ int iHeatWW = 0            ; summoned, by kind (for the narration)
 int iHeatVL = 0
 int iHeatBear = 0
 
-; 1 werewolf, 2 vampire lord, 3 werebear, 0 not in full beast form
-int Function HeatKindOf(Actor a)
-	If a == None
-		return 0
-	ElseIf IsWerewolfForm(a)
-		return 1
-	ElseIf IsVampireLordForm(a)
-		return 2
-	ElseIf IsWerebearForm(a)
-		return 3
+; 1.2.0: Bitch in Heat now lives in ODS_Heat (same quest). Its state variables stay declared here
+; (save safety) and are reached by the module through the mv_ accessor properties at the end of
+; this script. The forwarders below keep every name and signature other scripts call.
+ODS_Heat Function HeatMod()
+	ODS_Heat h = (Self as Quest) as ODS_Heat
+	If !h
+		ModMissing("ODS_Heat")
 	EndIf
-	return 0
+	return h
 EndFunction
 
-; OStim Beast Form (Core C) toggle "werebears use werewolf scenes" (GLOB OBL_WerebearAsWerewolf)
 bool Function HeatBearAsWolf()
-	If !ModLoaded("OStim_Beast_Form_Merged.esp")
+	ODS_Heat h = HeatMod()
+	If !h
 		return false
 	EndIf
-	GlobalVariable g = Game.GetFormFromFile(0x00000839, "OStim_Beast_Form_Merged.esp") as GlobalVariable
-	return g && g.GetValue() >= 1.0
+	return h.HeatBearAsWolf()
 EndFunction
 
-string Function HeatCallWord(int kind)
-	If kind == 2
-		return "the shrieks"
-	ElseIf kind == 3
-		return "the roars"
+int Function HeatKindOf(Actor a)
+	ODS_Heat h = HeatMod()
+	If !h
+		return 0
 	EndIf
-	return "the howls"
+	return h.HeatKindOf(a)
 EndFunction
 
-string Function HeatKindCount(int kind, int n)
-	If n == 1
-		return "a " + FormWord(kind)
-	EndIf
-	If kind == 2
-		return HeatNumber(n) + " vampire lords"
-	ElseIf kind == 3
-		return HeatNumber(n) + " werebears"
-	EndIf
-	return HeatNumber(n) + " werewolves"
-EndFunction
-
-; "two werewolves and a werebear"
-string Function HeatPackWords()
-	string s = ""
-	int parts = 0
-	If iHeatWW > 0
-		s = HeatKindCount(1, iHeatWW)
-		parts += 1
-	EndIf
-	If iHeatBear > 0
-		If parts > 0
-			s += " and "
-		EndIf
-		s += HeatKindCount(3, iHeatBear)
-		parts += 1
-	EndIf
-	If iHeatVL > 0
-		If parts > 0
-			s += " and "
-		EndIf
-		s += HeatKindCount(2, iHeatVL)
-		parts += 1
-	EndIf
-	If parts == 0
-		return "other beasts"
-	EndIf
-	return s
-EndFunction
-
-; ---------- group scenes (actor order: beasts first, the human last = the centre) ----------
-; Werewolf and Vampire Lord OStim 0.3.1 first (hubs, then the Billyy scenes), OStim Beast Form,
-; Billyy, OCreatures last. Male-centre IDs only exist with WVL's male partner scenes installed.
-string Function HeatCandidate(bool female, int n, int i)
-	If female
-		If n == 1
-			If i == 0
-				return "WVLWWWerewolfHubFMMC2"
-			ElseIf i == 1
-				return "OBFWerewolfIdleFMM"
-			ElseIf i == 2
-				return "WVLAnubswwf-1"
-			ElseIf i == 3
-				return "WVLBWWB3pCG-1"
-			ElseIf i == 4
-				return "WVLBWWB3pDP2-1"
-			ElseIf i == 5
-				return "WVLBWWB3pHoldDP-1"
-			ElseIf i == 6
-				return "WVLBWWB3pDogSpit-1"
-			ElseIf i == 7
-				return "WVLBWWB3pHang2-1"
-			ElseIf i == 8
-				return "WVLBWWB3pStandSpit-1"
-			ElseIf i == 9
-				return "BillyyWerewolfHubFMM"
-			ElseIf i == 10
-				return "OCrWerewolfIdleFMM"
-			EndIf
-		ElseIf n == 2
-			If i == 0
-				return "WVLWWWerewolfHubFMMMC3"
-			ElseIf i == 1
-				return "OBFWerewolfIdleFMMM"
-			ElseIf i == 2
-				return "WVLBWWB4pGB1-1"
-			ElseIf i == 3
-				return "BillyyWerewolfHubFMMM"
-			ElseIf i == 4
-				return "OCrWerewolfIdleFMMM"
-			EndIf
-		ElseIf n == 3
-			If i == 0
-				return "WVLWWWerewolfHubFMMMMC4"
-			ElseIf i == 1
-				return "OBFWerewolfIdleFMMMM"
-			ElseIf i == 2
-				return "WVLBWWB5pGB1-1"
-			ElseIf i == 3
-				return "BillyyWerewolfHubFMMMM"
-			ElseIf i == 4
-				return "OCrWerewolfIdleFMMMM"
-			EndIf
-		EndIf
-	Else
-		If n == 1
-			If i == 0
-				return "WVLWWMWerewolfHubMMMC2"
-			ElseIf i == 1
-				return "WVLIdleWWMWerewolfMMMC2"
-			ElseIf i == 2
-				return "WVLAnubswwfM-1"
-			ElseIf i == 3
-				return "WVLBWWB3pCGM-1"
-			ElseIf i == 4
-				return "WVLBWWB3pDP2M-1"
-			ElseIf i == 5
-				return "WVLBWWB3pHoldDPM-1"
-			ElseIf i == 6
-				return "WVLBWWB3pDogSpitM-1"
-			ElseIf i == 7
-				return "WVLBWWB3pHang2M-1"
-			ElseIf i == 8
-				return "WVLBWWB3pStandSpitM-1"
-			EndIf
-		ElseIf n == 2
-			If i == 0
-				return "WVLWWMWerewolfHubMMMMC3"
-			ElseIf i == 1
-				return "WVLIdleWWMWerewolfMMMMC3"
-			ElseIf i == 2
-				return "WVLBWWB4pGB1M-1"
-			EndIf
-		ElseIf n == 3
-			If i == 0
-				return "WVLWWMWerewolfHubMMMMMC4"
-			ElseIf i == 1
-				return "WVLIdleWWMWerewolfMMMMMC4"
-			ElseIf i == 2
-				return "WVLBWWB5pGB1M-1"
-			EndIf
-		EndIf
-	EndIf
-	return ""
-EndFunction
-
-; installed for this many summoned beasts (n+1 beasts + 1 human)?
-bool Function HeatCountOK(bool female, int n)
-	int i = 0
-	While i < 11
-		string id = HeatCandidate(female, n, i)
-		If id != "" && OMetaData.GetActorCount(id) == n + 2
-			return true
-		EndIf
-		i += 1
-	EndWhile
-	return false
-EndFunction
-
-; the real cast: first listed scene OStim accepts for these actors, else any scene for them
-string Function HeatPickScene(Actor[] acts, bool female, int n)
-	int i = 0
-	While i < 11
-		string id = HeatCandidate(female, n, i)
-		If id != "" && OMetaData.GetActorCount(id) == acts.Length
-			string[] ok = OLibrary.GetScenesInRange(id, acts, 1)
-			If ok && ok.Length > 0
-				return id
-			EndIf
-		EndIf
-		i += 1
-	EndWhile
-	string r = OLibrary.GetRandomSceneWithAnySceneTagCSV(acts, "werewolf,beast,creature")
-	If r == ""
-		r = OLibrary.GetRandomScene(acts)
-	EndIf
-	return r
-EndFunction
-
-; ---------- 1.1.5: pair scenes for taking turns (beast first, the human last) ----------
-string Function HeatPairCandidate(int kind, bool female, int i)
-	If kind == 2
-		If female
-			If i == 0
-				return "WVLVLVampireLordHubFMC1"
-			ElseIf i == 1
-				return "OBFVampireLordIdleMF"
-			EndIf
-		ElseIf i == 0
-			return "WVLVLMVampireLordHubMMC1"
-		ElseIf i == 1
-			return "WVLIdleVLMVampireLordMMC1"
-		EndIf
+string Function HeatJoinKindText()
+	ODS_Heat h = HeatMod()
+	If !h
 		return ""
 	EndIf
-	If kind == 3 && !HeatBearAsWolf()
-		return ""          ; werebears fit the werewolf scenes only with Beast Form's toggle on
-	EndIf
-	If female
-		If i == 0
-			return "WVLWWWerewolfHubFMC1"
-		ElseIf i == 1
-			return "OBFWerewolfIdleMF"
-		EndIf
-	ElseIf i == 0
-		return "WVLWWMWerewolfHubMMC1"
-	ElseIf i == 1
-		return "WVLIdleWWMWerewolfMMC1"
-	EndIf
-	return ""
-EndFunction
-
-; a pair scene for this kind is installed (OCreatures as the last resort, female centre only)
-bool Function HeatTurnsOK(int kind, bool female)
-	int i = 0
-	While i < 2
-		string id = HeatPairCandidate(kind, female, i)
-		If id != "" && OMetaData.GetActorCount(id) == 2
-			return true
-		EndIf
-		i += 1
-	EndWhile
-	return female && OCreaturesInstalled()
-EndFunction
-
-string Function HeatPairScene(Actor[] acts, int kind, bool female)
-	int i = 0
-	While i < 2
-		string id = HeatPairCandidate(kind, female, i)
-		If id != "" && OMetaData.GetActorCount(id) == 2
-			string[] ok = OLibrary.GetScenesInRange(id, acts, 1)
-			If ok && ok.Length > 0
-				return id
-			EndIf
-		EndIf
-		i += 1
-	EndWhile
-	string tags = "werewolf,beast,creature"
-	If kind == 2
-		tags = "vampirelord,vampire lord,beast,creature"
-	ElseIf kind == 3
-		tags = "werebear,beast,creature"
-	EndIf
-	string r = OLibrary.GetRandomSceneWithAnySceneTagCSV(acts, tags)
-	If r == ""
-		r = OLibrary.GetRandomScene(acts)
-	EndIf
-	return r
-EndFunction
-
-; ---------- the guard: non-hostile, never an ally, never a teammate ----------
-Function HeatPacify(Actor w)
-	If w == None
-		return
-	EndIf
-	w.RemoveFromAllFactions()                  ; drops WerewolfFaction / CreatureFaction
-	If ODS_HeatPackFaction
-		w.AddToFaction(ODS_HeatPackFaction)
-	EndIf
-	w.SetActorValue("Aggression", 0.0)         ; unaggressive: never starts a fight
-	w.SetActorValue("Confidence", 0.0)         ; cowardly: walks away from one instead
-	w.SetActorValue("Assistance", 0.0)         ; helps nobody, so never joins your fights
-	w.IgnoreFriendlyHits(true)
-	w.SetPlayerTeammate(false)
-	w.StopCombat()
-	w.StopCombatAlarm()
-EndFunction
-
-Function HeatFactionSetup()
-	If ODS_HeatPackFaction == None
-		return
-	EndIf
-	; mutual "friend" (not ally): nobody fights, and the werewolves never assist in combat
-	ODS_HeatPackFaction.SetAlly(PlayerFaction, true, true)
-	If CurrentFollowerFaction
-		ODS_HeatPackFaction.SetAlly(CurrentFollowerFaction, true, true)
-	EndIf
-	If PlayerFollowerFaction
-		ODS_HeatPackFaction.SetAlly(PlayerFollowerFaction, true, true)
-	EndIf
-	If PlayerWerewolfFaction
-		ODS_HeatPackFaction.SetAlly(PlayerWerewolfFaction, true, true)
-	EndIf
-EndFunction
-
-; alias events: combat start or a hit -> calm again at once
-Function HeatCalmWolf(Actor w)
-	If w == None || !kHeatWolves || kHeatWolves.Find(w) < 0
-		return
-	EndIf
-	HeatPacify(w)
-	PlayerRef.StopCombatAlarm()
-	Actor[] near = OActorUtil.GetActorsInRangeV2(w, 3000.0, false, false, false)
-	int i = 0
-	While i < near.Length
-		If near[i] && (near[i] == PlayerRef || IsFollowerActor(near[i])) && near[i].GetCombatTarget() == w
-			near[i].StopCombat()
-		EndIf
-		i += 1
-	EndWhile
-EndFunction
-
-; a summoned beast that is not in full beast form any more is never used: drop it
-Function HeatRaceChanged(Actor w)
-	If w == None || !kHeatWolves || kHeatWolves.Find(w) < 0
-		return
-	EndIf
-	If HeatKindOf(w) == 0
-		Log("heat: a summoned beast left beast form - removed")
-		int i = kHeatWolves.Find(w)
-		kHeatWolves[i] = None
-		w.Disable(false)
-		w.Delete()
-		ODS_HeatWolfAlias al = HeatAlias(i)
-		If al
-			al.Clear()
-		EndIf
-		If iHeatLeft > 0
-			iHeatLeft -= 1
-			If iHeatLeft == 0 && iHeatThread < 0
-				HeatFinish()
-			EndIf
-		EndIf
-	EndIf
-EndFunction
-
-; 1.1.5: the kind for one summoned slot. Werewolf and werebear packs can mix when Beast Form lets
-; werebears use the werewolf scenes (about one answer in three is the other kind). Never for turns.
-int Function HeatSlotKind(int bk, bool turns)
-	If turns || bk == 2 || !HeatBearAsWolf() || WerebearRace() == None
-		return bk
-	EndIf
-	If Utility.RandomInt(0, 2) == 0
-		If bk == 1
-			return 3
-		EndIf
-		return 1
-	EndIf
-	return bk
-EndFunction
-
-; 1.1.5 pools: werewolves EncWerewolf01-06 (ODS_PoolHeatWolf), werebears Dragonborn DLC2EncWerebear,
-; vampire lords: male vampire boss bases (Skyrim.esm) changed to the Dawnguard vampire lord race
-; while still disabled (the game has no generic vampire lord NPCs)
-Form Function HeatPoolPick(int kind)
-	If kind == 3
-		return Game.GetFormFromFile(0x000322B1, "Dragonborn.esm")
-	ElseIf kind == 2
-		int r = Utility.RandomInt(0, 9)
-		int fid = 0x0002E1E2
-		If r == 1
-			fid = 0x0002E1FC
-		ElseIf r == 2
-			fid = 0x0002E519
-		ElseIf r == 3
-			fid = 0x0002EA9E
-		ElseIf r == 4
-			fid = 0x0002EAC1
-		ElseIf r == 5
-			fid = 0x0003377B
-		ElseIf r == 6
-			fid = 0x0003377C
-		ElseIf r == 7
-			fid = 0x00033828
-		ElseIf r == 8
-			fid = 0x0002E1DC
-		ElseIf r == 9
-			fid = 0x0002E1F1
-		EndIf
-		return Game.GetFormFromFile(fid, "Skyrim.esm")
-	EndIf
-	If ODS_PoolHeatWolf == None || ODS_PoolHeatWolf.GetSize() == 0
-		return None
-	EndIf
-	return ODS_PoolHeatWolf.GetAt(Utility.RandomInt(0, ODS_PoolHeatWolf.GetSize() - 1))
-EndFunction
-
-; spawn one beast, disabled, just out of sight behind the player; verified and calmed before Enable
-Actor Function HeatSpawnBeast(Actor anchor, int ep, int kind)
-	Race vl = None
-	If kind == 2
-		vl = VampireLordRace()
-		If vl == None
-			return None
-		EndIf
-	ElseIf kind == 3 && WerebearRace() == None
-		return None
-	EndIf
-	int t = 0
-	While t < 4 && Alive(ep)
-		Form base = HeatPoolPick(kind)
-		Actor a = None
-		If base
-			a = anchor.PlaceAtMe(base, 1, false, true) as Actor
-		EndIf
-		If a
-			bool male = a.GetLeveledActorBase().GetSex() == 0
-			If kind == 2 && male && !IsMinor(a)
-				a.UnequipAll()
-				a.SetRace(vl)          ; still disabled: it is first drawn as a vampire lord
-			EndIf
-			If HeatKindOf(a) == kind && male && !IsMinor(a)
-				float ang = PlayerRef.GetAngleZ() + 180.0 + Utility.RandomFloat(-50.0, 50.0)
-				float dist = Utility.RandomFloat(1500.0, 2200.0)
-				a.SetPosition(PlayerRef.GetPositionX() + Math.sin(ang) * dist, PlayerRef.GetPositionY() + Math.cos(ang) * dist, PlayerRef.GetPositionZ())
-				PO3_SKSEFunctions.MoveToNearestNavmeshLocation(a)
-				HeatPacify(a)          ; before it ever gets an AI tick
-				return a
-			EndIf
-			Log("heat: spawn was not a male " + FormWord(kind) + " in beast form (" + FormText(base) + ", race " + FormText(a.GetRace()) + ") - discarded")
-			a.Delete()
-		ElseIf base == None
-			Log("heat: no " + FormWord(kind) + " base form found")
-			return None
-		EndIf
-		t += 1
-	EndWhile
-	return None
-EndFunction
-
-bool Function HeatPlaceOK()
-	If !IsOutdoors()
-		return false
-	EndIf
-	Location loc = PlayerRef.GetCurrentLocation()
-	return !(TreeHasKW(loc, "LocTypeCity") || TreeHasKW(loc, "LocTypeTown"))
-EndFunction
-
-; ---------- trigger: OnOStimThreadStart ----------
-Function HeatCheck(int id)
-	If !bHeat || !Ready() || bHeatOn || bRescueOn || id < 0 || !OStimOK()
-		return
-	EndIf
-	If ODS_HeatQuest == None || ODS_HeatQuest.IsRunning()
-		return
-	EndIf
-	If bBusy && id != iThread
-		return
-	EndIf
-	Actor[] acts = OThread.GetActors(id)
-	If !acts || acts.Length != 2 || acts.Find(PlayerRef) < 0
-		return
-	EndIf
-	Actor beast = None
-	Actor human = None
-	int k0 = HeatKindOf(acts[0])
-	int k1 = HeatKindOf(acts[1])
-	If k0 > 0 && k1 == 0
-		beast = acts[0]
-		human = acts[1]
-	ElseIf k1 > 0 && k0 == 0
-		beast = acts[1]
-		human = acts[0]
-	EndIf
-	If beast == None || human == None || IsMinor(beast) || IsMinor(human) || !IsHumanoid(human)
-		return       ; nobody in full beast form (human-form werewolves / vampires do not count)
-	EndIf
-	int bk = HeatKindOf(beast)
-	string bw = FormWord(bk)
-	If beast.GetLeveledActorBase().GetSex() != 0
-		Log("heat: " + bw + " scene, but the " + bw + " is female - skipped")
-		return      ; the beast places in these scenes are male
-	EndIf
-	If !HeatPlaceOK()
-		Log("heat: " + bw + " scene, but not a wilderness place - skipped")
-		return
-	EndIf
-	If !bForceHeat && Utility.RandomFloat(0.0, 100.0) >= fHeatChance
-		Log("heat: " + bw + " scene, chance roll missed (" + fHeatChance + "%)")
-		return
-	EndIf
-	bool female = human.GetLeveledActorBase().GetSex() == 1
-	; 1.1.6: no in-game box (it clashed with OStim's own menu at scene start). The count comes
-	; from the MCM ("How many join": 1, 2, 3 or 0 = random 1-3); a count without an installed
-	; scene for this cast falls back silently to the nearest one that has one.
-	bool turns = false
-	bool ok1 = false
-	bool ok2 = false
-	bool ok3 = false
-	bool bearWolf = HeatBearAsWolf()
-	If bk == 1 || (bk == 3 && bearWolf)
-		ok1 = HeatCountOK(female, 1)
-		ok2 = HeatCountOK(female, 2)
-		ok3 = HeatCountOK(female, 3)
-	EndIf
-	If !ok1 && !ok2 && !ok3
-		If bk == 1
-			Log("heat: werewolf scene, no installed multi-werewolf scene for a " + HeatSexWord(female) + " centre - skipped")
-			return
-		EndIf
-		If !HeatTurnsOK(bk, female)
-			Log("heat: " + bw + " scene, no installed pair scene for a " + bw + " with a " + HeatSexWord(female) + " centre (werebears use werewolf scenes " + YesNo(bearWolf) + ", OCreatures " + YesNo(OCreaturesInstalled()) + ") - skipped")
-			return
-		EndIf
-		turns = true
-		ok1 = true
-		ok2 = true
-		ok3 = true
-	EndIf
-	bForceHeat = false
-	int want = iHeatJoin
-	If want < 0 || want > 3
-		want = 0
-	EndIf
-	int n = 0
-	If want == 0
-		int[] pick = new int[3]
-		int k = 0
-		If ok1
-			pick[k] = 1
-			k += 1
-		EndIf
-		If ok2
-			pick[k] = 2
-			k += 1
-		EndIf
-		If ok3
-			pick[k] = 3
-			k += 1
-		EndIf
-		n = pick[Utility.RandomInt(0, k - 1)]
-		Log("heat: how many join: random 1-3 -> " + n + " (installed counts: 1 " + YesNo(ok1) + ", 2 " + YesNo(ok2) + ", 3 " + YesNo(ok3) + ")")
-	Else
-		n = HeatNearestCount(want, ok1, ok2, ok3)
-		If n != want
-			Log("heat: how many join: MCM says " + want + ", no installed scene for that cast - using " + n + " (installed counts: 1 " + YesNo(ok1) + ", 2 " + YesNo(ok2) + ", 3 " + YesNo(ok3) + ")")
-		Else
-			Log("heat: how many join: " + n + " (MCM)")
-		EndIf
-	EndIf
-	If n <= 0 || !Ready() || !OThread.IsRunning(id)
-		Log("heat: " + bw + " scene, nobody called (choice " + n + ")")
-		return
-	EndIf
-	string mode = "one group scene"
-	If turns
-		mode = "taking turns in pair scenes"
-	EndIf
-	Log("heat: " + bw + " scene " + id + " (" + NameOf(beast) + " with " + NameOf(human) + "), " + n + " answer, " + mode + " (werebears use werewolf scenes " + YesNo(bearWolf) + ")")
-	HeatRun(id, beast, human, n, female, bk, turns)
+	return h.HeatJoinKindText()
 EndFunction
 
 string Function HeatJoinText()
-	If iHeatJoin >= 1 && iHeatJoin <= 3
-		return "" + iHeatJoin
+	ODS_Heat h = HeatMod()
+	If !h
+		return ""
 	EndIf
-	return "random 1-3"
+	return h.HeatJoinText()
 EndFunction
 
-; 1.1.6: Bitch in Heat text (1.1.7: also Caught and Watched, all at OStim scene start): a corner
-; notification (unless messages are off), never a message box
 Function HeatNote(string t)
-	If bMaster && iMsgStyle != 2
-		Debug.Notification(t)
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatNote(t)
 	EndIf
 EndFunction
 
-; 1.1.6: the installed count nearest to the wanted one (a tie goes to the smaller count)
-int Function HeatNearestCount(int want, bool ok1, bool ok2, bool ok3)
-	int d = 0
-	While d < 3
-		int lo = want - d
-		int hi = want + d
-		If (lo == 1 && ok1) || (lo == 2 && ok2) || (lo == 3 && ok3)
-			return lo
-		EndIf
-		If (hi == 1 && ok1) || (hi == 2 && ok2) || (hi == 3 && ok3)
-			return hi
-		EndIf
-		d += 1
-	EndWhile
-	return 0
+Function HeatCheck(int id)
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatCheck(id)
+	EndIf
 EndFunction
 
-string Function HeatSexWord(bool female)
-	If female
-		return "female"
-	EndIf
-	return "male"
-EndFunction
-
-; 1.1.5: start one heat scene; our own encounter carries on in it
-int Function HeatStartScene(Actor[] acts, string sc, bool own)
-	int b = OThreadBuilder.Create(acts)
-	int t = -1
-	If b >= 0
-		OThreadBuilder.SetStartingAnimation(b, sc)
-		If own
-			float mn = fMinDuration
-			float mx = fMaxDuration
-			If mx < mn
-				mx = mn
-			EndIf
-			OThreadBuilder.SetDuration(b, Utility.RandomFloat(mn, mx))
-		EndIf
-		OThreadBuilder.UndressActors(b)
-		OThreadBuilder.NoFurniture(b)
-		OThreadBuilder.SetMetadataCSV(b, "odangerous,beastform,heat")
-		iHeatThread = -2           ; the start event of our own scene is ignored
-		t = OThreadBuilder.Start(b)
-	EndIf
-	iHeatThread = t
-	If t >= 0 && own
-		iThread = t
-		kSceneActs = acts
-		sScene1 = sc
-	EndIf
-	return t
-EndFunction
-
-; 1.1.5: first summoned slot from k on that can still take a turn
-int Function HeatNextTurn(int k)
-	While k < 3
-		Actor w = kHeatWolves[k]
-		If w && !w.IsDead() && HeatKindOf(w) > 0
-			return k
-		EndIf
-		k += 1
-	EndWhile
-	return -1
-EndFunction
-
-; 1.1.5: one summoned beast takes his turn with the human
-int Function HeatStartTurn(int k, bool own)
-	Actor w = kHeatWolves[k]
-	Actor[] acts = NewActorArray(2)
-	acts[0] = w
-	acts[1] = kHeatHuman
-	int kind = HeatKindOf(w)
-	string sc = HeatPairScene(acts, kind, bHeatFemale)
-	If sc == ""
-		Log("heat: turn " + (k + 1) + ": OStim has no pair scene for this " + FormWord(kind))
-		return -1
-	EndIf
-	HeatPacify(w)
-	int t = HeatStartScene(acts, sc, own)
-	If t < 0
-		Log("heat: turn " + (k + 1) + ": the scene did not start (" + sc + ")")
-		return -1
-	EndIf
-	bool first = iHeatTurn < 0
-	iHeatTurn = k
-	If !first
-		TalkNet("The next one, a " + FormWord(kind) + " in full beast form, takes his turn fucking " + kHeatHuman.GetDisplayName() + ".", w, kHeatHuman, true, false)
-	EndIf
-	Log("heat: turn " + (k + 1) + ": a " + FormWord(kind) + " with " + NameOf(kHeatHuman) + ", scene " + sc + " thread " + t + ", own encounter " + YesNo(own))
-	return t
-EndFunction
-
-; 1.1.5: OnOStimThreadEnd of a turn: true = the next turn started (the event stops there)
 bool Function HeatTurnNext(int id)
-	If !bHeatOn || !bHeatTurns || kHeatHuman == None || kHeatHuman.IsDead() || !Alive(iHeatEp)
+	ODS_Heat h = HeatMod()
+	If !h
 		return false
 	EndIf
-	int k = HeatNextTurn(iHeatTurn + 1)
-	If k < 0
-		Log("heat: all turns done")
-		return false
-	EndIf
-	bool own = id >= 0 && id == iThread
-	iHeatThread = -2
-	Utility.Wait(1.0)
-	If !Alive(iHeatEp) || !bHeatOn
-		iHeatThread = -1
-		return false
-	EndIf
-	int t = HeatStartTurn(k, own)
-	If t < 0
-		iHeatThread = -1
-		return false
-	EndIf
-	return true
+	return h.HeatTurnNext(id)
 EndFunction
 
-Function HeatRun(int id, Actor beast, Actor human, int n, bool female, int bk, bool turns)
-	bHeatOn = true
-	iHeatEp = iEpoch
-	int ep = iHeatEp
-	bHeatOwnsBusy = !bBusy
-	bBusy = true
-	kHeatBeast = beast
-	kHeatHuman = human
-	kHeatWolves = new Actor[3]
-	iHeatCount = 0
-	iHeatKind = bk
-	bHeatTurns = turns
-	bHeatFemale = female
-	iHeatTurn = -1
-	iHeatWW = 0
-	iHeatVL = 0
-	iHeatBear = 0
-	HeatFactionSetup()
-	ODS_HeatQuest.Start()
-	int w8 = 0
-	While !ODS_HeatQuest.IsRunning() && w8 < 10
-		Utility.Wait(0.2)
-		w8 += 1
-	EndWhile
-	If !ODS_HeatQuest.IsRunning()
-		Log("heat: helper quest did not start")
-		HeatFinish()
-		return
-	EndIf
-	int i = 0
-	While i < n && Alive(ep)
-		int sk = HeatSlotKind(bk, turns)
-		Actor w = HeatSpawnBeast(human, ep, sk)
-		If w == None && sk != bk
-			sk = bk
-			w = HeatSpawnBeast(human, ep, sk)
-		EndIf
-		If w == None
-			Log("heat: could not get a " + FormWord(sk) + " in beast form - event skipped")
-			HeatDeleteAll()
-			HeatFinish()
-			return
-		EndIf
-		kHeatWolves[i] = w
-		iHeatCount += 1
-		If sk == 2
-			iHeatVL += 1
-		ElseIf sk == 3
-			iHeatBear += 1
-		Else
-			iHeatWW += 1
-		EndIf
-		HeatAlias(i).ForceRefTo(w)
-		w.Enable(false)
-		HeatPacify(w)
-		Log("heat: summoned a " + FormWord(sk) + " (slot " + (i + 1) + ", " + FormText(w.GetLeveledActorBase()) + ")")
-		i += 1
-	EndWhile
-	If !Alive(ep)
-		HeatDeleteAll()
-		HeatFinish()
-		return
-	EndIf
-	string where = WhereName()
-	string bn = beast.GetDisplayName()
-	string hn = human.GetDisplayName()
-	bn = bn + ", a " + FormWord(bk) + " in full beast form,"
-	string pack = HeatPackWords()
-	If turns
-		TalkNet("Near " + where + ", " + HeatCallWord(bk) + " and the scent of " + bn + " rutting with " + hn + " have drawn " + pack + " out of the wilds. They come in full beast form, and one after another each of them is going to take his turn fucking " + hn + ".", beast, human, true, false)
-	Else
-		TalkNet("Near " + where + ", " + HeatCallWord(bk) + " and the scent of " + bn + " rutting with " + hn + " have drawn " + pack + " out of the wilds. They come in full beast form to join in, and " + hn + " is about to be fucked by " + HeatNumber(n + 1) + " beasts at once.", beast, human, true, false)
-	EndIf
-	; 1.1.6: never a message box here (it would sit on top of OStim's menu): corner notification only
-	If bk == 2
-		HeatNote("Wings beat in the dark...")
-	ElseIf bk == 3
-		HeatNote("Roars answer from the wilds...")
-	Else
-		HeatNote("Howls answer from the wilds...")
-	EndIf
-	i = 0
-	While i < n
-		HeatAlias(i).Approach(human)
-		i += 1
-	EndWhile
-	; bounded walk-in: up to 25 s, then OStim places everyone anyway
-	int waited = 0
-	bool near = false
-	While waited < 25 && !near && Alive(ep) && OThread.IsRunning(id)
-		Utility.Wait(1.0)
-		waited += 1
-		near = true
-		i = 0
-		While i < n
-			If kHeatWolves[i] == None || kHeatWolves[i].GetDistance(human) > 450.0
-				near = false
-			EndIf
-			i += 1
-		EndWhile
-	EndWhile
-	If !Alive(ep)
-		HeatDeleteAll()
-		HeatFinish()
-		return
-	EndIf
-	; final guarantee before the scene: every summoned beast still alive, in beast form, calm
-	Actor[] acts = NewActorArray(n + 2)
-	acts[0] = beast
-	i = 0
-	While i < n
-		Actor w = kHeatWolves[i]
-		If w == None || w.IsDead() || HeatKindOf(w) == 0
-			Log("heat: a summoned beast is not usable - they leave")
-			HeatLeave()
-			return
-		EndIf
-		HeatPacify(w)
-		acts[i + 1] = w
-		i += 1
-	EndWhile
-	acts[n + 1] = human
-	If !OThread.IsRunning(id)
-		Log("heat: the first scene already ended - they leave")
-		HeatLeave()
-		return
-	EndIf
-	string sc = ""
-	If !turns
-		sc = HeatPickScene(acts, female, n)
-		If sc == ""
-			If HeatTurnsOK(1, female) || HeatTurnsOK(bk, female)
-				turns = true
-				bHeatTurns = true
-				Log("heat: OStim has no group scene for this cast - they take turns instead")
-			Else
-				Log("heat: OStim has no scene for this cast - they leave")
-				HeatLeave()
-				return
-			EndIf
-		EndIf
-	EndIf
-	bool own = id == iThread
-	If own
-		bSaviorJoining = true      ; our own encounter continues in the heat scene(s)
-		iThread = -1
-	EndIf
-	OThread.Stop(id)
-	Utility.Wait(0.8)
-	If own
-		bSaviorJoining = false
-	EndIf
-	If !Alive(ep)
-		HeatDeleteAll()
-		HeatFinish()
-		return
-	EndIf
-	int t = -1
-	If turns
-		int k = HeatNextTurn(0)
-		If k >= 0
-			t = HeatStartTurn(k, own)
-		EndIf
-	Else
-		t = HeatStartScene(acts, sc, own)
-	EndIf
-	iHeatThread = t
-	If t < 0
-		Log("heat: the heat scene did not start - they leave")
-		If own
-			bAftermathDone = false
-			RegisterForSingleUpdate(2.0)
-		EndIf
-		HeatLeave()
-		return
-	EndIf
-	If turns
-		Log("heat: " + n + " beasts (" + pack + ") take turns, first thread " + t)
-	Else
-		Log("heat: " + n + " beasts (" + pack + ") joined, scene " + sc + " thread " + t)
-	EndIf
-EndFunction
-
-string Function HeatNumber(int n)
-	If n == 1
-		return "one"
-	ElseIf n == 2
-		return "two"
-	ElseIf n == 3
-		return "three"
-	ElseIf n == 4
-		return "four"
-	EndIf
-	return "several"
-EndFunction
-
-; OnOStimThreadEnd for the heat scene (the last turn when they take turns)
 Function HeatSceneEnded()
-	iHeatThread = -1
-	If bSkyrimNetLog && SNetOK() && kHeatHuman && iHeatCount > 0
-		string bn = "a " + FormWord(iHeatKind)
-		If kHeatBeast
-			bn = kHeatBeast.GetDisplayName() + ", a " + FormWord(iHeatKind) + ","
-		EndIf
-		string hn = kHeatHuman.GetDisplayName()
-		string t = "Near " + WhereName() + ", " + HeatCallWord(iHeatKind) + " and the scent of " + bn + " in full beast form rutting with " + hn + " drew " + HeatPackWords() + " out of the wilds."
-		If bHeatTurns
-			t += " One after another each of them took his turn fucking " + hn + "."
-		Else
-			t += " They joined in, and " + hn + " was fucked by " + HeatNumber(iHeatCount + 1) + " beasts at once."
-		EndIf
-		t += " Afterwards they slipped away into the wilds without harming anyone."
-		SkyrimNetApi.RegisterPersistentEvent(t, kHeatBeast, kHeatHuman)
-	EndIf
-	Log("heat: done (" + HeatPackWords() + ", turns " + YesNo(bHeatTurns) + ")")
-	HeatLeave()
-EndFunction
-
-; after the scene (or a failed start): calm again, walk away, deleted once out of sight
-Function HeatLeave()
-	If bHeatOwnsBusy
-		bHeatOwnsBusy = false
-		If iThread < 0
-			bBusy = false
-		EndIf
-	EndIf
-	If !kHeatWolves
-		HeatFinish()
-		return
-	EndIf
-	Form xm = Game.GetFormFromFile(0x0000003B, "Skyrim.esm")
-	If xm && kHeatMarker == None
-		float ang = PlayerRef.GetAngleZ() + 180.0
-		kHeatMarker = PlayerRef.PlaceAtMe(xm, 1, false, false)
-		kHeatMarker.SetPosition(PlayerRef.GetPositionX() + Math.sin(ang) * 4000.0, PlayerRef.GetPositionY() + Math.cos(ang) * 4000.0, PlayerRef.GetPositionZ())
-	EndIf
-	iHeatLeft = 0
-	int i = 0
-	While i < 3
-		Actor w = kHeatWolves[i]
-		If w && !w.IsDeleted()
-			HeatPacify(w)
-			iHeatLeft += 1
-			If kHeatMarker
-				HeatAlias(i).Leave(kHeatMarker)
-			Else
-				HeatAlias(i).Leave(w)
-			EndIf
-		EndIf
-		i += 1
-	EndWhile
-	If iHeatLeft == 0
-		HeatFinish()
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatSceneEnded()
 	EndIf
 EndFunction
 
-; alias: walked away (or the safety timer / death). Deleted only out of sight unless forced.
+; alias events (ODS_HeatWolfAlias)
+Function HeatCalmWolf(Actor w)
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatCalmWolf(w)
+	EndIf
+EndFunction
+
+Function HeatRaceChanged(Actor w)
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatRaceChanged(w)
+	EndIf
+EndFunction
+
 Function HeatWolfGone(ODS_HeatWolfAlias al, bool force)
-	Actor w = al.GetActorReference()
-	If w
-		If !force && !w.IsDead()
-			int n = 0
-			While n < 10 && w.GetDistance(PlayerRef) < 2500.0 && PlayerRef.HasLOS(w)
-				Utility.Wait(2.0)
-				n += 1
-			EndWhile
-		EndIf
-		If kHeatWolves
-			int i = kHeatWolves.Find(w)
-			If i >= 0
-				kHeatWolves[i] = None
-			EndIf
-		EndIf
-		w.Disable(true)
-		w.Delete()
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatWolfGone(al, force)
+	Else
+		al.Clear()
 	EndIf
-	al.Clear()
-	If iHeatLeft > 0
-		iHeatLeft -= 1
-	EndIf
-	If iHeatLeft <= 0 && iHeatThread < 0
-		HeatFinish()
-	EndIf
-EndFunction
-
-Function HeatDeleteAll()
-	If kHeatWolves
-		int i = 0
-		While i < 3
-			Actor w = kHeatWolves[i]
-			kHeatWolves[i] = None
-			If w
-				w.Disable(false)
-				w.Delete()
-			EndIf
-			HeatAlias(i).Clear()
-			i += 1
-		EndWhile
-	EndIf
-	iHeatLeft = 0
-EndFunction
-
-Function HeatFinish()
-	If bHeatOwnsBusy
-		bHeatOwnsBusy = false
-		If iThread < 0
-			bBusy = false
-		EndIf
-	EndIf
-	If kHeatMarker
-		kHeatMarker.Delete()
-		kHeatMarker = None
-	EndIf
-	If ODS_HeatQuest && ODS_HeatQuest.IsRunning()
-		ODS_HeatQuest.Stop()
-	EndIf
-	Actor[] noWolves          ; 1.1.1: a never-set local (assigning None to an array fails at run time)
-	kHeatWolves = noWolves
-	kHeatHuman = None
-	kHeatBeast = None
-	iHeatThread = -1
-	iHeatCount = 0
-	bHeatOn = false
 EndFunction
 
 ; panic / master off: stop the scene, remove the werewolves at once
 Function HeatAbort()
-	If !bHeatOn && iHeatThread < 0
-		return
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatAbort()
 	EndIf
-	int t = iHeatThread
-	iHeatThread = -1
-	If t >= 0 && OThread.IsRunning(t)
-		OThread.Stop(t)
-	EndIf
-	HeatDeleteAll()
-	HeatFinish()
 EndFunction
 
 ; game loaded: a heat event that is not in its scene any more is cleaned up at once
 Function HeatOnLoad()
-	If !bHeatOn
-		return
+	ODS_Heat h = HeatMod()
+	If h
+		h.HeatOnLoad()
 	EndIf
-	If iHeatThread >= 0 && OThread.IsRunning(iHeatThread)
-		return
-	EndIf
-	iHeatThread = -1
-	HeatDeleteAll()
-	HeatFinish()
 EndFunction
+
+
+
 
 ; =====================================================================================
 ; 1.0: Saturalia (soft: Saturalia Holiday Pack, ccvsvsse001-winter.esl). Off by default.
@@ -9661,7 +8267,7 @@ Function PathoInfect2(Actor a, int kind, Actor src, bool gift, bool instant)
 		PathoNote("pathogen: " + an + " took the blood gift (" + DiseaseWord(kind) + ") from " + sn)
 		PathoTurn(i)
 		If bPathoNotify && !bDebug
-			Debug.Notification(an + " took your blood gift.")
+			Debug.Notification(ODS_Text.T("patho.note_gift", "{an} took your blood gift.", "", an))
 		EndIf
 		return
 	EndIf
@@ -9671,9 +8277,9 @@ Function PathoInfect2(Actor a, int kind, Actor src, bool gift, bool instant)
 		PathoTurn2(i, true)
 		If bPathoNotify && !bDebug
 			If src == PlayerRef
-				Debug.Notification(an + " took your " + DiseaseWord(kind) + ". " + PronSubj(a) + " is " + BeingWord(kind) + " now.")
+				Debug.Notification(ODS_Text.T("patho.note_instant_you", "{an} took your {x1}.", "", an, "", "", DiseaseWord(kind), PronSubj(a), BeingWord(kind)))
 			ElseIf src && (IsFollowerActor(a) || IsSpouse(a) || a.GetDistance(PlayerRef) < 3000.0)
-				Debug.Notification(an + " took " + DiseaseWord(kind) + " from " + sn + " and is " + BeingWord(kind) + " now.")
+				Debug.Notification(ODS_Text.T("patho.note_instant_npc", "{an} took {x1} from {x2}.", "", an, "", "", DiseaseWord(kind), sn, BeingWord(kind)))
 			EndIf
 		EndIf
 		If bMaster
@@ -9684,17 +8290,17 @@ Function PathoInfect2(Actor a, int kind, Actor src, bool gift, bool instant)
 	StorageUtil.SetIntValue(a, "ODS_PathoIn", kind)
 	string t
 	If kind == 2
-		t = sn + " is a vampire, and during sex " + sn + " infected " + an + " with vampirism (Sanguinare Vampiris). " + an + " knows it was " + sn + " who gave it to them through sex."
+		t = ODS_Text.T("patho.infect_vampire", "{x1} infected {an} with vampirism.", "", an, "", "", sn)
 	Else
-		t = sn + " is " + BeingWord(kind) + ", and during sex " + sn + " infected " + an + " with " + DiseaseWord(kind) + ". The beast blood is in " + an + " now. " + an + " knows it was " + sn + " who gave it to them through sex."
+		t = ODS_Text.T("patho.infect_beast", "{x1} infected {an} with {x3}.", "", an, "", "", sn, BeingWord(kind), DiseaseWord(kind))
 	EndIf
 	TalkNet(t, a, src, true, true)
 	PathoNote("pathogen: " + an + " infected with " + DiseaseWord(kind) + " by " + sn + " (incubating; turns in about 3 game days)")
 	If bPathoNotify && !bDebug
 		If src == PlayerRef
-			Debug.Notification(an + " caught " + DiseaseWord(kind) + " from you.")
+			Debug.Notification(ODS_Text.T("patho.note_caught_you", "{an} caught {x1} from you.", "", an, "", "", DiseaseWord(kind)))
 		ElseIf src && (IsFollowerActor(a) || IsSpouse(a) || a.GetDistance(PlayerRef) < 3000.0)
-			Debug.Notification(an + " caught " + DiseaseWord(kind) + " from " + sn + ".")
+			Debug.Notification(ODS_Text.T("patho.note_caught_npc", "{an} caught {x1} from {x2}.", "", an, "", "", DiseaseWord(kind), sn))
 		EndIf
 	EndIf
 	If bMaster
@@ -9829,13 +8435,13 @@ EndFunction
 string Function PathoSexTurnText(Actor a, Actor src, int kind)
 	string an = NameOf(a)
 	string pn = NameOf(src)
-	string t = an + " feels the hot power in " + pn + "'s cum flowing through " + PronPoss(a) + " whole body, burning as it transforms " + PronObj(a) + " into " + BeingWord(kind)
+	string t = ODS_Text.T("patho.sex_turn", "{an} became {vn}", "", an, BeingWord(kind), "", pn, PronPoss(a), PronObj(a))
 	If kind == 2
-		t += " - a vampire lord's blood, not a slow disease"
+		t += " " + ODS_Text.T("patho.sex_turn_vl", "(a vampire lord)")
 	EndIf
-	t += ". " + pn + " was " + PathoCarrierWord(kind) + " and gave it to " + an + " through sex just now; " + an + " knows it was " + pn + ". " + an + " is " + BeingWord(kind) + " now, right away."
+	t += ". " + ODS_Text.T("patho.sex_turn_end", "{x1} was {x2}; {an} is {vn} now.", "", an, BeingWord(kind), "", pn, PathoCarrierWord(kind))
 	If kind == 2
-		t += " Sunlight burns " + PronObj(a) + " and " + PronSubj(a) + " hungers for blood."
+		t += " " + ODS_Text.T("patho.sex_turn_vl_sun", "Sunlight burns {x1}.", "", "", "", "", PronObj(a), PronSubj(a))
 	EndIf
 	return t
 EndFunction
@@ -10696,7 +9302,7 @@ EndFunction
 ; PapyrusUtil soft dependency: without it nothing is written and nothing errors. Light: a header
 ; per game load, one line per event, no polling. The file restarts after LOG_SESSIONS game loads
 ; (counter in StorageUtilData/ODeadlySkyrim_log.json) and each session stops at LOG_LINES_MAX lines.
-string Property ODS_VERSION = "1.1.8" AutoReadOnly
+string Property ODS_VERSION = "1.2.0" AutoReadOnly
 string Property LOG_STATE = "ODeadlySkyrim_log" AutoReadOnly
 int Property LOG_SESSIONS = 10 AutoReadOnly
 int Property LOG_LINES_MAX = 3000 AutoReadOnly
@@ -11368,3 +9974,445 @@ Function LoreBeastsSync()
 	PathoSyncGlobals()
 	VLFScan()
 EndFunction
+
+; =====================================================================================
+; 1.2.0: module split support. ODS_Heat, ODS_Rescue, ODS_Bridges (and any later module) are extra
+; scripts on this same quest. The state they work on still lives in the variables declared above
+; (same names, types and defaults, so every save keeps them). The mv_ properties below are FULL
+; properties (Get / Set only, no Auto): they add no saved storage and no existing variable became
+; a property. Modules reach this script with (Self as Quest) as ODS_Main.
+; =====================================================================================
+string sModWarned = ""      ; 1.2.0 (new): module scripts already reported as missing
+
+Function ModMissing(string n)
+	If StringUtil.Find(sModWarned, n) < 0
+		sModWarned += n + " "
+		Log("module script " + n + " is missing from the main quest (mismatched ESP?) - that module does nothing")
+	EndIf
+EndFunction
+
+int Property mv_iEpoch
+	int Function Get()
+		return iEpoch
+	EndFunction
+	Function Set(int v)
+		iEpoch = v
+	EndFunction
+EndProperty
+
+int Property mv_iThread
+	int Function Get()
+		return iThread
+	EndFunction
+	Function Set(int v)
+		iThread = v
+	EndFunction
+EndProperty
+
+Actor[] Property mv_kSceneActs
+	Actor[] Function Get()
+		return kSceneActs
+	EndFunction
+	Function Set(Actor[] v)
+		kSceneActs = v
+	EndFunction
+EndProperty
+
+string Property mv_sScene1
+	string Function Get()
+		return sScene1
+	EndFunction
+	Function Set(string v)
+		sScene1 = v
+	EndFunction
+EndProperty
+
+bool Property mv_bSaviorJoining
+	bool Function Get()
+		return bSaviorJoining
+	EndFunction
+	Function Set(bool v)
+		bSaviorJoining = v
+	EndFunction
+EndProperty
+
+bool Property mv_bAftermathDone
+	bool Function Get()
+		return bAftermathDone
+	EndFunction
+	Function Set(bool v)
+		bAftermathDone = v
+	EndFunction
+EndProperty
+
+; ---- Bitch in Heat (ODS_Heat) ----
+bool Property mv_bHeatOn
+	bool Function Get()
+		return bHeatOn
+	EndFunction
+	Function Set(bool v)
+		bHeatOn = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatThread
+	int Function Get()
+		return iHeatThread
+	EndFunction
+	Function Set(int v)
+		iHeatThread = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatEp
+	int Function Get()
+		return iHeatEp
+	EndFunction
+	Function Set(int v)
+		iHeatEp = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatLeft
+	int Function Get()
+		return iHeatLeft
+	EndFunction
+	Function Set(int v)
+		iHeatLeft = v
+	EndFunction
+EndProperty
+
+bool Property mv_bHeatOwnsBusy
+	bool Function Get()
+		return bHeatOwnsBusy
+	EndFunction
+	Function Set(bool v)
+		bHeatOwnsBusy = v
+	EndFunction
+EndProperty
+
+Actor[] Property mv_kHeatWolves
+	Actor[] Function Get()
+		return kHeatWolves
+	EndFunction
+	Function Set(Actor[] v)
+		kHeatWolves = v
+	EndFunction
+EndProperty
+
+Actor Property mv_kHeatHuman
+	Actor Function Get()
+		return kHeatHuman
+	EndFunction
+	Function Set(Actor v)
+		kHeatHuman = v
+	EndFunction
+EndProperty
+
+Actor Property mv_kHeatBeast
+	Actor Function Get()
+		return kHeatBeast
+	EndFunction
+	Function Set(Actor v)
+		kHeatBeast = v
+	EndFunction
+EndProperty
+
+ObjectReference Property mv_kHeatMarker
+	ObjectReference Function Get()
+		return kHeatMarker
+	EndFunction
+	Function Set(ObjectReference v)
+		kHeatMarker = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatCount
+	int Function Get()
+		return iHeatCount
+	EndFunction
+	Function Set(int v)
+		iHeatCount = v
+	EndFunction
+EndProperty
+
+bool Property mv_bHeatTurns
+	bool Function Get()
+		return bHeatTurns
+	EndFunction
+	Function Set(bool v)
+		bHeatTurns = v
+	EndFunction
+EndProperty
+
+bool Property mv_bHeatFemale
+	bool Function Get()
+		return bHeatFemale
+	EndFunction
+	Function Set(bool v)
+		bHeatFemale = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatTurn
+	int Function Get()
+		return iHeatTurn
+	EndFunction
+	Function Set(int v)
+		iHeatTurn = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatKind
+	int Function Get()
+		return iHeatKind
+	EndFunction
+	Function Set(int v)
+		iHeatKind = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatWW
+	int Function Get()
+		return iHeatWW
+	EndFunction
+	Function Set(int v)
+		iHeatWW = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatVL
+	int Function Get()
+		return iHeatVL
+	EndFunction
+	Function Set(int v)
+		iHeatVL = v
+	EndFunction
+EndProperty
+
+int Property mv_iHeatBear
+	int Function Get()
+		return iHeatBear
+	EndFunction
+	Function Set(int v)
+		iHeatBear = v
+	EndFunction
+EndProperty
+
+; ---- follower rescue (ODS_Rescue) ----
+bool Property mv_bRescueOn
+	bool Function Get()
+		return bRescueOn
+	EndFunction
+	Function Set(bool v)
+		bRescueOn = v
+	EndFunction
+EndProperty
+
+bool Property mv_bRescueDone
+	bool Function Get()
+		return bRescueDone
+	EndFunction
+	Function Set(bool v)
+		bRescueDone = v
+	EndFunction
+EndProperty
+
+int Property mv_iRescueThread
+	int Function Get()
+		return iRescueThread
+	EndFunction
+	Function Set(int v)
+		iRescueThread = v
+	EndFunction
+EndProperty
+
+Actor Property mv_kRescueVic
+	Actor Function Get()
+		return kRescueVic
+	EndFunction
+	Function Set(Actor v)
+		kRescueVic = v
+	EndFunction
+EndProperty
+
+Actor Property mv_kRescueAtt
+	Actor Function Get()
+		return kRescueAtt
+	EndFunction
+	Function Set(Actor v)
+		kRescueAtt = v
+	EndFunction
+EndProperty
+
+float Property mv_fRescueAgg
+	float Function Get()
+		return fRescueAgg
+	EndFunction
+	Function Set(float v)
+		fRescueAgg = v
+	EndFunction
+EndProperty
+
+bool Property mv_bRescueFac
+	bool Function Get()
+		return bRescueFac
+	EndFunction
+	Function Set(bool v)
+		bRescueFac = v
+	EndFunction
+EndProperty
+
+bool Property mv_bRescueProt
+	bool Function Get()
+		return bRescueProt
+	EndFunction
+	Function Set(bool v)
+		bRescueProt = v
+	EndFunction
+EndProperty
+
+string Property mv_sRescueWhere
+	string Function Get()
+		return sRescueWhere
+	EndFunction
+	Function Set(string v)
+		sRescueWhere = v
+	EndFunction
+EndProperty
+
+float Property mv_fLastRescue
+	float Function Get()
+		return fLastRescue
+	EndFunction
+	Function Set(float v)
+		fLastRescue = v
+	EndFunction
+EndProperty
+
+; ---- SkyrimNet bridges (ODS_Bridges; also read by ODS_Rescue) ----
+float Property mv_fOKRHeldUntil
+	float Function Get()
+		return fOKRHeldUntil
+	EndFunction
+	Function Set(float v)
+		fOKRHeldUntil = v
+	EndFunction
+EndProperty
+
+string Property mv_sOKRWhere
+	string Function Get()
+		return sOKRWhere
+	EndFunction
+	Function Set(string v)
+		sOKRWhere = v
+	EndFunction
+EndProperty
+
+float Property mv_fODefUntil
+	float Function Get()
+		return fODefUntil
+	EndFunction
+	Function Set(float v)
+		fODefUntil = v
+	EndFunction
+EndProperty
+
+bool Property mv_bODefAwait
+	bool Function Get()
+		return bODefAwait
+	EndFunction
+	Function Set(bool v)
+		bODefAwait = v
+	EndFunction
+EndProperty
+
+string Property mv_sODefWhere
+	string Function Get()
+		return sODefWhere
+	EndFunction
+	Function Set(string v)
+		sODefWhere = v
+	EndFunction
+EndProperty
+
+string Property mv_sODefBy
+	string Function Get()
+		return sODefBy
+	EndFunction
+	Function Set(string v)
+		sODefBy = v
+	EndFunction
+EndProperty
+
+float Property mv_fBakaUntil
+	float Function Get()
+		return fBakaUntil
+	EndFunction
+	Function Set(float v)
+		fBakaUntil = v
+	EndFunction
+EndProperty
+
+string Property mv_sBakaWhere
+	string Function Get()
+		return sBakaWhere
+	EndFunction
+	Function Set(string v)
+		sBakaWhere = v
+	EndFunction
+EndProperty
+
+string Property mv_sBakaBy
+	string Function Get()
+		return sBakaBy
+	EndFunction
+	Function Set(string v)
+		sBakaBy = v
+	EndFunction
+EndProperty
+
+bool Property mv_bBakaMemDone
+	bool Function Get()
+		return bBakaMemDone
+	EndFunction
+	Function Set(bool v)
+		bBakaMemDone = v
+	EndFunction
+EndProperty
+
+int[] Property mv_iBakaTid
+	int[] Function Get()
+		return iBakaTid
+	EndFunction
+	Function Set(int[] v)
+		iBakaTid = v
+	EndFunction
+EndProperty
+
+int[] Property mv_iBakaKind
+	int[] Function Get()
+		return iBakaKind
+	EndFunction
+	Function Set(int[] v)
+		iBakaKind = v
+	EndFunction
+EndProperty
+
+Actor[] Property mv_kBakaVic
+	Actor[] Function Get()
+		return kBakaVic
+	EndFunction
+	Function Set(Actor[] v)
+		kBakaVic = v
+	EndFunction
+EndProperty
+
+Actor[] Property mv_kBakaAgg
+	Actor[] Function Get()
+		return kBakaAgg
+	EndFunction
+	Function Set(Actor[] v)
+		kBakaAgg = v
+	EndFunction
+EndProperty

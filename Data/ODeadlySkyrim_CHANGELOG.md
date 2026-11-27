@@ -2,6 +2,19 @@
 
 By That Guy (Coronerra).
 
+## 1.2.0
+
+A maintenance release: the one big script is split into modules, narration moves into an editable file, Bitch in Heat gets a "Joining beasts" choice, and every place that starts a scene now has a final age check. Safe to update over 1.1.8 (see "Updating" below). Every existing record, FormID, script variable and setting is kept.
+
+- **Final age check before every scene starts.** `ODS_Main.SceneHasMinor()` is run over the actor list right where the scene is created, in all three places that build one: the normal encounter start (`StartThread`), the follower rescue, and the Bitch in Heat scenes (`HeatStartScene`). If a child is in the list the scene is cancelled. Every earlier `IsMinor()` check is kept. Children are never part of a scene, with no toggle.
+- **Bitch in Heat: "Joining beasts"** (MCM > Beast Form). **Match the first beast** (default, the 1.1.8 behaviour), **Werewolves only**, **Werebears only** or **Mixed pack**. Werebears need the Dragonborn DLC; if the other kind cannot share a group scene with the first beast (OStim Beast Form's "werebears use werewolf scenes" is off) the pack matches the first beast, and the reason is logged. New setting `iHeatJoinKind` (declared after the old ones, default 0). MCM version 16.
+- **Narration lives in a file.** The text O'Deadly sends to SkyrimNet from the follower rescue, the Kidnapped Redux / ODefeat Reforged / Baka Defeat bridges and Bitch in Heat is read from `Data/SKSE/Plugins/ODeadlySkyrim/narration.json` (a plain JSON map of keys to text). Edit it with any text editor and reload your save; no recompile. A missing file or key falls back to a neutral built-in line, so nothing breaks if the file is removed. (`ODS_Text` script, needs PapyrusUtil, already required.)
+- **Module split.** `ODS_Main` was about 11,450 lines in one script, and all modules shared its script lock, so a long wait in one module held up the rest. Three self-contained modules moved to their own scripts, attached to the same, already-running main quest: **`ODS_Heat`** (Bitch in Heat), **`ODS_Rescue`** (follower rescue) and **`ODS_Bridges`** (Kidnapped Redux, ODefeat Reforged and Baka Defeat bridges). `ODS_Main` is now about 10,400 lines (about 2,000 lines moved out, minus the small forwarders and accessors that stay). Behaviour is unchanged. Blood Born Pathogen stays in `ODS_Main` for now: it shares most of its state and helpers with Saturalia, lore beasts and the vampire followers, and moves in a later package.
+- **Save safety.** No script variable or property of `ODS_Main` was renamed, retyped, moved or removed, and no Auto property was converted. The modules keep no saved state of their own; they reach `ODS_Main`'s variables through new get/set properties (`mv_...`) that add no saved storage. Every event handler and every function other scripts call keeps its name and signature in `ODS_Main` as a thin forwarder, so timers and mod-event registrations in old saves still land on `ODS_Main`. No new quest, no new FormID. The plugin only gains three extra scripts on the existing main quest.
+- Version strings: `ODS_VERSION` 1.2.0, log header, MCM, SkyrimNet manifest `1.2.0`, plugin description.
+
+Updating from 1.1.8: overwrite the old files (scripts, plugin, SkyrimNet pack, new `narration.json`). Update with no O'Deadly event running (no scene or encounter in progress, not in the middle of a Bitch in Heat or follower rescue, no Kidnapped Redux / defeat in progress): a script that is paused inside a moved function in a save made mid-event is dropped by the game when the save loads. The usual cleanup on load and the panic key recover any leftover flag.
+
 ## 1.1.8
 
 When OStim Beast Form is installed, Serana and the living Companions Circle leaders already have O'Deadly's transform ability. Scripts only (`ODS_Main`, `ODS_MCM`) plus a short SkyrimNet bio comment and manifest 1.1.8. The plugin is unchanged, and every record and FormID is kept.
